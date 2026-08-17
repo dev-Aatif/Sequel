@@ -60,6 +60,12 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+    arg("room.generateKotlin", "true")
+}
+
 dependencies {
     // ── Core Android ──────────────────────────────────────────────
     implementation(libs.core.ktx)
