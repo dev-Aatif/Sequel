@@ -47,4 +47,7 @@ object DatabaseModule {
 
     @Provides
     fun provideReviewDao(database: SequelDatabase): ReviewDao = database.reviewDao()
+
+    @Provides
+    fun provideRemoteKeysDao(database: SequelDatabase) = database.remoteKeysDao()
 }

@@ -10,12 +10,29 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import dev.sequel.app.data.local.SequelDatabase
+import dev.sequel.app.data.paging.ShowRemoteMediator
+import androidx.paging.ExperimentalPagingApi
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+
 @Singleton
 class ShowRepositoryImpl @Inject constructor(
     private val tmdbApiService: TmdbApiService,
+    private val database: SequelDatabase,
     private val showDao: ShowDao,
     private val seasonDao: SeasonDao
 ) : ShowRepository {
+
+    @OptIn(ExperimentalPagingApi::class)
+    override fun getPagedTrendingShows(): Flow<PagingData<ShowEntity>> {
+        return Pager(
+            config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+            remoteMediator = ShowRemoteMediator(tmdbApiService, database),
+            pagingSourceFactory = { showDao.getPagingShows() }
+        ).flow
+    }
 
     override suspend fun fetchTrending(
         mediaType: String,

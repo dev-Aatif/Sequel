@@ -11,8 +11,11 @@ interface ShowRepository {
 
     // ── Remote fetch + local cache ────────────────────────────────
 
-    /** Fetch trending shows from TMDB and cache to Room. */
+    /** Fetch trending shows from TMDB and cache to Room (manual sync). */
     suspend fun fetchTrending(mediaType: String = "tv", timeWindow: String = "week", page: Int = 1): Result<List<ShowEntity>>
+
+    /** Get paginated trending shows using Paging 3 + Room single source of truth. */
+    fun getPagedTrendingShows(): Flow<androidx.paging.PagingData<ShowEntity>>
 
     /** Search TMDB and cache results to Room. */
     suspend fun search(query: String, page: Int = 1): Result<List<ShowEntity>>

@@ -59,4 +59,12 @@ interface ShowDao {
 
     @Query("DELETE FROM shows WHERE media_type = :mediaType AND is_favorite = 0 AND is_in_watchlist = 0")
     suspend fun clearNonTrackedShows(mediaType: String)
+
+    @Query("DELETE FROM shows")
+    suspend fun clearAllShows()
+
+    // ── Paging ────────────────────────────────────────────────────
+
+    @androidx.room.Query("SELECT * FROM shows")
+    fun getPagingShows(): androidx.paging.PagingSource<Int, ShowEntity>
 }
