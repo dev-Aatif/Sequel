@@ -46,7 +46,11 @@ class SupabaseAuthService @Inject constructor(
                 this.email = email
                 this.password = password
             }
-            auth.currentUserOrNull() ?: throw IllegalStateException("Sign up succeeded but user is null")
+            val user = auth.currentUserOrNull() 
+            if (user == null) {
+                throw IllegalStateException("Sign up succeeded, but you are not logged in. This usually means 'Confirm Email' is enabled in your Supabase dashboard. Please check your email to verify your account, or disable email confirmations in Supabase.")
+            }
+            user
         }
     }
 
