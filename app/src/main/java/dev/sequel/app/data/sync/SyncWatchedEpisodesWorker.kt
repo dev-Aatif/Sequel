@@ -49,6 +49,7 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                 val dto = SupabaseWatchedEpisodeDto(
                     id = record.supabaseId, // null for new records, existing UUID for updates
                     userId = userId,
+                    mediaType = record.mediaType.name.lowercase(),
                     tmdbShowId = record.showId,
                     tmdbEpisodeId = record.episodeId,
                     seasonNumber = record.seasonNumber,

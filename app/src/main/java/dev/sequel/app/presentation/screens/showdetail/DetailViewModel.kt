@@ -10,6 +10,7 @@ import dev.sequel.app.data.local.entity.SyncStatus
 import dev.sequel.app.data.local.dao.EpisodeDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.remote.tmdb.TmdbApiService
+import dev.sequel.app.data.sync.SyncManager
 import dev.sequel.app.data.remote.tmdb.dto.TmdbSeasonDetailDto
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEpisodeEntities
@@ -56,10 +57,12 @@ sealed interface DetailUiState {
     data object Loading : DetailUiState
     data class Success(
         val show: ShowEntity,
-        val seasons: List<SeasonUi>
+        val seasons: List<SeasonUi>,
+        val isMovieWatched: Boolean = false
     ) : DetailUiState
     data class Error(val message: String) : DetailUiState
 }
+
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
@@ -67,7 +70,8 @@ class DetailViewModel @Inject constructor(
     private val showRepository: ShowRepository,
     private val tmdbApiService: TmdbApiService,
     private val episodeDao: EpisodeDao,
-    private val watchedEpisodeDao: WatchedEpisodeDao
+    private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val showId: Int = savedStateHandle.get<Int>("showId")!!
@@ -91,8 +95,10 @@ class DetailViewModel @Inject constructor(
             is DetailInternalState.Error -> DetailUiState.Error(internal.message)
             is DetailInternalState.Loaded -> {
                 val watchedIds = watchedList.map { it.episodeId }.toSet()
+                val isMovieWatched = internal.show.mediaType == "movie" && watchedList.isNotEmpty()
                 DetailUiState.Success(
                     show = internal.show,
+                    isMovieWatched = isMovieWatched,
                     seasons = internal.seasonDetails.map { seasonDetail ->
                         SeasonUi(
                             seasonNumber = seasonDetail.seasonNumber,
@@ -177,6 +183,7 @@ class DetailViewModel @Inject constructor(
             } else {
                 watchedEpisodeDao.insertWatchedEpisode(
                     WatchedEpisodeEntity(
+                        mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                         episodeId = episode.id,
                         showId = showId,
                         seasonNumber = episode.seasonNumber,
@@ -185,6 +192,32 @@ class DetailViewModel @Inject constructor(
                     )
                 )
             }
+            // Trigger background sync to upload the change to Supabase
+            syncManager.syncWatchedEpisodesNow()
+        }
+    }
+
+    /**
+     * Toggle a movie's watched status.
+     * Inserts or deletes the WatchedEpisodeEntity with null episode fields.
+     */
+    fun toggleMovieWatched(isWatched: Boolean) {
+        viewModelScope.launch {
+            if (isWatched) {
+                watchedEpisodeDao.unwatchAllForShow(showId)
+            } else {
+                watchedEpisodeDao.insertWatchedEpisode(
+                    WatchedEpisodeEntity(
+                        mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
+                        showId = showId,
+                        episodeId = null,
+                        seasonNumber = null,
+                        episodeNumber = null,
+                        syncStatus = SyncStatus.PENDING
+                    )
+                )
+            }
+            syncManager.syncWatchedEpisodesNow()
         }
     }
 }

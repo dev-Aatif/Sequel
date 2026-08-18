@@ -26,11 +26,11 @@ class ShowRepositoryImpl @Inject constructor(
 ) : ShowRepository {
 
     @OptIn(ExperimentalPagingApi::class)
-    override fun getPagedTrendingShows(): Flow<PagingData<ShowEntity>> {
+    override fun getPagedTrendingShows(mediaType: String): Flow<PagingData<ShowEntity>> {
         return Pager(
             config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-            remoteMediator = ShowRemoteMediator(tmdbApiService, database),
-            pagingSourceFactory = { showDao.getPagingShows() }
+            remoteMediator = ShowRemoteMediator(tmdbApiService, database, mediaType),
+            pagingSourceFactory = { showDao.getPagingShows(mediaType) }
         ).flow
     }
 

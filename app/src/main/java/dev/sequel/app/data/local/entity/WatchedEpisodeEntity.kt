@@ -14,12 +14,6 @@ import androidx.room.PrimaryKey
     tableName = "watched_episodes",
     foreignKeys = [
         ForeignKey(
-            entity = EpisodeEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["episode_id"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
             entity = ShowEntity::class,
             parentColumns = ["id"],
             childColumns = ["show_id"],
@@ -27,7 +21,7 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index(value = ["episode_id"], unique = true), // one watch record per episode
+        Index(value = ["show_id", "episode_id"], unique = true), // unique watch per show/episode
         Index(value = ["show_id"]),
         Index(value = ["sync_status"])
     ]
@@ -37,17 +31,20 @@ data class WatchedEpisodeEntity(
     @ColumnInfo(name = "id")
     val id: Long = 0,
 
-    @ColumnInfo(name = "episode_id")
-    val episodeId: Int,
+    @ColumnInfo(name = "media_type")
+    val mediaType: MediaType = MediaType.TV,
 
     @ColumnInfo(name = "show_id")
     val showId: Int,
 
+    @ColumnInfo(name = "episode_id")
+    val episodeId: Int? = null,
+
     @ColumnInfo(name = "season_number")
-    val seasonNumber: Int,
+    val seasonNumber: Int? = null,
 
     @ColumnInfo(name = "episode_number")
-    val episodeNumber: Int,
+    val episodeNumber: Int? = null,
 
     @ColumnInfo(name = "watched_at")
     val watchedAt: Long = System.currentTimeMillis(),

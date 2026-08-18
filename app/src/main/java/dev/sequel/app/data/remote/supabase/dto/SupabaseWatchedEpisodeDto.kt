@@ -18,14 +18,17 @@ data class SupabaseWatchedEpisodeDto(
     @SerialName("tmdb_show_id")
     val tmdbShowId: Int,
 
+    @SerialName("media_type")
+    val mediaType: String = "tv",
+
     @SerialName("tmdb_episode_id")
-    val tmdbEpisodeId: Int,
+    val tmdbEpisodeId: Int? = null,
 
     @SerialName("season_number")
-    val seasonNumber: Int,
+    val seasonNumber: Int? = null,
 
     @SerialName("episode_number")
-    val episodeNumber: Int,
+    val episodeNumber: Int? = null,
 
     @SerialName("watched_at")
     val watchedAt: Long,

@@ -15,4 +15,12 @@ class Converters {
 
     @TypeConverter
     fun toSyncStatus(value: String): SyncStatus = SyncStatus.valueOf(value)
+
+    // ── MediaType ↔ String ───────────────────────────────────────
+
+    @TypeConverter
+    fun fromMediaType(type: dev.sequel.app.data.local.entity.MediaType): String = type.name
+
+    @TypeConverter
+    fun toMediaType(value: String): dev.sequel.app.data.local.entity.MediaType = dev.sequel.app.data.local.entity.MediaType.valueOf(value)
 }

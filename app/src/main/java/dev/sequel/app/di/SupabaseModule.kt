@@ -23,7 +23,11 @@ object SupabaseModule {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
-            install(Auth)
+            install(Auth) {
+                alwaysAutoRefresh = true  // auto-refresh expired tokens
+                autoLoadFromStorage = true  // restore session from disk on startup
+                autoSaveToStorage = true  // persist session changes to disk
+            }
             install(Postgrest)
             install(Realtime)
         }

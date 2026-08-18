@@ -47,6 +47,20 @@ interface ShowDao {
     @Query("SELECT * FROM shows WHERE title LIKE '%' || :query || '%' ORDER BY vote_average DESC")
     fun searchShows(query: String): Flow<List<ShowEntity>>
 
+    @Query("""
+        SELECT s.* FROM shows s
+        WHERE s.media_type = 'tv' 
+        AND EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)
+    """)
+    fun observeStartedTvShows(): Flow<List<ShowEntity>>
+
+    @Query("""
+        SELECT s.* FROM shows s
+        WHERE s.media_type = 'movie' AND (s.is_in_watchlist = 1 OR s.is_favorite = 1)
+        AND NOT EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)
+    """)
+    fun observeUnwatchedTrackedMovies(): Flow<List<ShowEntity>>
+
     // ── Queries (suspend) ─────────────────────────────────────────
 
     @Query("SELECT * FROM shows WHERE id = :showId")
@@ -60,11 +74,11 @@ interface ShowDao {
     @Query("DELETE FROM shows WHERE media_type = :mediaType AND is_favorite = 0 AND is_in_watchlist = 0")
     suspend fun clearNonTrackedShows(mediaType: String)
 
-    @Query("DELETE FROM shows")
-    suspend fun clearAllShows()
+    @Query("DELETE FROM shows WHERE media_type = :mediaType")
+    suspend fun clearShowsByMediaType(mediaType: String)
 
     // ── Paging ────────────────────────────────────────────────────
 
-    @androidx.room.Query("SELECT * FROM shows")
-    fun getPagingShows(): androidx.paging.PagingSource<Int, ShowEntity>
+    @androidx.room.Query("SELECT * FROM shows WHERE media_type = :mediaType")
+    fun getPagingShows(mediaType: String): androidx.paging.PagingSource<Int, ShowEntity>
 }

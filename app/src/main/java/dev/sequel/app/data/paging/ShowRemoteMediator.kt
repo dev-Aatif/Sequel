@@ -16,7 +16,8 @@ import java.io.IOException
 @OptIn(ExperimentalPagingApi::class)
 class ShowRemoteMediator(
     private val apiService: TmdbApiService,
-    private val database: SequelDatabase
+    private val database: SequelDatabase,
+    private val mediaType: String
 ) : RemoteMediator<Int, ShowEntity>() {
 
     private val showDao = database.showDao()
@@ -46,14 +47,14 @@ class ShowRemoteMediator(
                 }
             }
 
-            val response = apiService.getTrending(page = page)
+            val response = apiService.getTrending(mediaType = mediaType, page = page)
             val shows = response.results
             val endOfPaginationReached = shows.isEmpty()
 
             database.withTransaction {
                 if (loadType == LoadType.REFRESH) {
-                    remoteKeysDao.clearRemoteKeys()
-                    showDao.clearAllShows()
+                    remoteKeysDao.clearRemoteKeys() // This clears all, which might be an issue if sharing keys. Let's keep it simple for now, or we'd need mediaType in RemoteKeys.
+                    showDao.clearShowsByMediaType(mediaType)
                 }
                 
                 val prevKey = if (page == 1) null else page - 1

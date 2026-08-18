@@ -27,4 +27,13 @@ interface EpisodeDao {
 
     @Query("DELETE FROM episodes WHERE show_id = :showId AND season_number = :seasonNumber")
     suspend fun deleteEpisodesBySeason(showId: Int, seasonNumber: Int)
+
+    @Query("""
+        SELECT * FROM episodes 
+        WHERE show_id = :showId 
+        AND id NOT IN (SELECT episode_id FROM watched_episodes WHERE show_id = :showId AND episode_id IS NOT NULL)
+        ORDER BY season_number ASC, episode_number ASC 
+        LIMIT 1
+    """)
+    fun observeNextUnwatchedEpisode(showId: Int): Flow<EpisodeEntity?>
 }

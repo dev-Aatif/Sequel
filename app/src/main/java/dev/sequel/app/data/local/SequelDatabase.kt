@@ -33,7 +33,7 @@ import dev.sequel.app.data.local.dao.RemoteKeysDao
         ReviewEntity::class,
         RemoteKeys::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

@@ -15,7 +15,7 @@ interface ShowRepository {
     suspend fun fetchTrending(mediaType: String = "tv", timeWindow: String = "week", page: Int = 1): Result<List<ShowEntity>>
 
     /** Get paginated trending shows using Paging 3 + Room single source of truth. */
-    fun getPagedTrendingShows(): Flow<androidx.paging.PagingData<ShowEntity>>
+    fun getPagedTrendingShows(mediaType: String): Flow<androidx.paging.PagingData<ShowEntity>>
 
     /** Search TMDB and cache results to Room. */
     suspend fun search(query: String, page: Int = 1): Result<List<ShowEntity>>

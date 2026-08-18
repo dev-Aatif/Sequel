@@ -130,6 +130,7 @@ fun ShowDetailScreen(
                 ShowDetailContent(
                     state = state,
                     onToggleWatched = { episode -> viewModel.toggleEpisodeWatched(episode) },
+                    onToggleMovieWatched = { isWatched -> viewModel.toggleMovieWatched(isWatched) },
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -141,6 +142,7 @@ fun ShowDetailScreen(
 private fun ShowDetailContent(
     state: DetailUiState.Success,
     onToggleWatched: (EpisodeUi) -> Unit,
+    onToggleMovieWatched: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val show = state.show
@@ -227,20 +229,42 @@ private fun ShowDetailContent(
             }
         }
 
-        // ── Seasons + Episodes ───────────────────────────────────
-        if (state.seasons.isNotEmpty()) {
+        // ── Media Specific Content ───────────────────────────────
+        if (show.mediaType == "movie") {
             item {
-                Text(
-                    text = "Seasons & Episodes",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                Button(
+                    onClick = { onToggleMovieWatched(state.isMovieWatched) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 24.dp)
+                        .height(56.dp)
+                ) {
+                    Icon(
+                        imageVector = if (state.isMovieWatched) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircleOutline,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = if (state.isMovieWatched) "Watched" else "Mark Watched",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
             }
+        } else {
+            if (state.seasons.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Seasons & Episodes",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
 
-            state.seasons.forEach { season ->
-                item(key = "season_header_${season.seasonNumber}") {
-                    SeasonHeader(season = season, onToggleWatched = onToggleWatched)
+                state.seasons.forEach { season ->
+                    item(key = "season_header_${season.seasonNumber}") {
+                        SeasonHeader(season = season, onToggleWatched = onToggleWatched)
+                    }
                 }
             }
         }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,11 +47,21 @@ class LoginViewModel @Inject constructor(
     val events: SharedFlow<LoginEvent> = _events.asSharedFlow()
 
     init {
-        // If already authenticated, navigate immediately
-        if (authRepository.isAuthenticated) {
-            viewModelScope.launch {
-                _events.emit(LoginEvent.NavigateToHome)
-            }
+        // Wait for Supabase to restore the session from disk before checking auth.
+        // The synchronous `isAuthenticated` would always be false on cold start
+        // because session loading is async.
+        viewModelScope.launch {
+            authRepository.authStateFlow
+                .first { isAuthenticated ->
+                    // Wait until we get a definitive "true" (session restored)
+                    // or let it pass through so the login screen shows
+                    true // always take the first emission
+                }
+                .let { isAuthenticated ->
+                    if (isAuthenticated) {
+                        _events.emit(LoginEvent.NavigateToHome)
+                    }
+                }
         }
     }
 
