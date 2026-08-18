@@ -7,6 +7,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,14 +28,16 @@ class SupabaseAuthService @Inject constructor(
     val isAuthenticated: Boolean
         get() = auth.currentUserOrNull() != null
 
-    /** Observe auth state changes. Emits true when logged in, false when logged out. */
+    /** Observe auth state changes. Emits true when logged in, false when logged out. Waits for storage load. */
     val authStateFlow: Flow<Boolean>
-        get() = auth.sessionStatus.map { status ->
-            when (status) {
-                is io.github.jan.supabase.auth.status.SessionStatus.Authenticated -> true
-                else -> false
+        get() = auth.sessionStatus
+            .filter { status ->
+                status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated ||
+                status is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated
             }
-        }
+            .map { status ->
+                status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated
+            }
 
     /**
      * Sign up with email and password.

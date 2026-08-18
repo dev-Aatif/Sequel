@@ -50,4 +50,7 @@ object DatabaseModule {
 
     @Provides
     fun provideRemoteKeysDao(database: SequelDatabase) = database.remoteKeysDao()
+
+    @Provides
+    fun provideWatchlistDao(database: SequelDatabase): dev.sequel.app.data.local.dao.WatchlistDao = database.watchlistDao()
 }

@@ -17,11 +17,6 @@ class SupabaseSyncService @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {
 
-    companion object {
-        const val TABLE_WATCHED_EPISODES = "watched_episodes"
-        const val TABLE_REVIEWS = "reviews"
-    }
-
     // ── Watched Episodes ──────────────────────────────────────────
 
     /**
@@ -113,6 +108,27 @@ class SupabaseSyncService @Inject constructor(
                     eq("user_id", userId)
                 }
             }
-            .decodeList()
+    }
+
+    // ── Watchlist ─────────────────────────────────────────────────
+
+    companion object {
+        const val TABLE_WATCHED_EPISODES = "watched_episodes"
+        const val TABLE_REVIEWS = "reviews"
+        const val TABLE_WATCHLIST = "user_watchlist"
+    }
+
+    suspend fun upsertWatchlist(dtos: List<dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto>) {
+        if (dtos.isEmpty()) return
+        supabaseClient.postgrest[TABLE_WATCHLIST].upsert(dtos)
+    }
+
+    suspend fun deleteFromWatchlist(userId: String, tmdbId: Int) {
+        supabaseClient.postgrest[TABLE_WATCHLIST].delete {
+            filter {
+                eq("user_id", userId)
+                eq("tmdb_id", tmdbId)
+            }
+        }
     }
 }

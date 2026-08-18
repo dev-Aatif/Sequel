@@ -27,6 +27,7 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val supabaseSyncService: SupabaseSyncService,
     private val supabaseAuthService: SupabaseAuthService
 ) : CoroutineWorker(appContext, workerParams) {
@@ -39,15 +40,14 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
         val userId = supabaseAuthService.currentUserId
             ?: return Result.failure() // Not authenticated
 
-        val unsynced = watchedEpisodeDao.getUnsynced()
-        if (unsynced.isEmpty()) return Result.success()
-
         var hasFailures = false
 
-        for (record in unsynced) {
+        // 1. Sync Watched Episodes
+        val unsyncedEpisodes = watchedEpisodeDao.getUnsynced()
+        for (record in unsyncedEpisodes) {
             try {
                 val dto = SupabaseWatchedEpisodeDto(
-                    id = record.supabaseId, // null for new records, existing UUID for updates
+                    id = record.supabaseId,
                     userId = userId,
                     mediaType = record.mediaType.name.lowercase(),
                     tmdbShowId = record.showId,
@@ -66,6 +66,27 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                 hasFailures = true
                 watchedEpisodeDao.updateSyncStatus(record.id, SyncStatus.FAILED)
             }
+        }
+
+        // 2. Sync Watchlist
+        try {
+            val pendingWatchlist = watchlistDao.getPendingWatchlist()
+            if (pendingWatchlist.isNotEmpty()) {
+                val dtos = pendingWatchlist.map { entity ->
+                    dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto(
+                        userId = userId,
+                        tmdbId = entity.tmdbId,
+                        mediaType = entity.mediaType.name.lowercase(),
+                        title = entity.title,
+                        posterPath = entity.posterPath,
+                        addedAt = entity.addedAt
+                    )
+                }
+                supabaseSyncService.upsertWatchlist(dtos)
+                watchlistDao.markWatchlistSynced(pendingWatchlist.map { it.tmdbId })
+            }
+        } catch (e: Exception) {
+            hasFailures = true
         }
 
         return if (hasFailures) Result.retry() else Result.success()

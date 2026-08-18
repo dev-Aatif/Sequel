@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,6 +39,7 @@ class WatchlistViewModel @Inject constructor(
     private val showDao: ShowDao,
     private val episodeDao: EpisodeDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val syncManager: SyncManager
 ) : ViewModel() {
 
@@ -117,6 +119,16 @@ class WatchlistViewModel @Inject constructor(
                 )
             }
             syncManager.syncWatchedEpisodesNow()
-        }
+    }
+
+    val planToWatchItems = watchlistDao.observeWatchlist().stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    private val _currentTab = MutableStateFlow("Up Next")
+    val currentTab = _currentTab.asStateFlow()
+
+    fun setTab(tab: String) {
+        _currentTab.value = tab
     }
 }

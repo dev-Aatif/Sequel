@@ -178,21 +178,29 @@ fun HomeScreen(
                 )
                 
                 Button(
-                    onClick = { selectedItemForAction = null },
+                    onClick = {
+                        val show = selectedItemForAction
+                        if (show != null) viewModel.addToWatchlist(show)
+                        selectedItemForAction = null
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Filled.Visibility, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Add to Watchlist") // Currently unused, placeholder
+                    Text("Add to Watchlist")
                 }
                 
                 Button(
-                    onClick = { selectedItemForAction = null },
+                    onClick = {
+                        val show = selectedItemForAction
+                        if (show != null) viewModel.markAsWatched(show)
+                        selectedItemForAction = null
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Filled.VisibilityOff, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Hide")
+                    Text(if (selectedItemForAction?.mediaType == "movie") "Mark as Watched" else "Mark S1E1 as Watched")
                 }
                 
                 Button(

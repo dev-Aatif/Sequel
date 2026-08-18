@@ -17,6 +17,7 @@ import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 
 import dev.sequel.app.data.local.entity.RemoteKeys
 import dev.sequel.app.data.local.dao.RemoteKeysDao
+import dev.sequel.app.data.local.entity.WatchlistEntity
 
 /**
  * Sequel Room Database — Single Source of Truth.
@@ -31,9 +32,10 @@ import dev.sequel.app.data.local.dao.RemoteKeysDao
         EpisodeEntity::class,
         WatchedEpisodeEntity::class,
         ReviewEntity::class,
-        RemoteKeys::class
+        RemoteKeys::class,
+        WatchlistEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -45,6 +47,7 @@ abstract class SequelDatabase : RoomDatabase() {
     abstract fun watchedEpisodeDao(): WatchedEpisodeDao
     abstract fun reviewDao(): ReviewDao
     abstract fun remoteKeysDao(): RemoteKeysDao
+    abstract fun watchlistDao(): dev.sequel.app.data.local.dao.WatchlistDao
 
     companion object {
         const val DATABASE_NAME = "sequel_database"

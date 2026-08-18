@@ -63,31 +63,64 @@ fun WatchlistScreen(
     val sheetState = rememberModalBottomSheetState()
     val view = LocalView.current
 
+    val currentTab by viewModel.currentTab.collectAsState()
+    val planToWatchItems by viewModel.planToWatchItems.collectAsState()
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        Text(
-            text = "Up Next",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(16.dp)
-        )
+        val tabs = listOf("Up Next", "Plan to Watch")
+        val selectedTabIndex = tabs.indexOf(currentTab).coerceAtLeast(0)
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        androidx.compose.material3.TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground
         ) {
-            items(upNextItems, key = { "${it.showId}_${it.nextEpisodeId}" }) { item ->
-                UpNextCard(
-                    item = item,
-                    onClick = { onShowClick(item.showId, item.mediaType) },
-                    onLongClick = {
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                        selectedItemForAction = item
-                    },
-                    onMarkWatched = { viewModel.markAsWatched(item) }
+            tabs.forEachIndexed { index, title ->
+                androidx.compose.material3.Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { viewModel.setTab(title) },
+                    text = { Text(title, style = MaterialTheme.typography.titleMedium) }
                 )
+            }
+        }
+
+        if (currentTab == "Up Next") {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(upNextItems, key = { "${it.showId}_${it.nextEpisodeId}" }) { item ->
+                    UpNextCard(
+                        item = item,
+                        onClick = { onShowClick(item.showId, item.mediaType) },
+                        onLongClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            selectedItemForAction = item
+                        },
+                        onMarkWatched = { viewModel.markAsWatched(item) }
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(planToWatchItems, key = { it.tmdbId }) { item ->
+                    PlanToWatchCard(
+                        item = item,
+                        onClick = { onShowClick(item.tmdbId, item.mediaType.name.lowercase()) },
+                        onLongClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            // We can reuse the UpNextItem for the bottom sheet action wrapper or create a different one.
+                            // For simplicity, let's just make selectedItemForAction handle an object or use a different state.
+                        }
+                    )
+                }
             }
         }
     }
@@ -212,6 +245,62 @@ private fun UpNextCard(
                     contentDescription = "Mark as watched",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanToWatchCard(
+    item: dev.sequel.app.data.local.entity.WatchlistEntity,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { onLongClick() }
+                )
+            },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = TmdbImageUtil.posterUrl(item.posterPath),
+                contentDescription = "${item.title} poster",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(width = 60.dp, height = 90.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (item.mediaType.name.lowercase() == "movie") "Movie" else "TV Show",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
         }
