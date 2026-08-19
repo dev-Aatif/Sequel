@@ -14,6 +14,9 @@ interface AuthRepository {
     /** Current user ID or null. */
     val currentUserId: String?
 
+    /** Current user Email or null. */
+    val currentUserEmail: String?
+
     /** Observe auth state (true = logged in, false = logged out). */
     val authStateFlow: Flow<Boolean>
 

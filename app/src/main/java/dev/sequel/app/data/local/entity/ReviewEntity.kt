@@ -16,12 +16,12 @@ import androidx.room.PrimaryKey
         ForeignKey(
             entity = ShowEntity::class,
             parentColumns = ["id"],
-            childColumns = ["show_id"],
+            childColumns = ["media_id"],
             onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
-        Index(value = ["show_id"], unique = true),
+        Index(value = ["media_id", "season_num", "episode_num"], unique = true),
         Index(value = ["sync_status"])
     ]
 )
@@ -30,15 +30,23 @@ data class ReviewEntity(
     @ColumnInfo(name = "id")
     val id: Long = 0,
 
-    @ColumnInfo(name = "show_id")
-    val showId: Int,
+    @ColumnInfo(name = "media_id")
+    val mediaId: Int,
 
-    /** Rating from 1 to 10. */
-    @ColumnInfo(name = "rating")
-    val rating: Int,
+    @ColumnInfo(name = "season_num")
+    val seasonNum: Int? = null,
+
+    @ColumnInfo(name = "episode_num")
+    val episodeNum: Int? = null,
 
     @ColumnInfo(name = "review_text")
     val reviewText: String?,
+
+    @ColumnInfo(name = "vibe_emoji")
+    val vibeEmoji: String? = null,
+
+    @ColumnInfo(name = "is_spoiler")
+    val isSpoiler: Boolean = false,
 
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),

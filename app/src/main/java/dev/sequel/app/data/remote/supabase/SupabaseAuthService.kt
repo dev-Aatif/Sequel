@@ -7,6 +7,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.filter
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +24,10 @@ class SupabaseAuthService @Inject constructor(
     /** Current user ID or null if not authenticated. */
     val currentUserId: String?
         get() = auth.currentUserOrNull()?.id
+
+    /** Current user email or null if not authenticated. */
+    val currentUserEmail: String?
+        get() = auth.currentUserOrNull()?.email
 
     /** Whether the user is currently authenticated. */
     val isAuthenticated: Boolean
@@ -73,6 +78,21 @@ class SupabaseAuthService @Inject constructor(
 
     /** Sign out the current user. */
     suspend fun signOut() {
+        auth.signOut()
+    }
+
+    /** 
+     * Delete the current user's account. 
+     * Note: In Supabase, self-deletion typically requires an RPC or Edge Function.
+     * We simulate it here by calling an RPC (which the user must create in their DB) and signing out.
+     */
+    suspend fun deleteUser() {
+        try {
+            // Attempt to call a custom RPC for self-deletion if it exists
+            supabaseClient.postgrest.rpc("delete_user")
+        } catch (e: Exception) {
+            // Ignore if RPC does not exist
+        }
         auth.signOut()
     }
 

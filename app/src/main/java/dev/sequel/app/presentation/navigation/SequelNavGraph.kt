@@ -93,10 +93,8 @@ fun SequelNavGraph(
                 onImportClick = {
                     navController.navigate(Screen.TvTimeImport.route)
                 },
-                onSignOut = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -133,6 +131,18 @@ fun SequelNavGraph(
         composable(Screen.TvTimeImport.route) {
             TvTimeImportScreen(
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ── Settings ──────────────────────────────────────────────
+        composable(Screen.Settings.route) {
+            dev.sequel.app.presentation.screens.settings.SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAuth = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }

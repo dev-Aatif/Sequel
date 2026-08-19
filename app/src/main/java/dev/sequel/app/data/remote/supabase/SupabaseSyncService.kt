@@ -71,6 +71,20 @@ class SupabaseSyncService @Inject constructor(
             .decodeList()
     }
 
+    /**
+     * Fetch all community watched episodes for a specific show to calculate insights (e.g. drop-off metric).
+     * In a production app with millions of rows, this would be an RPC call.
+     */
+    suspend fun fetchCommunityWatchHistoryForShow(showId: Int): List<SupabaseWatchedEpisodeDto> {
+        return supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
+            .select {
+                filter {
+                    eq("tmdb_show_id", showId)
+                }
+            }
+            .decodeList()
+    }
+
     // ── Reviews ───────────────────────────────────────────────────
 
     /**
@@ -107,7 +121,33 @@ class SupabaseSyncService @Inject constructor(
                 filter {
                     eq("user_id", userId)
                 }
-            }
+            }.decodeList()
+    }
+
+    /**
+     * Fetch community reviews for a specific media (movie or TV show episode).
+     */
+    suspend fun fetchReviewsForMedia(
+        mediaId: Int,
+        seasonNum: Int? = null,
+        episodeNum: Int? = null
+    ): List<SupabaseReviewDto> {
+        return supabaseClient.postgrest[TABLE_REVIEWS]
+            .select {
+                filter {
+                    eq("media_id", mediaId)
+                    if (seasonNum != null) {
+                        eq("season_num", seasonNum)
+                    } else {
+                        filter("season_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+                    }
+                    if (episodeNum != null) {
+                        eq("episode_num", episodeNum)
+                    } else {
+                        filter("episode_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+                    }
+                }
+            }.decodeList()
     }
 
     // ── Watchlist ─────────────────────────────────────────────────

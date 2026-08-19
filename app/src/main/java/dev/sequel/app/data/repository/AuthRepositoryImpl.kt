@@ -20,6 +20,9 @@ class AuthRepositoryImpl @Inject constructor(
     override val currentUserId: String?
         get() = supabaseAuthService.currentUserId
 
+    override val currentUserEmail: String?
+        get() = supabaseAuthService.currentUserEmail
+
     override val authStateFlow: Flow<Boolean>
         get() = supabaseAuthService.authStateFlow
 

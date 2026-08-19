@@ -26,4 +26,7 @@ sealed class Screen(val route: String) {
 
     // ── Import ────────────────────────────────────────────────────
     data object TvTimeImport : Screen("tvtime_import")
+    
+    // ── Settings ──────────────────────────────────────────────────
+    data object Settings : Screen("settings")
 }

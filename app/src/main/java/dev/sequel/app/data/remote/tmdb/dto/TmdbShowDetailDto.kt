@@ -55,7 +55,28 @@ data class TmdbShowDetailDto(
     val type: String = "",
 
     @SerialName("in_production")
-    val inProduction: Boolean = false
+    val inProduction: Boolean = false,
+
+    @SerialName("next_episode_to_air")
+    val nextEpisodeToAir: TmdbNextEpisodeDto? = null
+)
+
+@Serializable
+data class TmdbNextEpisodeDto(
+    @SerialName("id")
+    val id: Int,
+
+    @SerialName("name")
+    val name: String,
+
+    @SerialName("air_date")
+    val airDate: String? = null,
+
+    @SerialName("season_number")
+    val seasonNumber: Int,
+
+    @SerialName("episode_number")
+    val episodeNumber: Int
 )
 
 @Serializable

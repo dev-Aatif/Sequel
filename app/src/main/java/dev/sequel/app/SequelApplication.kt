@@ -20,4 +20,17 @@ class SequelApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        val airDateWorkRequest = androidx.work.PeriodicWorkRequestBuilder<dev.sequel.app.data.sync.AirDateWorker>(
+            24, java.util.concurrent.TimeUnit.HOURS
+        ).build()
+        
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            dev.sequel.app.data.sync.AirDateWorker.WORK_NAME,
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            airDateWorkRequest
+        )
+    }
 }

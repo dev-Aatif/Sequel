@@ -35,7 +35,7 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         RemoteKeys::class,
         WatchlistEntity::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

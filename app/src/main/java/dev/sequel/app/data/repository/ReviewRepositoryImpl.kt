@@ -12,25 +12,40 @@ import javax.inject.Singleton
 @Singleton
 class ReviewRepositoryImpl @Inject constructor(
     private val reviewDao: ReviewDao,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val supabaseSyncService: dev.sequel.app.data.remote.supabase.SupabaseSyncService
 ) : ReviewRepository {
 
-    override suspend fun submitReview(showId: Int, rating: Int, reviewText: String?) {
-        // Check if review already exists (update vs insert)
-        val existing = reviewDao.getReviewForShow(showId)
+    override suspend fun submitReview(
+        mediaId: Int,
+        seasonNum: Int?,
+        episodeNum: Int?,
+        reviewText: String?,
+        vibeEmoji: String?,
+        isSpoiler: Boolean
+    ) {
+        val existing = if (seasonNum != null && episodeNum != null) {
+            reviewDao.getReviewForEpisode(mediaId, seasonNum, episodeNum)
+        } else {
+            reviewDao.getReviewForMedia(mediaId)
+        }
 
         val entity = if (existing != null) {
             existing.copy(
-                rating = rating,
                 reviewText = reviewText,
+                vibeEmoji = vibeEmoji,
+                isSpoiler = isSpoiler,
                 updatedAt = System.currentTimeMillis(),
                 syncStatus = SyncStatus.PENDING
             )
         } else {
             ReviewEntity(
-                showId = showId,
-                rating = rating,
+                mediaId = mediaId,
+                seasonNum = seasonNum,
+                episodeNum = episodeNum,
                 reviewText = reviewText,
+                vibeEmoji = vibeEmoji,
+                isSpoiler = isSpoiler,
                 syncStatus = SyncStatus.PENDING
             )
         }
@@ -45,13 +60,24 @@ class ReviewRepositoryImpl @Inject constructor(
         syncManager.syncReviewsNow()
     }
 
-    override fun observeReview(showId: Int): Flow<ReviewEntity?> =
-        reviewDao.observeReviewForShow(showId)
+    override fun observeReviewForMedia(mediaId: Int): Flow<ReviewEntity?> =
+        reviewDao.observeReviewForMedia(mediaId)
+
+    override fun observeReviewForEpisode(mediaId: Int, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?> =
+        reviewDao.observeReviewForEpisode(mediaId, seasonNum, episodeNum)
 
     override fun observeAllReviews(): Flow<List<ReviewEntity>> =
         reviewDao.observeAllReviews()
 
-    override suspend fun deleteReview(showId: Int) {
-        reviewDao.deleteReviewForShow(showId)
+    override suspend fun deleteReview(mediaId: Int, seasonNum: Int?, episodeNum: Int?) {
+        reviewDao.deleteReviewForMedia(mediaId, seasonNum, episodeNum)
+    }
+
+    override suspend fun getCommunityReviews(
+        mediaId: Int,
+        seasonNum: Int?,
+        episodeNum: Int?
+    ): List<dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto> {
+        return supabaseSyncService.fetchReviewsForMedia(mediaId, seasonNum, episodeNum)
     }
 }

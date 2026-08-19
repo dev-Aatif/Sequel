@@ -58,7 +58,8 @@ sealed interface DetailUiState {
     data class Success(
         val show: ShowEntity,
         val seasons: List<SeasonUi>,
-        val isMovieWatched: Boolean = false
+        val isMovieWatched: Boolean = false,
+        val dropOffInsight: String? = null
     ) : DetailUiState
     data class Error(val message: String) : DetailUiState
 }
@@ -71,7 +72,8 @@ class DetailViewModel @Inject constructor(
     private val tmdbApiService: TmdbApiService,
     private val episodeDao: EpisodeDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val supabaseSyncService: dev.sequel.app.data.remote.supabase.SupabaseSyncService
 ) : ViewModel() {
 
     private val showId: Int = savedStateHandle.get<Int>("showId")!!
@@ -99,6 +101,7 @@ class DetailViewModel @Inject constructor(
                 DetailUiState.Success(
                     show = internal.show,
                     isMovieWatched = isMovieWatched,
+                    dropOffInsight = internal.dropOffInsight,
                     seasons = internal.seasonDetails.map { seasonDetail ->
                         SeasonUi(
                             seasonNumber = seasonDetail.seasonNumber,
@@ -160,9 +163,12 @@ class DetailViewModel @Inject constructor(
                         detail
                     }
 
+                val dropOff = if (mediaType == "tv") calculateDropOff(showId) else null
+
                 _detailState.value = DetailInternalState.Loaded(
                     show = show,
-                    seasonDetails = seasonDetails
+                    seasonDetails = seasonDetails,
+                    dropOffInsight = dropOff
                 )
             } catch (e: Exception) {
                 _detailState.value = DetailInternalState.Error(
@@ -220,6 +226,50 @@ class DetailViewModel @Inject constructor(
             syncManager.syncWatchedEpisodesNow()
         }
     }
+
+    private suspend fun calculateDropOff(showId: Int): String? {
+        try {
+            val history = supabaseSyncService.fetchCommunityWatchHistoryForShow(showId)
+            if (history.isEmpty()) return null
+            
+            // Group by (season, episode) and count unique users
+            val episodeCounts = history
+                .filter { it.seasonNumber != null && it.episodeNumber != null }
+                .groupBy { Pair(it.seasonNumber!!, it.episodeNumber!!) }
+                .mapValues { (_, episodes) -> episodes.map { it.userId }.distinct().count() }
+                
+            if (episodeCounts.size < 2) return null
+            
+            // Sort by season and episode
+            val sortedEpisodes = episodeCounts.keys.sortedWith(compareBy({ it.first }, { it.second }))
+            
+            var maxDropPercentage = 0.0
+            var maxDropEpisode: Pair<Int, Int>? = null
+            
+            for (i in 0 until sortedEpisodes.size - 1) {
+                val currentEp = sortedEpisodes[i]
+                val nextEp = sortedEpisodes[i+1]
+                val currentCount = episodeCounts[currentEp] ?: 0
+                val nextCount = episodeCounts[nextEp] ?: 0
+                
+                if (currentCount > 0 && nextCount < currentCount) {
+                    val drop = (currentCount - nextCount).toDouble() / currentCount
+                    if (drop > maxDropPercentage && currentCount > 2) { // Minimum 3 users to be relevant
+                        maxDropPercentage = drop
+                        maxDropEpisode = currentEp
+                    }
+                }
+            }
+            
+            if (maxDropPercentage >= 0.2 && maxDropEpisode != null) {
+                val percentageInt = (maxDropPercentage * 100).toInt()
+                return "$percentageInt% of viewers dropped off after S${maxDropEpisode.first}E${maxDropEpisode.second}"
+            }
+        } catch (e: Exception) {
+            // Ignore errors for insight calculation
+        }
+        return null
+    }
 }
 
 /**
@@ -229,7 +279,8 @@ private sealed interface DetailInternalState {
     data object Loading : DetailInternalState
     data class Loaded(
         val show: ShowEntity,
-        val seasonDetails: List<TmdbSeasonDetailDto>
+        val seasonDetails: List<TmdbSeasonDetailDto>,
+        val dropOffInsight: String? = null
     ) : DetailInternalState
     data class Error(val message: String) : DetailInternalState
 }

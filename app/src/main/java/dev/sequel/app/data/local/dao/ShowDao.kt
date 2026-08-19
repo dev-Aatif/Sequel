@@ -63,6 +63,13 @@ interface ShowDao {
 
     // ── Queries (suspend) ─────────────────────────────────────────
 
+    @Query("""
+        SELECT s.* FROM shows s
+        WHERE s.media_type = 'tv' 
+        AND EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)
+    """)
+    suspend fun getStartedTvShows(): List<ShowEntity>
+
     @Query("SELECT * FROM shows WHERE id = :showId")
     suspend fun getShowById(showId: Int): ShowEntity?
 

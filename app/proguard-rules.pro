@@ -38,3 +38,13 @@
 # Supabase / Ktor
 -keep class io.github.jan.supabase.** { *; }
 -keep class io.ktor.** { *; }
+-dontwarn java.lang.management.**
+
+# Room Entities
+-keep class dev.sequel.app.data.local.entity.** { *; }
+
+# API DTOs (Retrofit / Supabase)
+-keep class dev.sequel.app.data.remote.tmdb.dto.** { *; }
+-keep class dev.sequel.app.data.remote.supabase.dto.** { *; }
+-keep class dev.sequel.app.data.remote.supabase.**Dto { *; }
+-keep class dev.sequel.app.data.remote.tmdb.**Dto { *; }

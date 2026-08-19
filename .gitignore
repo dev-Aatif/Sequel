@@ -63,3 +63,10 @@ google-services.json
 # Mac / Windows OS files
 .DS_Store
 Thumbs.db
+
+# Kotlin Compiler
+.kotlin/
+
+# Scratch Scripts
+test_compile.kt
+install.cmd

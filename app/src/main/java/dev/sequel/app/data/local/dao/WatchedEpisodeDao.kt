@@ -66,4 +66,19 @@ interface WatchedEpisodeDao {
 
     @Query("DELETE FROM watched_episodes WHERE show_id = :showId")
     suspend fun unwatchAllForShow(showId: Int)
+
+    // ── Stats Queries ─────────────────────────────────────────────
+
+    @Query("SELECT COUNT(*) FROM watched_episodes WHERE media_type = 'TV'")
+    fun observeTotalEpisodesWatched(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM watched_episodes WHERE media_type = 'MOVIE'")
+    fun observeTotalMoviesWatched(): Flow<Int>
+
+    @Query("""
+        SELECT 
+            (SELECT COALESCE(SUM(e.runtime), 0) FROM watched_episodes we JOIN episodes e ON we.episode_id = e.id WHERE we.media_type = 'TV') +
+            (SELECT COALESCE(SUM(s.runtime), 0) FROM watched_episodes we JOIN shows s ON we.show_id = s.id WHERE we.media_type = 'MOVIE')
+    """)
+    fun observeTotalRuntimeMinutes(): Flow<Int>
 }

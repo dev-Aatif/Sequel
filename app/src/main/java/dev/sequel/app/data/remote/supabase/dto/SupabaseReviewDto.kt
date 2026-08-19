@@ -14,18 +14,24 @@ data class SupabaseReviewDto(
     @SerialName("user_id")
     val userId: String,
 
-    @SerialName("tmdb_show_id")
-    val tmdbShowId: Int,
+    @SerialName("media_id")
+    val mediaId: Int,
 
-    @SerialName("rating")
-    val rating: Int,
+    @SerialName("season_num")
+    val seasonNum: Int? = null,
+
+    @SerialName("episode_num")
+    val episodeNum: Int? = null,
 
     @SerialName("review_text")
     val reviewText: String? = null,
 
-    @SerialName("created_at")
-    val createdAt: String? = null, // ISO timestamp
+    @SerialName("vibe_emoji")
+    val vibeEmoji: String? = null,
 
-    @SerialName("updated_at")
-    val updatedAt: String? = null
+    @SerialName("is_spoiler")
+    val isSpoiler: Boolean = false,
+
+    @SerialName("created_at")
+    val createdAt: String? = null // ISO timestamp
 )

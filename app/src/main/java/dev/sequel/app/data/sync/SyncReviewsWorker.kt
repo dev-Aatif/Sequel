@@ -42,9 +42,12 @@ class SyncReviewsWorker @AssistedInject constructor(
                 val dto = SupabaseReviewDto(
                     id = record.supabaseId,
                     userId = userId,
-                    tmdbShowId = record.showId,
-                    rating = record.rating,
-                    reviewText = record.reviewText
+                    mediaId = record.mediaId,
+                    seasonNum = record.seasonNum,
+                    episodeNum = record.episodeNum,
+                    reviewText = record.reviewText,
+                    vibeEmoji = record.vibeEmoji,
+                    isSpoiler = record.isSpoiler
                 )
 
                 val supabaseId = supabaseSyncService.upsertReview(dto)

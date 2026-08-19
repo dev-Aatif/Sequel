@@ -71,7 +71,8 @@ object TmdbMapper {
             genreIds = Json.encodeToString(genres.map { it.id }),
             numberOfSeasons = null,
             numberOfEpisodes = null,
-            status = status
+            status = status,
+            runtime = runtime
         )
     }
 

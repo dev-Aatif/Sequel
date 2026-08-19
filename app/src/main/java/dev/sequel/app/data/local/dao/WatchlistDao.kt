@@ -25,6 +25,9 @@ interface WatchlistDao {
     @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE tmdb_id = :tmdbId)")
     suspend fun isInWatchlist(tmdbId: Int): Boolean
 
+    @Query("SELECT * FROM watchlist WHERE media_type = 'TV'")
+    suspend fun getAllWatchlistTvShows(): List<WatchlistEntity>
+
     @Query("SELECT * FROM watchlist WHERE sync_status = 'PENDING'")
     suspend fun getPendingWatchlist(): List<WatchlistEntity>
 

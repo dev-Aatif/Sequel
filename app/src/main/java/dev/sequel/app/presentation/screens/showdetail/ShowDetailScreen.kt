@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import dev.sequel.app.presentation.components.spoilerShield
+import androidx.compose.material.icons.automirrored.filled.Send
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material3.Button
@@ -66,9 +70,18 @@ import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
 fun ShowDetailScreen(
     onSeasonClick: (showId: Int, seasonNumber: Int) -> Unit,
     onBackClick: () -> Unit,
-    viewModel: DetailViewModel = hiltViewModel()
+    viewModel: DetailViewModel = hiltViewModel(),
+    reviewViewModel: dev.sequel.app.presentation.screens.showdetail.ReviewViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val communityState by reviewViewModel.communityState.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(uiState) {
+        if (uiState is DetailUiState.Success) {
+            val show = (uiState as DetailUiState.Success).show
+            reviewViewModel.loadReviews(show.id, null, null)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,6 +107,15 @@ fun ShowDetailScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+            if (uiState is DetailUiState.Success) {
+                WatercoolerInputBar(
+                    onPostReview = { text, vibe, isSpoiler ->
+                        reviewViewModel.postReview(text, vibe, isSpoiler)
+                    }
+                )
+            }
         }
     ) { innerPadding ->
         when (val state = uiState) {
@@ -129,6 +151,7 @@ fun ShowDetailScreen(
             is DetailUiState.Success -> {
                 ShowDetailContent(
                     state = state,
+                    communityState = communityState,
                     onToggleWatched = { episode -> viewModel.toggleEpisodeWatched(episode) },
                     onToggleMovieWatched = { isWatched -> viewModel.toggleMovieWatched(isWatched) },
                     modifier = Modifier.padding(innerPadding)
@@ -141,6 +164,7 @@ fun ShowDetailScreen(
 @Composable
 private fun ShowDetailContent(
     state: DetailUiState.Success,
+    communityState: CommunityState,
     onToggleWatched: (EpisodeUi) -> Unit,
     onToggleMovieWatched: (Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -228,6 +252,44 @@ private fun ShowDetailContent(
                 )
             }
         }
+        
+        // ── Drop-Off Insight ─────────────────────────────────────
+        if (state.dropOffInsight != null) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF422B00)), // Amber-ish dark background
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Insight",
+                            tint = Color(0xFFFFB300) // Amber tint
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Pro Insight",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFFFB300),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = state.dropOffInsight,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         // ── Media Specific Content ───────────────────────────────
         if (show.mediaType == "movie") {
@@ -267,6 +329,68 @@ private fun ShowDetailContent(
                     }
                 }
             }
+        }
+
+        // ── Community Watercooler ────────────────────────────────
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Community Watercooler",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+        
+        when (communityState) {
+            is CommunityState.Loading -> {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+            is CommunityState.Error -> {
+                item {
+                    Text(
+                        text = "Failed to load community reviews.",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            is CommunityState.Success -> {
+                if (communityState.reviews.isEmpty()) {
+                    item {
+                        Text(
+                            text = "Be the first to share your thoughts!",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    items(
+                        count = communityState.reviews.size,
+                        key = { index -> communityState.reviews[index].id ?: index }
+                    ) { index ->
+                        val review = communityState.reviews[index]
+                        ReviewCard(
+                            review = review,
+                            isWatched = state.isMovieWatched || state.seasons.all { season -> season.episodes.all { it.isWatched } }
+                        )
+                    }
+                }
+            }
+        }
+        
+        item {
+            Spacer(modifier = Modifier.height(80.dp)) // Padding for bottom input bar
         }
     }
 }
@@ -379,6 +503,126 @@ private fun EpisodeRow(
                 contentDescription = if (episode.isWatched) "Mark as unwatched" else "Mark as watched",
                 tint = if (episode.isWatched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
             )
+        }
+    }
+}
+
+@Composable
+fun ReviewCard(review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto, isWatched: Boolean) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (review.vibeEmoji != null) {
+                    Text(text = review.vibeEmoji, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = "User", // Real app would join with users table
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                if (review.isSpoiler) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "SPOILER",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            if (!review.reviewText.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = review.reviewText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.spoilerShield(
+                        isSpoiler = review.isSpoiler,
+                        isWatched = isWatched
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WatercoolerInputBar(onPostReview: (String, String, Boolean) -> Unit) {
+    var text by androidx.compose.runtime.remember { mutableStateOf("") }
+    var isSpoiler by androidx.compose.runtime.remember { mutableStateOf(false) }
+    var selectedVibe by androidx.compose.runtime.remember { mutableStateOf("🔥") }
+
+    val vibes = listOf("🔥", "🤯", "😭", "🐌", "🥱", "😍")
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(8.dp)
+    ) {
+        // Vibe Picker
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+        ) {
+            items(vibes) { vibe ->
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(if (selectedVibe == vibe) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .clickable { selectedVibe = vibe },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = vibe, style = MaterialTheme.typography.titleLarge)
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            androidx.compose.material3.OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("What did you think?") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Spoiler", style = MaterialTheme.typography.labelSmall)
+                androidx.compose.material3.Switch(
+                    checked = isSpoiler,
+                    onCheckedChange = { isSpoiler = it },
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(
+                onClick = {
+                    onPostReview(text, selectedVibe, isSpoiler)
+                    text = ""
+                    isSpoiler = false
+                },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
     }
 }

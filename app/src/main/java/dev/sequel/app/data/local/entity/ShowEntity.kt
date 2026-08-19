@@ -56,6 +56,9 @@ data class ShowEntity(
     @ColumnInfo(name = "is_in_watchlist", defaultValue = "0")
     val isInWatchlist: Boolean = false,
 
+    @ColumnInfo(name = "runtime")
+    val runtime: Int? = null,
+
     @ColumnInfo(name = "last_updated")
     val lastUpdated: Long = System.currentTimeMillis()
 )

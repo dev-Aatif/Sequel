@@ -8,15 +8,28 @@ import kotlinx.coroutines.flow.Flow
  */
 interface ReviewRepository {
 
-    /** Submit or update a review for a show. Saves to Room and triggers sync. */
-    suspend fun submitReview(showId: Int, rating: Int, reviewText: String?)
+    /** Submit or update a review. Saves to Room and triggers sync. */
+    suspend fun submitReview(
+        mediaId: Int,
+        seasonNum: Int? = null,
+        episodeNum: Int? = null,
+        reviewText: String?,
+        vibeEmoji: String?,
+        isSpoiler: Boolean
+    )
 
-    /** Observe the review for a specific show. */
-    fun observeReview(showId: Int): Flow<ReviewEntity?>
+    /** Observe the review for a specific media (movie or show). */
+    fun observeReviewForMedia(mediaId: Int): Flow<ReviewEntity?>
+
+    /** Observe the review for a specific episode. */
+    fun observeReviewForEpisode(mediaId: Int, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?>
 
     /** Observe all user reviews. */
     fun observeAllReviews(): Flow<List<ReviewEntity>>
 
-    /** Delete a review for a show. */
-    suspend fun deleteReview(showId: Int)
+    /** Delete a review. */
+    suspend fun deleteReview(mediaId: Int, seasonNum: Int? = null, episodeNum: Int? = null)
+
+    /** Fetch community reviews from Supabase. */
+    suspend fun getCommunityReviews(mediaId: Int, seasonNum: Int? = null, episodeNum: Int? = null): List<dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto>
 }

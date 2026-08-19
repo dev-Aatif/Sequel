@@ -28,6 +28,7 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
+    private val reviewDao: dev.sequel.app.data.local.dao.ReviewDao,
     private val supabaseSyncService: SupabaseSyncService,
     private val supabaseAuthService: SupabaseAuthService
 ) : CoroutineWorker(appContext, workerParams) {
@@ -84,6 +85,36 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                 }
                 supabaseSyncService.upsertWatchlist(dtos)
                 watchlistDao.markWatchlistSynced(pendingWatchlist.map { it.tmdbId })
+            }
+        } catch (e: Exception) {
+            hasFailures = true
+        }
+
+        // 3. Sync Reviews
+        try {
+            val unsyncedReviews = reviewDao.getUnsynced()
+            for (record in unsyncedReviews) {
+                try {
+                    val dto = dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto(
+                        id = record.supabaseId,
+                        userId = userId,
+                        mediaId = record.mediaId,
+                        seasonNum = record.seasonNum,
+                        episodeNum = record.episodeNum,
+                        reviewText = record.reviewText,
+                        vibeEmoji = record.vibeEmoji,
+                        isSpoiler = record.isSpoiler
+                        // createdAt can remain null for upsert so DB uses current timestamp
+                    )
+                    val supabaseId = supabaseSyncService.upsertReview(dto)
+                    reviewDao.markAsSynced(
+                        id = record.id,
+                        supabaseId = supabaseId
+                    )
+                } catch (e: Exception) {
+                    hasFailures = true
+                    // Keep status as PENDING (or update to FAILED) so it gets retried
+                }
             }
         } catch (e: Exception) {
             hasFailures = true
