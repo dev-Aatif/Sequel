@@ -42,8 +42,8 @@ data class ReviewEntity(
     @ColumnInfo(name = "review_text")
     val reviewText: String?,
 
-    @ColumnInfo(name = "vibe_emoji")
-    val vibeEmoji: String? = null,
+    @ColumnInfo(name = "rating")
+    val rating: Int? = null, // 1-10 rating
 
     @ColumnInfo(name = "is_spoiler")
     val isSpoiler: Boolean = false,

@@ -92,4 +92,20 @@ interface TmdbApiService {
         @Query("sort_by") sortBy: String = "popularity.desc",
         @Query("page") page: Int = 1
     ): TmdbPagedResponse<TmdbShowDto>
+
+    // ── Recommendations ──────────────────────────────────────────
+
+    /** Get TV show recommendations based on a show. */
+    @GET("tv/{tv_id}/recommendations")
+    suspend fun getTvRecommendations(
+        @Path("tv_id") tvId: Int,
+        @Query("page") page: Int = 1
+    ): TmdbPagedResponse<TmdbShowDto>
+
+    /** Get movie recommendations based on a movie. */
+    @GET("movie/{movie_id}/recommendations")
+    suspend fun getMovieRecommendations(
+        @Path("movie_id") movieId: Int,
+        @Query("page") page: Int = 1
+    ): TmdbPagedResponse<TmdbShowDto>
 }

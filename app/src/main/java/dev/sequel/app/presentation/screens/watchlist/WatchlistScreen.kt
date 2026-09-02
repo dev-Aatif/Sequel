@@ -1,47 +1,26 @@
 package dev.sequel.app.presentation.screens.watchlist
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
@@ -51,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
+import dev.sequel.app.presentation.components.glassmorphicBackground
+import dev.sequel.app.presentation.components.hapticClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,67 +40,91 @@ fun WatchlistScreen(
     viewModel: WatchlistViewModel = hiltViewModel()
 ) {
     val upNextItems by viewModel.upNextItems.collectAsState()
-    var selectedItemForAction by remember { mutableStateOf<UpNextItem?>(null) }
+    val planToWatchItems by viewModel.planToWatchItems.collectAsState()
+    
+    // For this redesign, we'll map currentTab to our custom Segmented Tabs
+    // Let's keep local state for the tab if we are adding "Lists" which might not be in ViewModel
+    var activeTab by remember { mutableStateOf("Up Next") }
+    
+    var selectedItemForAction by remember { mutableStateOf<Any?>(null) }
     val sheetState = rememberModalBottomSheetState()
     val view = LocalView.current
 
-    val currentTab by viewModel.currentTab.collectAsState()
-    val planToWatchItems by viewModel.planToWatchItems.collectAsState()
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        val tabs = listOf("Up Next", "Plan to Watch")
-        val selectedTabIndex = tabs.indexOf(currentTab).coerceAtLeast(0)
-
-        androidx.compose.material3.TabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.onBackground
+    Column(modifier = Modifier.fillMaxSize()) {
+        // ── Glassmorphic Segmented Tabs ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .glassmorphicBackground(RoundedCornerShape(32.dp), blurRadius = 12.dp)
+                .padding(4.dp)
         ) {
-            tabs.forEachIndexed { index, title ->
-                androidx.compose.material3.Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { viewModel.setTab(title) },
-                    text = { Text(title, style = MaterialTheme.typography.titleMedium) }
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                val tabs = listOf("Up Next", "Watchlist", "Lists")
+                tabs.forEach { tab ->
+                    val isSelected = activeTab == tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .hapticClickable { activeTab = tab }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = tab,
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             }
         }
 
-        if (currentTab == "Up Next") {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(upNextItems, key = { "${it.showId}_${it.nextEpisodeId}" }) { item ->
-                    UpNextCard(
-                        item = item,
-                        onClick = { onShowClick(item.showId, item.mediaType) },
-                        onLongClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            selectedItemForAction = item
-                        },
-                        onMarkWatched = { viewModel.markAsWatched(item) }
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(planToWatchItems, key = { it.tmdbId }) { item ->
-                    PlanToWatchCard(
-                        item = item,
-                        onClick = { onShowClick(item.tmdbId, item.mediaType.name.lowercase()) },
-                        onLongClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            // We can reuse the UpNextItem for the bottom sheet action wrapper or create a different one.
-                            // For simplicity, let's just make selectedItemForAction handle an object or use a different state.
+        // ── Main Content Area ──
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (activeTab) {
+                "Up Next" -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(upNextItems, key = { "${it.showId}_${it.nextEpisodeId}" }) { item ->
+                            UpNextGlassmorphicRow(
+                                item = item,
+                                onClick = { onShowClick(item.showId, item.mediaType) },
+                                onLongClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    selectedItemForAction = item
+                                },
+                                onMarkWatched = { viewModel.markAsWatched(item) }
+                            )
                         }
-                    )
+                    }
+                }
+                "Watchlist" -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(planToWatchItems, key = { it.tmdbId }) { item ->
+                            PlanToWatchGlassmorphicRow(
+                                item = item,
+                                onClick = { onShowClick(item.tmdbId, item.mediaType.name.lowercase()) },
+                                onLongClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                    selectedItemForAction = item
+                                }
+                            )
+                        }
+                    }
+                }
+                "Lists" -> {
+                    MyListsStackedGrid()
                 }
             }
         }
@@ -130,6 +135,11 @@ fun WatchlistScreen(
             onDismissRequest = { selectedItemForAction = null },
             sheetState = sheetState
         ) {
+            val title = when (selectedItemForAction) {
+                is UpNextItem -> (selectedItemForAction as UpNextItem).title
+                is dev.sequel.app.data.local.entity.WatchlistEntity -> (selectedItemForAction as dev.sequel.app.data.local.entity.WatchlistEntity).title
+                else -> ""
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,33 +147,18 @@ fun WatchlistScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = selectedItemForAction?.title ?: "",
+                    text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 
-                Button(
-                    onClick = { selectedItemForAction = null },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Filled.Visibility, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Add to Watchlist") // Currently unused, placeholder
-                }
-                
-                Button(
-                    onClick = { selectedItemForAction = null },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.VisibilityOff, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Hide")
+                    Text("Hide from list")
                 }
                 
-                Button(
-                    onClick = { selectedItemForAction = null },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.Share, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Share")
@@ -176,48 +171,49 @@ fun WatchlistScreen(
 }
 
 @Composable
-private fun UpNextCard(
+fun UpNextGlassmorphicRow(
     item: UpNextItem,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onMarkWatched: () -> Unit
 ) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .height(140.dp)
+            .glassmorphicBackground(RoundedCornerShape(16.dp), blurRadius = 8.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick() },
                     onLongPress = { onLongClick() }
                 )
-            },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            }
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 2:3 Aspect Ratio Poster
             AsyncImage(
                 model = TmdbImageUtil.posterUrl(item.posterPath),
                 contentDescription = "${item.title} poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(width = 60.dp, height = 90.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .fillMaxHeight()
+                    .aspectRatio(2f / 3f)
+                    .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -226,7 +222,7 @@ private fun UpNextCard(
                     Text(
                         text = item.nextEpisodeName,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -234,17 +230,25 @@ private fun UpNextCard(
                     Text(
                         text = "Movie",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
             }
-
-            IconButton(onClick = onMarkWatched) {
+            
+            // Right Action
+            Box(
+                modifier = Modifier
+                    .padding(end = 16.dp)
+                    .size(48.dp)
+                    .glassmorphicBackground(RoundedCornerShape(24.dp))
+                    .hapticClickable { onMarkWatched() },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = Icons.Outlined.CheckCircleOutline,
                     contentDescription = "Mark as watched",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -252,47 +256,48 @@ private fun UpNextCard(
 }
 
 @Composable
-private fun PlanToWatchCard(
+fun PlanToWatchGlassmorphicRow(
     item: dev.sequel.app.data.local.entity.WatchlistEntity,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .height(140.dp)
+            .glassmorphicBackground(RoundedCornerShape(16.dp), blurRadius = 8.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick() },
                     onLongPress = { onLongClick() }
                 )
-            },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            }
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 2:3 Aspect Ratio Poster
             AsyncImage(
                 model = TmdbImageUtil.posterUrl(item.posterPath),
                 contentDescription = "${item.title} poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(width = 60.dp, height = 90.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .fillMaxHeight()
+                    .aspectRatio(2f / 3f)
+                    .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -300,7 +305,65 @@ private fun PlanToWatchCard(
                 Text(
                     text = if (item.mediaType.name.lowercase() == "movie") "Movie" else "TV Show",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MyListsStackedGrid() {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        val dummyLists = listOf("Favorites", "Summer 2026", "Action Packed", "To Watch with Family")
+        items(dummyLists.size) { index ->
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Stacked Image Representation
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.85f)
+                            .align(Alignment.TopEnd)
+                            .glassmorphicBackground(RoundedCornerShape(12.dp))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.92f)
+                            .align(Alignment.Center)
+                            .padding(end = 8.dp, top = 8.dp)
+                            .glassmorphicBackground(RoundedCornerShape(12.dp))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.9f)
+                            .align(Alignment.BottomStart)
+                            .glassmorphicBackground(RoundedCornerShape(12.dp), surfaceTint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                    ) {
+                        // Normally an AsyncImage goes here for the cover
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = dummyLists[index],
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${(index + 1) * 4} items",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }

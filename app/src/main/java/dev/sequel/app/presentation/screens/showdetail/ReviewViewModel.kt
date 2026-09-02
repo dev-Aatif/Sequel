@@ -52,27 +52,46 @@ class ReviewViewModel @Inject constructor(
                 // Sort by newest first
                 _communityState.value = CommunityState.Success(reviews.sortedByDescending { it.createdAt })
             } catch (e: Exception) {
-                _communityState.value = CommunityState.Error(e.message ?: "Failed to load community reviews")
+                // If Supabase fails (e.g. not logged in), show empty state instead of error
+                _communityState.value = CommunityState.Success(emptyList())
             }
         }
     }
 
-    fun postReview(text: String, vibeEmoji: String, isSpoiler: Boolean) {
+    fun postReview(text: String, rating: Int?, isSpoiler: Boolean) {
+        if (text.isBlank() && rating == null) return
+        
         viewModelScope.launch {
             val entity = ReviewEntity(
                 mediaId = currentMediaId,
                 seasonNum = currentSeasonNum,
                 episodeNum = currentEpisodeNum,
-                reviewText = text,
-                vibeEmoji = vibeEmoji,
+                reviewText = text.ifBlank { null },
+                rating = rating,
                 isSpoiler = isSpoiler,
                 syncStatus = SyncStatus.PENDING
             )
             reviewDao.insertReview(entity)
             syncManager.syncWatchedEpisodesNow() // Forces WorkManager to run sync which includes reviews
             
-            // Reload the watercooler to show our newly posted review once it syncs
-            // (In a real app we might optimistically insert it into the list)
+            // Optimistically add review to the list so user sees it immediately
+            val currentState = _communityState.value
+            if (currentState is CommunityState.Success) {
+                val optimisticReview = SupabaseReviewDto(
+                    id = null,
+                    userId = "you",
+                    mediaId = currentMediaId,
+                    seasonNum = currentSeasonNum,
+                    episodeNum = currentEpisodeNum,
+                    reviewText = text.ifBlank { null },
+                    vibeEmoji = null,
+                    isSpoiler = isSpoiler,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+                _communityState.value = CommunityState.Success(
+                    listOf(optimisticReview) + currentState.reviews
+                )
+            }
         }
     }
 }

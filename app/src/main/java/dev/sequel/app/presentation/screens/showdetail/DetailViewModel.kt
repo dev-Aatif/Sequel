@@ -6,14 +6,18 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
+import dev.sequel.app.data.local.entity.WatchlistEntity
 import dev.sequel.app.data.local.entity.SyncStatus
+import dev.sequel.app.data.local.entity.MediaType
 import dev.sequel.app.data.local.dao.EpisodeDao
+import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
+import dev.sequel.app.data.local.dao.WatchlistDao
 import dev.sequel.app.data.remote.tmdb.TmdbApiService
-import dev.sequel.app.data.sync.SyncManager
 import dev.sequel.app.data.remote.tmdb.dto.TmdbSeasonDetailDto
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEpisodeEntities
+import dev.sequel.app.data.sync.SyncManager
 
 import dev.sequel.app.domain.repository.ShowRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +55,17 @@ data class SeasonUi(
 )
 
 /**
+ * Simple recommendation item for "More Like This" section.
+ */
+data class RecommendationUi(
+    val id: Int,
+    val title: String,
+    val posterPath: String?,
+    val mediaType: String,
+    val voteAverage: Double
+)
+
+/**
  * UI state for the Show Detail screen.
  */
 sealed interface DetailUiState {
@@ -59,7 +74,9 @@ sealed interface DetailUiState {
         val show: ShowEntity,
         val seasons: List<SeasonUi>,
         val isMovieWatched: Boolean = false,
-        val dropOffInsight: String? = null
+        val isInWatchlist: Boolean = false,
+        val dropOffInsight: String? = null,
+        val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailUiState
     data class Error(val message: String) : DetailUiState
 }
@@ -71,7 +88,9 @@ class DetailViewModel @Inject constructor(
     private val showRepository: ShowRepository,
     private val tmdbApiService: TmdbApiService,
     private val episodeDao: EpisodeDao,
+    private val showDao: ShowDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchlistDao: WatchlistDao,
     private val syncManager: SyncManager,
     private val supabaseSyncService: dev.sequel.app.data.remote.supabase.SupabaseSyncService
 ) : ViewModel() {
@@ -83,6 +102,9 @@ class DetailViewModel @Inject constructor(
 
     /** Set of watched episode IDs, observed from Room reactively. */
     private val watchedFlow = watchedEpisodeDao.observeWatchedByShow(showId)
+    
+    /** Whether this show is in the user's watchlist, observed reactively. */
+    private val isInWatchlistFlow = watchlistDao.observeIsInWatchlist(showId)
 
     /**
      * Combines the fetched show+season data with the reactive watched-episode flow
@@ -90,8 +112,9 @@ class DetailViewModel @Inject constructor(
      */
     val uiState: StateFlow<DetailUiState> = combine(
         _detailState,
-        watchedFlow
-    ) { internal, watchedList ->
+        watchedFlow,
+        isInWatchlistFlow
+    ) { internal, watchedList, isInWatchlist ->
         when (internal) {
             is DetailInternalState.Loading -> DetailUiState.Loading
             is DetailInternalState.Error -> DetailUiState.Error(internal.message)
@@ -101,7 +124,9 @@ class DetailViewModel @Inject constructor(
                 DetailUiState.Success(
                     show = internal.show,
                     isMovieWatched = isMovieWatched,
+                    isInWatchlist = isInWatchlist,
                     dropOffInsight = internal.dropOffInsight,
+                    recommendations = internal.recommendations,
                     seasons = internal.seasonDetails.map { seasonDetail ->
                         SeasonUi(
                             seasonNumber = seasonDetail.seasonNumber,
@@ -143,16 +168,40 @@ class DetailViewModel @Inject constructor(
 
                 val show = showResult.getOrThrow()
 
+                // 2. Fetch recommendations from TMDB
+                val recommendations = try {
+                    val recResponse = if (mediaType == "movie") {
+                        tmdbApiService.getMovieRecommendations(showId)
+                    } else {
+                        tmdbApiService.getTvRecommendations(showId)
+                    }
+                    recResponse.results
+                        .filter { it.mediaType == "tv" || it.mediaType == "movie" || it.name != null || it.title != null }
+                        .take(20)
+                        .map { dto ->
+                            RecommendationUi(
+                                id = dto.id,
+                                title = dto.name ?: dto.title ?: "Unknown",
+                                posterPath = dto.posterPath,
+                                mediaType = dto.mediaType ?: mediaType,
+                                voteAverage = dto.voteAverage
+                            )
+                        }
+                } catch (e: Exception) {
+                    emptyList() // Gracefully handle recommendation failure
+                }
+
                 if (mediaType == "movie") {
                     // Movies don't have seasons/episodes
                     _detailState.value = DetailInternalState.Loaded(
                         show = show,
-                        seasonDetails = emptyList()
+                        seasonDetails = emptyList(),
+                        recommendations = recommendations
                     )
                     return@launch
                 }
 
-                // 2. Fetch each season's full episode list from TMDB
+                // 3. Fetch each season's full episode list from TMDB
                 val showDetail = tmdbApiService.getTvShowDetail(showId)
                 val seasonDetails = showDetail.seasons
                     .filter { it.seasonNumber > 0 } // exclude "Specials" (season 0)
@@ -168,7 +217,8 @@ class DetailViewModel @Inject constructor(
                 _detailState.value = DetailInternalState.Loaded(
                     show = show,
                     seasonDetails = seasonDetails,
-                    dropOffInsight = dropOff
+                    dropOffInsight = dropOff,
+                    recommendations = recommendations
                 )
             } catch (e: Exception) {
                 _detailState.value = DetailInternalState.Error(
@@ -227,6 +277,30 @@ class DetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Toggle the show's watchlist status.
+     */
+    fun toggleWatchlist() {
+        viewModelScope.launch {
+            val currentlyInWatchlist = watchlistDao.isInWatchlist(showId)
+            if (currentlyInWatchlist) {
+                watchlistDao.removeFromWatchlist(showId)
+            } else {
+                val currentState = _detailState.value
+                if (currentState is DetailInternalState.Loaded) {
+                    watchlistDao.insertToWatchlist(
+                        WatchlistEntity(
+                            tmdbId = showId,
+                            mediaType = if (mediaType == "movie") MediaType.MOVIE else MediaType.TV,
+                            title = currentState.show.title,
+                            posterPath = currentState.show.posterPath
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     private suspend fun calculateDropOff(showId: Int): String? {
         try {
             val history = supabaseSyncService.fetchCommunityWatchHistoryForShow(showId)
@@ -280,7 +354,8 @@ private sealed interface DetailInternalState {
     data class Loaded(
         val show: ShowEntity,
         val seasonDetails: List<TmdbSeasonDetailDto>,
-        val dropOffInsight: String? = null
+        val dropOffInsight: String? = null,
+        val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailInternalState
     data class Error(val message: String) : DetailInternalState
 }
