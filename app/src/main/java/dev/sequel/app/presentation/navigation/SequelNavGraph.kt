@@ -111,7 +111,10 @@ fun SequelNavGraph(
                 onSeasonClick = { showId, seasonNumber ->
                     navController.navigate(Screen.SeasonDetail.createRoute(showId, seasonNumber))
                 },
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onShowClick = { showId, mediaType ->
+                    navController.navigate(Screen.ShowDetail.createRoute(showId, mediaType))
+                }
             )
         }
 

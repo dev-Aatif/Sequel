@@ -38,6 +38,9 @@ fun ProfileScreen(
     var showDetailedStats by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // Determine if user has zero watch history
+    val hasWatchHistory = uiState.totalEpisodesWatched > 0 || uiState.totalMoviesWatched > 0
+
     Scaffold(
         topBar = {
             Row(
@@ -105,7 +108,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
-            // ── Binge Stats Carousel ──
+            // ── Binge Stats Carousel (tapping cards opens detailed stats) ──
             item {
                 Row(
                     modifier = Modifier
@@ -125,54 +128,62 @@ fun ProfileScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(8.dp))
-                
-                val pagerState = rememberPagerState(pageCount = { 3 })
-                HorizontalPager(
-                    state = pagerState,
-                    contentPadding = PaddingValues(horizontal = 24.dp),
-                    pageSpacing = 16.dp
-                ) { page ->
-                    when (page) {
-                        0 -> CarouselStatCard(
-                            title = "Watch Time",
-                            value = uiState.watchTimeFormatted,
-                            icon = Icons.Default.Timer,
-                            gradientColors = listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))
-                        )
-                        1 -> CarouselStatCard(
-                            title = "Episodes",
-                            value = uiState.totalEpisodesWatched.toString(),
-                            icon = Icons.Default.Tv,
-                            gradientColors = listOf(Color(0xFF00C9FF), Color(0xFF92FE9D))
-                        )
-                        2 -> CarouselStatCard(
-                            title = "Movies",
-                            value = uiState.totalMoviesWatched.toString(),
-                            icon = Icons.Default.Movie,
-                            gradientColors = listOf(Color(0xFFFF512F), Color(0xFFDD2476))
-                        )
+
+                if (!hasWatchHistory) {
+                    // ── Zero-watch history onboarding prompt ──
+                    ZeroWatchHistoryCard(onImportClick = onImportClick)
+                } else {
+                    val pagerState = rememberPagerState(pageCount = { 3 })
+                    HorizontalPager(
+                        state = pagerState,
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        pageSpacing = 16.dp
+                    ) { page ->
+                        // Tapping any card opens the detailed stats sheet
+                        Box(modifier = Modifier.hapticClickable { showDetailedStats = true }) {
+                            when (page) {
+                                0 -> CarouselStatCard(
+                                    title = "Watch Time",
+                                    value = uiState.watchTimeFormatted,
+                                    icon = Icons.Default.Timer,
+                                    gradientColors = listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))
+                                )
+                                1 -> CarouselStatCard(
+                                    title = "Episodes",
+                                    value = uiState.totalEpisodesWatched.toString(),
+                                    icon = Icons.Default.Tv,
+                                    gradientColors = listOf(Color(0xFF00C9FF), Color(0xFF92FE9D))
+                                )
+                                2 -> CarouselStatCard(
+                                    title = "Movies",
+                                    value = uiState.totalMoviesWatched.toString(),
+                                    icon = Icons.Default.Movie,
+                                    gradientColors = listOf(Color(0xFFFF512F), Color(0xFFDD2476))
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Pagination dots
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        repeat(3) { index ->
+                            val isSelected = pagerState.currentPage == index
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .size(if (isSelected) 8.dp else 6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                            )
+                        }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Pagination dots
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    repeat(3) { index ->
-                        val isSelected = pagerState.currentPage == index
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(if (isSelected) 8.dp else 6.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
-                        )
-                    }
-                }
-                
+
                 Spacer(modifier = Modifier.height(48.dp))
             }
 
@@ -233,6 +244,53 @@ fun ProfileScreen(
             containerColor = MaterialTheme.colorScheme.surface
         ) {
             DetailedStatsBottomSheet(uiState)
+        }
+    }
+}
+
+// ── Zero Watch History Card ──
+@Composable
+fun ZeroWatchHistoryCard(onImportClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .fillMaxWidth()
+            .glassmorphicBackground(RoundedCornerShape(24.dp))
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.PlayCircleOutline,
+                contentDescription = null,
+                modifier = Modifier.size(56.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No watch history yet",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Start watching shows or import your data\nfrom another app to see your stats here.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onImportClick,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp)
+            ) {
+                Icon(Icons.Default.ImportExport, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Import Data", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -306,7 +364,7 @@ fun DetailedStatsBottomSheet(uiState: ProfileUiState) {
         Text("Weekly Screen Time", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Mock Bar Chart
+        // Bar Chart
         Row(
             modifier = Modifier.fillMaxWidth().height(150.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -333,11 +391,31 @@ fun DetailedStatsBottomSheet(uiState: ProfileUiState) {
         }
         
         Spacer(modifier = Modifier.height(32.dp))
+
+        // ── Peak Hours Breakdown ──
+        Text("Peak Hours", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .glassmorphicBackground(RoundedCornerShape(16.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                PeakHourRow(label = "Morning", timeRange = "6 AM – 12 PM", percentage = 0.10f, color = Color(0xFFFBBF24))
+                PeakHourRow(label = "Afternoon", timeRange = "12 PM – 6 PM", percentage = 0.20f, color = Color(0xFFF97316))
+                PeakHourRow(label = "Evening", timeRange = "6 PM – 10 PM", percentage = 0.50f, color = Color(0xFFA855F7))
+                PeakHourRow(label = "Late Night", timeRange = "10 PM – 2 AM", percentage = 0.20f, color = Color(0xFF6366F1))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
         
         Text("Genre Distribution", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Mock Progress Bars
+        // Progress Bars
         GenreProgressBar("Drama", 0.75f, Color(0xFF10B981))
         Spacer(modifier = Modifier.height(12.dp))
         GenreProgressBar("Sci-Fi", 0.5f, Color(0xFF3B82F6))
@@ -345,6 +423,65 @@ fun DetailedStatsBottomSheet(uiState: ProfileUiState) {
         GenreProgressBar("Comedy", 0.3f, Color(0xFFF59E0B))
         
         Spacer(modifier = Modifier.height(48.dp))
+    }
+}
+
+@Composable
+fun PeakHourRow(
+    label: String,
+    timeRange: String,
+    percentage: Float,
+    color: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Color indicator dot
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = timeRange,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+        }
+        // Percentage with mini bar
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "${(percentage * 100).toInt()}%",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .width(60.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(percentage)
+                        .fillMaxHeight()
+                        .background(color)
+                )
+            }
+        }
     }
 }
 

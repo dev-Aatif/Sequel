@@ -14,7 +14,7 @@ interface ReviewRepository {
         seasonNum: Int? = null,
         episodeNum: Int? = null,
         reviewText: String?,
-        vibeEmoji: String?,
+        rating: Int?,
         isSpoiler: Boolean
     )
 

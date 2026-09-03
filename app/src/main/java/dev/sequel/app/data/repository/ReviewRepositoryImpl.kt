@@ -21,7 +21,7 @@ class ReviewRepositoryImpl @Inject constructor(
         seasonNum: Int?,
         episodeNum: Int?,
         reviewText: String?,
-        vibeEmoji: String?,
+        rating: Int?,
         isSpoiler: Boolean
     ) {
         val existing = if (seasonNum != null && episodeNum != null) {
@@ -33,7 +33,7 @@ class ReviewRepositoryImpl @Inject constructor(
         val entity = if (existing != null) {
             existing.copy(
                 reviewText = reviewText,
-                vibeEmoji = vibeEmoji,
+                rating = rating,
                 isSpoiler = isSpoiler,
                 updatedAt = System.currentTimeMillis(),
                 syncStatus = SyncStatus.PENDING
@@ -44,7 +44,7 @@ class ReviewRepositoryImpl @Inject constructor(
                 seasonNum = seasonNum,
                 episodeNum = episodeNum,
                 reviewText = reviewText,
-                vibeEmoji = vibeEmoji,
+                rating = rating,
                 isSpoiler = isSpoiler,
                 syncStatus = SyncStatus.PENDING
             )

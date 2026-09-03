@@ -46,7 +46,7 @@ class SyncReviewsWorker @AssistedInject constructor(
                     seasonNum = record.seasonNum,
                     episodeNum = record.episodeNum,
                     reviewText = record.reviewText,
-                    vibeEmoji = record.vibeEmoji,
+                    vibeEmoji = null,
                     isSpoiler = record.isSpoiler
                 )
 
