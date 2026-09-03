@@ -47,25 +47,35 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
         val unsyncedEpisodes = watchedEpisodeDao.getUnsynced()
         for (record in unsyncedEpisodes) {
             try {
-                val dto = SupabaseWatchedEpisodeDto(
-                    id = record.supabaseId,
-                    userId = userId,
-                    mediaType = record.mediaType.name.lowercase(),
-                    tmdbShowId = record.showId,
-                    tmdbEpisodeId = record.episodeId,
-                    seasonNumber = record.seasonNumber,
-                    episodeNumber = record.episodeNumber,
-                    watchedAt = record.watchedAt
-                )
+                if (record.syncStatus == SyncStatus.DELETED) {
+                    if (record.supabaseId != null) {
+                        supabaseSyncService.deleteWatchedEpisode(record.supabaseId)
+                    }
+                    watchedEpisodeDao.deleteEpisodeById(record.id)
+                } else {
+                    val dto = SupabaseWatchedEpisodeDto(
+                        id = record.supabaseId,
+                        userId = userId,
+                        mediaType = record.mediaType.name.lowercase(),
+                        tmdbShowId = record.showId,
+                        tmdbEpisodeId = record.episodeId,
+                        seasonNumber = record.seasonNumber,
+                        episodeNumber = record.episodeNumber,
+                        watchedAt = record.watchedAt
+                    )
 
-                val supabaseId = supabaseSyncService.upsertWatchedEpisode(dto)
-                watchedEpisodeDao.markAsSynced(
-                    id = record.id,
-                    supabaseId = supabaseId
-                )
+                    val supabaseId = supabaseSyncService.upsertWatchedEpisode(dto)
+                    watchedEpisodeDao.markAsSynced(
+                        id = record.id,
+                        supabaseId = supabaseId
+                    )
+                }
             } catch (e: Exception) {
-                hasFailures = true
-                watchedEpisodeDao.updateSyncStatus(record.id, SyncStatus.FAILED)
+                if (runAttemptCount > 3) {
+                    watchedEpisodeDao.updateSyncStatus(record.id, SyncStatus.FAILED)
+                } else {
+                    hasFailures = true
+                }
             }
         }
 
@@ -73,21 +83,33 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
         try {
             val pendingWatchlist = watchlistDao.getPendingWatchlist()
             if (pendingWatchlist.isNotEmpty()) {
-                val dtos = pendingWatchlist.map { entity ->
-                    dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto(
-                        userId = userId,
-                        tmdbId = entity.tmdbId,
-                        mediaType = entity.mediaType.name.lowercase(),
-                        title = entity.title,
-                        posterPath = entity.posterPath,
-                        addedAt = entity.addedAt
-                    )
+                val toUpsert = pendingWatchlist.filter { it.syncStatus != SyncStatus.DELETED }
+                val toDelete = pendingWatchlist.filter { it.syncStatus == SyncStatus.DELETED }
+
+                if (toUpsert.isNotEmpty()) {
+                    val dtos = toUpsert.map { entity ->
+                        dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto(
+                            userId = userId,
+                            tmdbId = entity.tmdbId,
+                            mediaType = entity.mediaType.name.lowercase(),
+                            title = entity.title,
+                            posterPath = entity.posterPath,
+                            addedAt = entity.addedAt
+                        )
+                    }
+                    supabaseSyncService.upsertWatchlist(dtos)
+                    watchlistDao.markWatchlistSynced(toUpsert.map { it.tmdbId })
                 }
-                supabaseSyncService.upsertWatchlist(dtos)
-                watchlistDao.markWatchlistSynced(pendingWatchlist.map { it.tmdbId })
+
+                for (deleted in toDelete) {
+                    supabaseSyncService.deleteFromWatchlist(userId, deleted.tmdbId)
+                    watchlistDao.deleteWatchlistById(deleted.tmdbId)
+                }
             }
         } catch (e: Exception) {
-            hasFailures = true
+            if (runAttemptCount <= 3) {
+                hasFailures = true
+            }
         }
 
         // 3. Sync Reviews
@@ -112,12 +134,17 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                         supabaseId = supabaseId
                     )
                 } catch (e: Exception) {
-                    hasFailures = true
-                    // Keep status as PENDING (or update to FAILED) so it gets retried
+                    if (runAttemptCount > 3) {
+                        reviewDao.updateSyncStatus(record.id, SyncStatus.FAILED)
+                    } else {
+                        hasFailures = true
+                    }
                 }
             }
         } catch (e: Exception) {
-            hasFailures = true
+            if (runAttemptCount <= 3) {
+                hasFailures = true
+            }
         }
 
         return if (hasFailures) Result.retry() else Result.success()

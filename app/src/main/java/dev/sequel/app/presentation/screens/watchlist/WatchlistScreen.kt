@@ -105,7 +105,7 @@ fun WatchlistScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(upNextItems, key = { "${it.showId}_${it.nextEpisodeId}" }) { item ->
@@ -135,7 +135,7 @@ fun WatchlistScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(planToWatchItems, key = { it.tmdbId }) { item ->

@@ -12,5 +12,8 @@ enum class SyncStatus {
     PENDING,
 
     /** Sync attempted but failed. Will retry via WorkManager. */
-    FAILED
+    FAILED,
+
+    /** Marked for deletion locally, awaiting sync to Supabase. */
+    DELETED
 }

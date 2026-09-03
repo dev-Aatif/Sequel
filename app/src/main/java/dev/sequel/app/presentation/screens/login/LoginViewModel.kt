@@ -25,7 +25,8 @@ data class LoginUiState(
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isPasswordVisible: Boolean = false
+    val isPasswordVisible: Boolean = false,
+    val isCheckingSession: Boolean = true
 )
 
 /**
@@ -47,21 +48,13 @@ class LoginViewModel @Inject constructor(
     val events: SharedFlow<LoginEvent> = _events.asSharedFlow()
 
     init {
-        // Wait for Supabase to restore the session from disk before checking auth.
-        // The synchronous `isAuthenticated` would always be false on cold start
-        // because session loading is async.
         viewModelScope.launch {
-            authRepository.authStateFlow
-                .first { isAuthenticated ->
-                    // Wait until we get a definitive "true" (session restored)
-                    // or let it pass through so the login screen shows
-                    true // always take the first emission
-                }
-                .let { isAuthenticated ->
-                    if (isAuthenticated) {
-                        _events.emit(LoginEvent.NavigateToHome)
-                    }
-                }
+            val isAuthenticated = authRepository.authStateFlow.first()
+            if (isAuthenticated) {
+                _events.emit(LoginEvent.NavigateToHome)
+            } else {
+                _uiState.update { it.copy(isCheckingSession = false) }
+            }
         }
     }
 

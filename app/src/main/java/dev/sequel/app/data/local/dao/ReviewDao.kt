@@ -22,6 +22,9 @@ interface ReviewDao {
     @Update
     suspend fun updateReview(review: ReviewEntity)
 
+    @Query("UPDATE reviews SET sync_status = :status WHERE id = :id")
+    suspend fun updateSyncStatus(id: Long, status: SyncStatus)
+
     @Query("UPDATE reviews SET sync_status = :status, supabase_id = :supabaseId WHERE id = :id")
     suspend fun markAsSynced(id: Long, status: SyncStatus = SyncStatus.SYNCED, supabaseId: String)
 

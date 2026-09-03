@@ -85,7 +85,7 @@ fun HomeScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 120.dp) // Space for floating bottom nav
+                contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp) // Space for floating bottom nav
             ) {
                 // ── Hero Banner ──
                 item {
@@ -390,7 +390,7 @@ fun ShimmerBox(modifier: Modifier = Modifier) {
 fun HomeShimmerSkeleton() {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
         userScrollEnabled = false
     ) {
         // Hero skeleton

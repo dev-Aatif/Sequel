@@ -99,19 +99,25 @@ class SearchViewModel @Inject constructor(
     fun markAsWatched(show: ShowEntity) {
         viewModelScope.launch {
             if (show.mediaType == "tv") {
-                // Find first episode if cached, but for search results we might not have it.
-                // We'll just mark season 1 episode 1 as watched speculatively. 
-                // A complete implementation would fetch the season detail if missing.
-                watchedEpisodeDao.insertWatchedEpisode(
-                    WatchedEpisodeEntity(
-                        mediaType = MediaType.TV,
-                        showId = show.id,
-                        episodeId = -1, // Placeholder for external tracking if ID is unknown
-                        seasonNumber = 1,
-                        episodeNumber = 1,
-                        syncStatus = SyncStatus.PENDING
-                    )
-                )
+                try {
+                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, 1)
+                    val firstEpisode = seasonDetail.episodes.firstOrNull()
+                    if (firstEpisode != null) {
+                        watchedEpisodeDao.insertWatchedEpisode(
+                            WatchedEpisodeEntity(
+                                mediaType = MediaType.TV,
+                                showId = show.id,
+                                episodeId = firstEpisode.id,
+                                seasonNumber = 1,
+                                episodeNumber = 1,
+                                syncStatus = SyncStatus.PENDING
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Fail gracefully if S1 cannot be fetched to prevent corrupted state (-1).
+                    return@launch
+                }
             } else {
                 watchedEpisodeDao.insertWatchedEpisode(
                     WatchedEpisodeEntity(

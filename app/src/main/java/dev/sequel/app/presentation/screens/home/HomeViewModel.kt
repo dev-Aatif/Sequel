@@ -19,6 +19,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val tmdbApiService: dev.sequel.app.data.remote.tmdb.TmdbApiService,
     private val showRepository: ShowRepository,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val watchedEpisodeDao: dev.sequel.app.data.local.dao.WatchedEpisodeDao,
@@ -54,16 +55,24 @@ class HomeViewModel @Inject constructor(
     fun markAsWatched(show: ShowEntity) {
         viewModelScope.launch {
             if (show.mediaType == "tv") {
-                watchedEpisodeDao.insertWatchedEpisode(
-                    dev.sequel.app.data.local.entity.WatchedEpisodeEntity(
-                        mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
-                        showId = show.id,
-                        episodeId = -1,
-                        seasonNumber = 1,
-                        episodeNumber = 1,
-                        syncStatus = dev.sequel.app.data.local.entity.SyncStatus.PENDING
-                    )
-                )
+                try {
+                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, 1)
+                    val firstEpisode = seasonDetail.episodes.firstOrNull()
+                    if (firstEpisode != null) {
+                        watchedEpisodeDao.insertWatchedEpisode(
+                            dev.sequel.app.data.local.entity.WatchedEpisodeEntity(
+                                mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
+                                showId = show.id,
+                                episodeId = firstEpisode.id,
+                                seasonNumber = 1,
+                                episodeNumber = 1,
+                                syncStatus = dev.sequel.app.data.local.entity.SyncStatus.PENDING
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    return@launch
+                }
             } else {
                 watchedEpisodeDao.insertWatchedEpisode(
                     dev.sequel.app.data.local.entity.WatchedEpisodeEntity(

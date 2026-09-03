@@ -142,7 +142,7 @@ fun SearchScreen(
             visible = isSearchFocused,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp)
         ) {
             Row(
                 modifier = Modifier.glassmorphicBackground(RoundedCornerShape(24.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -187,7 +187,7 @@ fun ZeroStateDiscovery(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()

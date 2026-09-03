@@ -301,10 +301,10 @@ class DetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun calculateDropOff(showId: Int): String? {
+    private suspend fun calculateDropOff(showId: Int): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
         try {
             val history = supabaseSyncService.fetchCommunityWatchHistoryForShow(showId)
-            if (history.isEmpty()) return null
+            if (history.isEmpty()) return@withContext null
             
             // Group by (season, episode) and count unique users
             val episodeCounts = history
@@ -312,7 +312,7 @@ class DetailViewModel @Inject constructor(
                 .groupBy { Pair(it.seasonNumber!!, it.episodeNumber!!) }
                 .mapValues { (_, episodes) -> episodes.map { it.userId }.distinct().count() }
                 
-            if (episodeCounts.size < 2) return null
+            if (episodeCounts.size < 2) return@withContext null
             
             // Sort by season and episode
             val sortedEpisodes = episodeCounts.keys.sortedWith(compareBy({ it.first }, { it.second }))
@@ -337,12 +337,12 @@ class DetailViewModel @Inject constructor(
             
             if (maxDropPercentage >= 0.2 && maxDropEpisode != null) {
                 val percentageInt = (maxDropPercentage * 100).toInt()
-                return "$percentageInt% of viewers dropped off after S${maxDropEpisode.first}E${maxDropEpisode.second}"
+                return@withContext "$percentageInt% of viewers dropped off after S${maxDropEpisode.first}E${maxDropEpisode.second}"
             }
         } catch (e: Exception) {
             // Ignore errors for insight calculation
         }
-        return null
+        return@withContext null
     }
 }
 

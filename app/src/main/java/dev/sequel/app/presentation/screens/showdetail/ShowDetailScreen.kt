@@ -148,7 +148,7 @@ private fun ShowDetailContent(
 ) {
     val show = state.show
 
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 120.dp)) {
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp)) {
         // Hero Backdrop
         item {
             Box(Modifier.fillMaxWidth().height(400.dp)) {

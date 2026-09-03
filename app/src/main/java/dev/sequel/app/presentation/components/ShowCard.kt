@@ -44,10 +44,16 @@ fun ShowCard(
         )
     ) {
         Column {
-            val imageUrl = show.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+            val imageUrl = dev.sequel.app.data.remote.tmdb.TmdbImageUtil.posterUrl(
+                show.posterPath, 
+                dev.sequel.app.data.remote.tmdb.TmdbImageUtil.PosterSize.W342
+            )
             
             AsyncImage(
-                model = imageUrl,
+                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(imageUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = show.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
