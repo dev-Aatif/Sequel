@@ -84,4 +84,20 @@ interface WatchedEpisodeDao {
             (SELECT COALESCE(SUM(s.runtime), 0) FROM watched_episodes we JOIN shows s ON we.show_id = s.id WHERE we.media_type = 'MOVIE' AND we.sync_status != 'DELETED')
     """)
     fun observeTotalRuntimeMinutes(): Flow<Int>
+
+    // ── Watched Tab Queries ─────────────────────────────────────────
+
+    /** Get all distinct show IDs that have at least one watched episode (TV only). */
+    @Query("""
+        SELECT DISTINCT we.show_id FROM watched_episodes we 
+        WHERE we.media_type = 'TV' AND we.sync_status != 'DELETED'
+    """)
+    fun observeWatchedTvShowIds(): Flow<List<Int>>
+
+    /** Get all watched movies (show_id from watched_episodes where media_type = MOVIE). */
+    @Query("""
+        SELECT DISTINCT we.show_id FROM watched_episodes we 
+        WHERE we.media_type = 'MOVIE' AND we.sync_status != 'DELETED'
+    """)
+    fun observeWatchedMovieIds(): Flow<List<Int>>
 }

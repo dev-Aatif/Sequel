@@ -59,6 +59,18 @@ data class ShowEntity(
     @ColumnInfo(name = "runtime")
     val runtime: Int? = null,
 
+    /** Human-readable genre names, stored as comma-separated string e.g. "Action, Drama" */
+    @ColumnInfo(name = "genres_display")
+    val genresDisplay: String? = null,
+
+    /** Average episode runtime in minutes (TV only) */
+    @ColumnInfo(name = "episode_runtime")
+    val episodeRuntime: Int? = null,
+
+    /** Content rating / certification e.g. "TV-MA", "PG-13" */
+    @ColumnInfo(name = "content_rating")
+    val contentRating: String? = null,
+
     @ColumnInfo(name = "last_updated")
     val lastUpdated: Long = System.currentTimeMillis()
 )

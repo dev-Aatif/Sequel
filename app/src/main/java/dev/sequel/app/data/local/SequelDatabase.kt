@@ -3,6 +3,8 @@ package dev.sequel.app.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.sequel.app.data.local.converter.Converters
 import dev.sequel.app.data.local.dao.EpisodeDao
 import dev.sequel.app.data.local.dao.ReviewDao
@@ -35,7 +37,7 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         RemoteKeys::class,
         WatchlistEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -51,5 +53,27 @@ abstract class SequelDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "sequel_database"
+
+        /**
+         * Migration 7→8: Rename vibe_emoji column to rating (Integer) in reviews table.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // SQLite doesn't support RENAME COLUMN before 3.25, so we add the new column
+                // and leave the old one (Room won't query it since entity no longer references it).
+                db.execSQL("ALTER TABLE reviews ADD COLUMN rating INTEGER DEFAULT NULL")
+            }
+        }
+
+        /**
+         * Migration 8→9: Add metadata columns to shows table.
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shows ADD COLUMN genres_display TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE shows ADD COLUMN episode_runtime INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE shows ADD COLUMN content_rating TEXT DEFAULT NULL")
+            }
+        }
     }
 }

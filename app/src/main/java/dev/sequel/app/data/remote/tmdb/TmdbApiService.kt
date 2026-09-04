@@ -56,10 +56,11 @@ interface TmdbApiService {
 
     // ── TV Show Details ───────────────────────────────────────────
 
-    /** Get full details for a TV show, including season summaries. */
+    /** Get full details for a TV show, including season summaries and content ratings. */
     @GET("tv/{tv_id}")
     suspend fun getTvShowDetail(
-        @Path("tv_id") tvId: Int
+        @Path("tv_id") tvId: Int,
+        @Query("append_to_response") appendToResponse: String = "content_ratings"
     ): TmdbShowDetailDto
 
     /** Get full season detail including all episodes. */

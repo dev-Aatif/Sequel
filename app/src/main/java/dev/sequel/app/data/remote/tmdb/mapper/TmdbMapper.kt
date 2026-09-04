@@ -40,6 +40,10 @@ object TmdbMapper {
     // ── Show Detail (TV) → ShowEntity ─────────────────────────────
 
     fun TmdbShowDetailDto.toEntity(): ShowEntity {
+        // Extract US content rating, fallback to first available
+        val rating = contentRatings?.results
+            ?.firstOrNull { it.iso31661 == "US" }?.rating
+            ?: contentRatings?.results?.firstOrNull()?.rating
         return ShowEntity(
             id = id,
             title = name,
@@ -52,7 +56,10 @@ object TmdbMapper {
             genreIds = Json.encodeToString(genres.map { it.id }),
             numberOfSeasons = numberOfSeasons,
             numberOfEpisodes = numberOfEpisodes,
-            status = status
+            status = status,
+            genresDisplay = genres.joinToString(", ") { it.name },
+            episodeRuntime = episodeRunTime.firstOrNull(),
+            contentRating = rating
         )
     }
 
@@ -72,7 +79,8 @@ object TmdbMapper {
             numberOfSeasons = null,
             numberOfEpisodes = null,
             status = status,
-            runtime = runtime
+            runtime = runtime,
+            genresDisplay = genres.joinToString(", ") { it.name }
         )
     }
 

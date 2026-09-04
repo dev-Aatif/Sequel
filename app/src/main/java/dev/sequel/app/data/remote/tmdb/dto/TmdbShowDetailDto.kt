@@ -58,7 +58,13 @@ data class TmdbShowDetailDto(
     val inProduction: Boolean = false,
 
     @SerialName("next_episode_to_air")
-    val nextEpisodeToAir: TmdbNextEpisodeDto? = null
+    val nextEpisodeToAir: TmdbNextEpisodeDto? = null,
+
+    @SerialName("episode_run_time")
+    val episodeRunTime: List<Int> = emptyList(),
+
+    @SerialName("content_ratings")
+    val contentRatings: TmdbContentRatingsWrapper? = null
 )
 
 @Serializable
@@ -122,4 +128,19 @@ data class TmdbNetworkDto(
 
     @SerialName("logo_path")
     val logoPath: String? = null
+)
+
+@Serializable
+data class TmdbContentRatingsWrapper(
+    @SerialName("results")
+    val results: List<TmdbContentRatingDto> = emptyList()
+)
+
+@Serializable
+data class TmdbContentRatingDto(
+    @SerialName("iso_3166_1")
+    val iso31661: String,
+
+    @SerialName("rating")
+    val rating: String
 )

@@ -34,6 +34,19 @@ data class UpNextItem(
     val episodeNumber: Int?
 )
 
+/**
+ * Represents an item in the "Watched" tab.
+ */
+data class WatchedItem(
+    val showId: Int,
+    val mediaType: String,
+    val title: String,
+    val posterPath: String?,
+    val statusTag: String, // "Completed", "Up to Date", "In Progress", "Watched" (for movies)
+    val episodesWatched: Int,
+    val totalEpisodes: Int?
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class WatchlistViewModel @Inject constructor(
@@ -43,6 +56,8 @@ class WatchlistViewModel @Inject constructor(
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val syncManager: SyncManager
 ) : ViewModel() {
+
+    // ── Up Next ────────────────────────────────────────────────────
 
     private val startedTvShowsFlow = showDao.observeStartedTvShows()
 
@@ -62,7 +77,7 @@ class WatchlistViewModel @Inject constructor(
                         seasonNumber = nextEp.seasonNumber,
                         episodeNumber = nextEp.episodeNumber
                     )
-                } else null
+                } else null // No more unwatched episodes → completed, should be in Watched tab
             }
         }
         combine(nextEpisodeFlows) { items ->
@@ -92,6 +107,82 @@ class WatchlistViewModel @Inject constructor(
         (tv + movies).sortedBy { it.title }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // ── Watchlist (Plan to Watch) ──────────────────────────────────
+
+    val planToWatchItems = watchlistDao.observeWatchlist().stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    // ── Watched Tab ────────────────────────────────────────────────
+
+    private val watchedTvShowsFlow = watchedEpisodeDao.observeWatchedTvShowIds().flatMapLatest { ids ->
+        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList<WatchedItem>())
+        
+        val itemFlows = ids.map { showId ->
+            combine(
+                showDao.observeShowById(showId),
+                watchedEpisodeDao.observeWatchedByShow(showId),
+                episodeDao.observeNextUnwatchedEpisode(showId)
+            ) { show, watchedEpisodes, nextUnwatched ->
+                if (show == null) return@combine null
+                val watchedCount = watchedEpisodes.size
+                val totalEpisodes = show.numberOfEpisodes
+                
+                val statusTag = when {
+                    // If no unwatched episodes remain and we have episode data → Completed
+                    nextUnwatched == null && watchedCount > 0 -> "Completed"
+                    // If the show status is "Ended" or "Canceled" and there are unwatched eps
+                    show.status in listOf("Ended", "Canceled") && nextUnwatched != null -> "In Progress"
+                    // If the show is still airing and user is caught up to latest available
+                    show.status == "Returning Series" && nextUnwatched == null -> "Up to Date"
+                    // Default: in progress
+                    else -> "In Progress"
+                }
+                
+                WatchedItem(
+                    showId = show.id,
+                    mediaType = "tv",
+                    title = show.title,
+                    posterPath = show.posterPath,
+                    statusTag = statusTag,
+                    episodesWatched = watchedCount,
+                    totalEpisodes = totalEpisodes
+                )
+            }
+        }
+        combine(itemFlows) { items -> items.filterNotNull() }
+    }
+
+    private val watchedMoviesFlow = watchedEpisodeDao.observeWatchedMovieIds().flatMapLatest { ids ->
+        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList<WatchedItem>())
+        
+        val itemFlows = ids.map { showId ->
+            showDao.observeShowById(showId).map { show ->
+                if (show == null) return@map null
+                WatchedItem(
+                    showId = show.id,
+                    mediaType = "movie",
+                    title = show.title,
+                    posterPath = show.posterPath,
+                    statusTag = "Watched",
+                    episodesWatched = 1,
+                    totalEpisodes = null
+                )
+            }
+        }
+        combine(itemFlows) { items -> items.filterNotNull() }
+    }
+
+    val watchedTvItems: StateFlow<List<WatchedItem>> = watchedTvShowsFlow.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    val watchedMovieItems: StateFlow<List<WatchedItem>> = watchedMoviesFlow.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
+    // ── Actions ────────────────────────────────────────────────────
+
     fun markAsWatched(item: UpNextItem) {
         viewModelScope.launch {
             if (item.mediaType == "tv") {
@@ -106,6 +197,8 @@ class WatchlistViewModel @Inject constructor(
                             syncStatus = SyncStatus.PENDING
                         )
                     )
+                    // Auto-queue: next episode automatically appears in Up Next
+                    // because observeNextUnwatchedEpisode is reactive
                 }
             } else {
                 watchedEpisodeDao.insertWatchedEpisode(
@@ -122,10 +215,6 @@ class WatchlistViewModel @Inject constructor(
             syncManager.syncWatchedEpisodesNow()
         }
     }
-
-    val planToWatchItems = watchlistDao.observeWatchlist().stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
-    )
 
     private val _currentTab = MutableStateFlow("Up Next")
     val currentTab = _currentTab.asStateFlow()

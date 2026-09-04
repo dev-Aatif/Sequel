@@ -29,6 +29,10 @@ object DatabaseModule {
             SequelDatabase::class.java,
             SequelDatabase.DATABASE_NAME
         )
+            .addMigrations(
+                SequelDatabase.MIGRATION_7_8,
+                SequelDatabase.MIGRATION_8_9
+            )
             .fallbackToDestructiveMigration()
             .build()
     }
