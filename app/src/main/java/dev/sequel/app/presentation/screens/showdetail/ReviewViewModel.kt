@@ -25,7 +25,8 @@ sealed class CommunityState {
 class ReviewViewModel @Inject constructor(
     private val supabaseSyncService: SupabaseSyncService,
     private val reviewDao: ReviewDao,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val supabaseAuthService: dev.sequel.app.data.remote.supabase.SupabaseAuthService
 ) : ViewModel() {
 
     private val _communityState = MutableStateFlow<CommunityState>(CommunityState.Loading)
@@ -34,6 +35,8 @@ class ReviewViewModel @Inject constructor(
     private var currentMediaId: Int = 0
     private var currentSeasonNum: Int? = null
     private var currentEpisodeNum: Int? = null
+
+    val currentUserId: String? = supabaseAuthService.currentUserId
 
     fun loadReviews(mediaId: Int, seasonNum: Int?, episodeNum: Int?) {
         currentMediaId = mediaId
@@ -84,12 +87,33 @@ class ReviewViewModel @Inject constructor(
                     seasonNum = currentSeasonNum,
                     episodeNum = currentEpisodeNum,
                     reviewText = text.ifBlank { null },
-                    vibeEmoji = null,
+                    vibeEmoji = rating?.toString(),
                     isSpoiler = isSpoiler,
                     createdAt = System.currentTimeMillis().toString()
                 )
                 _communityState.value = CommunityState.Success(
                     listOf(optimisticReview) + currentState.reviews
+                )
+            }
+        }
+    }
+
+    fun deleteReview(reviewId: String) {
+        viewModelScope.launch {
+            try {
+                // Attempt to delete from cloud
+                supabaseSyncService.deleteReview(reviewId)
+            } catch (e: Exception) {
+                // Ignore network errors, local delete will still happen
+            }
+            // Delete local cache
+            reviewDao.deleteReviewForMedia(currentMediaId, currentSeasonNum, currentEpisodeNum)
+
+            // Optimistically update UI
+            val currentState = _communityState.value
+            if (currentState is CommunityState.Success) {
+                _communityState.value = CommunityState.Success(
+                    currentState.reviews.filter { it.id != reviewId }
                 )
             }
         }

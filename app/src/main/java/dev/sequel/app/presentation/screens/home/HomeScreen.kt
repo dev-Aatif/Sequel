@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,6 +49,7 @@ import dev.sequel.app.presentation.components.hapticClickable
 @Composable
 fun HomeScreen(
     onShowClick: (showId: Int, mediaType: String) -> Unit,
+    onNavigateToWatchlist: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val pagedShows = viewModel.pagedShows.collectAsLazyPagingItems()
@@ -75,9 +77,25 @@ fun HomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
+        val hasError = pagedShows.loadState.refresh is LoadState.Error && pagedShows.itemCount == 0
+
         if (isInitialLoad) {
             // ── Shimmer Skeleton while initial data loads ──
             HomeShimmerSkeleton()
+        } else if (hasError) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                    Icon(Icons.Default.Search, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Failed to load feed", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Check your connection and try again.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
+                    Spacer(Modifier.height(24.dp))
+                    Button(onClick = { pagedShows.retry() }) {
+                        Text("Retry")
+                    }
+                }
+            }
         } else if (pagedShows.itemCount == 0 && pagedShows.loadState.refresh is LoadState.NotLoading) {
             // ── Zero-history onboarding empty state ──
             ZeroHistoryOnboarding()
@@ -87,13 +105,68 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp) // Space for floating bottom nav
             ) {
-                // ── Hero Banner ──
+                // ── Dynamic Top Section ──
                 item {
-                    val heroShow = if (pagedShows.itemCount > 0) pagedShows[0] else null
-                    HeroBanner(
-                        show = heroShow,
-                        onMarkWatched = { show -> viewModel.markAsWatched(show) }
-                    )
+                    if (currentType == "tv") {
+                        val continueWatchingShows by viewModel.continueWatchingTvShows.collectAsState()
+                        if (continueWatchingShows.isNotEmpty()) {
+                            Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Continue Watching", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                    TextButton(onClick = { onNavigateToWatchlist() }) {
+                                        Text("View All", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                val cwState = rememberLazyListState()
+                                LazyRow(
+                                    state = cwState,
+                                    flingBehavior = rememberSnapFlingBehavior(lazyListState = cwState),
+                                    contentPadding = PaddingValues(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(continueWatchingShows, key = { it.id }) { show ->
+                                        Box(modifier = Modifier.width(140.dp)) {
+                                            ShowCard(
+                                                show = show,
+                                                onClick = { onShowClick(show.id, show.mediaType) },
+                                                onLongClick = { viewModel.addToWatchlist(show) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (currentType == "movie") {
+                        val loopingMovies by viewModel.loopingMovies.collectAsState()
+                        if (loopingMovies.isNotEmpty()) {
+                            Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                                Text("Popular Movies Today", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                                val loopState = rememberLazyListState()
+                                LazyRow(
+                                    state = loopState,
+                                    flingBehavior = rememberSnapFlingBehavior(lazyListState = loopState),
+                                    contentPadding = PaddingValues(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(loopingMovies, key = { it.id }) { show ->
+                                        Box(modifier = Modifier.width(140.dp)) {
+                                            ShowCard(
+                                                show = show,
+                                                onClick = { onShowClick(show.id, show.mediaType) },
+                                                onLongClick = { viewModel.addToWatchlist(show) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // ── Trending Feed ──

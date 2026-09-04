@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 9,
-    "identityHash": "94095f8ce8bf43f4d219953f2a408c66",
+    "identityHash": "035a61d777cc35c1de746938f27814c0",
     "entities": [
       {
         "tableName": "shows",
@@ -430,7 +430,7 @@
       },
       {
         "tableName": "reviews",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `media_id` INTEGER NOT NULL, `season_num` INTEGER, `episode_num` INTEGER, `review_text` TEXT, `rating` INTEGER, `is_spoiler` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `sync_status` TEXT NOT NULL, `supabase_id` TEXT, FOREIGN KEY(`media_id`) REFERENCES `shows`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `media_id` INTEGER NOT NULL, `season_num` INTEGER, `episode_num` INTEGER, `review_text` TEXT, `rating` INTEGER, `is_spoiler` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `sync_status` TEXT NOT NULL, `supabase_id` TEXT NOT NULL, FOREIGN KEY(`media_id`) REFERENCES `shows`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -496,7 +496,7 @@
             "fieldPath": "supabaseId",
             "columnName": "supabase_id",
             "affinity": "TEXT",
-            "notNull": false
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -627,7 +627,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '94095f8ce8bf43f4d219953f2a408c66')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '035a61d777cc35c1de746938f27814c0')"
     ]
   }
 }

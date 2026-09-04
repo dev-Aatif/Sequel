@@ -54,7 +54,8 @@ class WatchlistViewModel @Inject constructor(
     private val episodeDao: EpisodeDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
     // ── Up Next ────────────────────────────────────────────────────
@@ -85,27 +86,9 @@ class WatchlistViewModel @Inject constructor(
         }
     }
 
-    private val upNextMoviesFlow = showDao.observeUnwatchedTrackedMovies().map { movies ->
-        movies.map { movie ->
-            UpNextItem(
-                showId = movie.id,
-                mediaType = movie.mediaType,
-                title = movie.title,
-                posterPath = movie.posterPath,
-                nextEpisodeName = null,
-                nextEpisodeId = null,
-                seasonNumber = null,
-                episodeNumber = null
-            )
-        }
-    }
-
-    val upNextItems: StateFlow<List<UpNextItem>> = combine(
-        upNextTvFlow,
-        upNextMoviesFlow
-    ) { tv, movies ->
-        (tv + movies).sortedBy { it.title }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val upNextItems: StateFlow<List<UpNextItem>> = upNextTvFlow
+        .map { it.sortedBy { item -> item.title } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ── Watchlist (Plan to Watch) ──────────────────────────────────
 
@@ -211,15 +194,23 @@ class WatchlistViewModel @Inject constructor(
                         syncStatus = SyncStatus.PENDING
                     )
                 )
+                watchlistDao.removeFromWatchlist(item.showId)
             }
             syncManager.syncWatchedEpisodesNow()
         }
     }
 
-    private val _currentTab = MutableStateFlow("Up Next")
+    private val _currentTab = MutableStateFlow(savedStateHandle.get<String>("current_tab") ?: "Up Next")
     val currentTab = _currentTab.asStateFlow()
 
     fun setTab(tab: String) {
         _currentTab.value = tab
+        savedStateHandle["current_tab"] = tab
+    }
+
+    fun removeFromWatchlist(tmdbId: Int) {
+        viewModelScope.launch {
+            watchlistDao.removeFromWatchlist(tmdbId)
+        }
     }
 }

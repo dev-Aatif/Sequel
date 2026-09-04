@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
@@ -43,6 +46,8 @@ import dev.sequel.app.presentation.components.hapticClickable
 @Composable
 fun WatchlistScreen(
     onShowClick: (showId: Int, mediaType: String) -> Unit,
+    onNavigateHome: () -> Unit,
+    onNavigateSearch: () -> Unit,
     viewModel: WatchlistViewModel = hiltViewModel()
 ) {
     val upNextItems by viewModel.upNextItems.collectAsState()
@@ -50,7 +55,7 @@ fun WatchlistScreen(
     val watchedTvItems by viewModel.watchedTvItems.collectAsState()
     val watchedMovieItems by viewModel.watchedMovieItems.collectAsState()
     
-    var activeTab by remember { mutableStateOf("Up Next") }
+    val activeTab by viewModel.currentTab.collectAsState()
     var watchedSubTab by remember { mutableStateOf("Shows") } // "Shows" or "Movies"
     
     var selectedItemForAction by remember { mutableStateOf<Any?>(null) }
@@ -74,7 +79,7 @@ fun WatchlistScreen(
                             .weight(1f)
                             .clip(RoundedCornerShape(28.dp))
                             .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .hapticClickable { activeTab = tab }
+                            .hapticClickable { viewModel.setTab(tab) }
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -94,7 +99,9 @@ fun WatchlistScreen(
             when (activeTab) {
                 "Up Next" -> {
                     if (upNextItems.isEmpty()) {
-                        EmptyTabState(Icons.Default.Tv, "Nothing up next", "Start tracking shows to see your next episodes here", "Explore Trending", Icons.Default.Explore) {}
+                        EmptyTabState(Icons.Default.Tv, "Nothing up next", "Start tracking shows to see your next episodes here", "Explore Trending", Icons.Default.Explore) {
+                            onNavigateHome()
+                        }
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -114,7 +121,9 @@ fun WatchlistScreen(
                 }
                 "Watchlist" -> {
                     if (planToWatchItems.isEmpty()) {
-                        EmptyTabState(Icons.Outlined.BookmarkAdd, "Your watchlist is empty", "Bookmark any show to add it here", "Search Shows", Icons.Default.Search) {}
+                        EmptyTabState(Icons.Outlined.BookmarkAdd, "Your watchlist is empty", "Bookmark any show to add it here", "Search Shows", Icons.Default.Search) {
+                            onNavigateSearch()
+                        }
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -163,7 +172,9 @@ fun WatchlistScreen(
                                 title = "No ${watchedSubTab.lowercase()} watched yet",
                                 subtitle = "Mark episodes or movies as watched to see them here",
                                 ctaLabel = "Explore", ctaIcon = Icons.Default.Explore
-                            ) {}
+                            ) {
+                                onNavigateHome()
+                            }
                         } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
@@ -194,10 +205,23 @@ fun WatchlistScreen(
             }
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.VisibilityOff, null); Spacer(Modifier.width(8.dp)); Text("Hide from list")
+                if (selectedItemForAction is dev.sequel.app.data.local.entity.WatchlistEntity) {
+                    Button(
+                        onClick = { 
+                            viewModel.removeFromWatchlist((selectedItemForAction as dev.sequel.app.data.local.entity.WatchlistEntity).tmdbId)
+                            selectedItemForAction = null 
+                        }, 
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                    ) {
+                        Icon(Icons.Outlined.BookmarkBorder, null); Spacer(Modifier.width(8.dp)); Text("Remove from Watchlist")
+                    }
+                } else {
+                    Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.VisibilityOff, null); Spacer(Modifier.width(8.dp)); Text("Dismiss")
+                    }
                 }
-                Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
                     Icon(Icons.Filled.Share, null); Spacer(Modifier.width(8.dp)); Text("Share")
                 }
                 Spacer(Modifier.height(32.dp))
@@ -210,15 +234,35 @@ fun WatchlistScreen(
 @Composable
 fun EmptyTabState(icon: ImageVector, title: String, subtitle: String, ctaLabel: String, ctaIcon: ImageVector, onCtaClick: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(48.dp)) {
-            Icon(icon, null, Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary.copy(0.4f))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .padding(32.dp)
+                .glassmorphicBackground(RoundedCornerShape(32.dp), blurRadius = 24.dp)
+                .padding(40.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+            }
             Spacer(Modifier.height(24.dp))
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.6f), textAlign = TextAlign.Center)
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(Modifier.height(12.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.7f), textAlign = TextAlign.Center, lineHeight = 20.sp)
             Spacer(Modifier.height(32.dp))
-            Button(onClick = onCtaClick, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary), shape = RoundedCornerShape(24.dp), contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp)) {
-                Icon(ctaIcon, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(ctaLabel, fontWeight = FontWeight.Bold)
+            Button(
+                onClick = onCtaClick,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(24.dp),
+                contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+            ) {
+                Icon(ctaIcon, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(ctaLabel, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
             }
         }
     }

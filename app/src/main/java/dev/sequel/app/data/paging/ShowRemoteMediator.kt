@@ -20,6 +20,14 @@ class ShowRemoteMediator(
     private val mediaType: String
 ) : RemoteMediator<Int, ShowEntity>() {
 
+    override suspend fun initialize(): InitializeAction {
+        return if (database.showDao().getShowsCountByMediaType(mediaType) > 0) {
+            InitializeAction.SKIP_INITIAL_REFRESH
+        } else {
+            InitializeAction.LAUNCH_INITIAL_REFRESH
+        }
+    }
+
     private val showDao = database.showDao()
     private val remoteKeysDao = database.remoteKeysDao()
 
@@ -53,7 +61,7 @@ class ShowRemoteMediator(
 
             database.withTransaction {
                 if (loadType == LoadType.REFRESH) {
-                    remoteKeysDao.clearRemoteKeys() // This clears all, which might be an issue if sharing keys. Let's keep it simple for now, or we'd need mediaType in RemoteKeys.
+                    remoteKeysDao.clearRemoteKeysByMediaType(mediaType)
                     showDao.clearShowsByMediaType(mediaType)
                 }
                 

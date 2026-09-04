@@ -58,5 +58,5 @@ data class ReviewEntity(
     val syncStatus: SyncStatus = SyncStatus.PENDING,
 
     @ColumnInfo(name = "supabase_id")
-    val supabaseId: String? = null
+    val supabaseId: String = java.util.UUID.randomUUID().toString()
 )

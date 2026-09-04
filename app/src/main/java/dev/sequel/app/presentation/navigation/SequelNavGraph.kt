@@ -68,6 +68,9 @@ fun SequelNavGraph(
             HomeScreen(
                 onShowClick = { showId, mediaType ->
                     navController.navigate(Screen.ShowDetail.createRoute(showId, mediaType))
+                },
+                onNavigateToWatchlist = {
+                    navController.navigate(Screen.Watchlist.route)
                 }
             )
         }
@@ -84,6 +87,20 @@ fun SequelNavGraph(
             WatchlistScreen(
                 onShowClick = { showId, mediaType ->
                     navController.navigate(Screen.ShowDetail.createRoute(showId, mediaType))
+                },
+                onNavigateHome = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateSearch = {
+                    navController.navigate(Screen.Search.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 }
             )
         }

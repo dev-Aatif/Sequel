@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,10 +50,10 @@ fun ShowDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val communityState by reviewViewModel.communityState.collectAsState()
 
-    LaunchedEffect(uiState) {
-        if (uiState is DetailUiState.Success) {
-            val show = (uiState as DetailUiState.Success).show
-            reviewViewModel.loadReviews(show.id, null, null)
+    val showId = (uiState as? DetailUiState.Success)?.show?.id
+    LaunchedEffect(showId) {
+        if (showId != null) {
+            reviewViewModel.loadReviews(showId, null, null)
         }
     }
 
@@ -77,11 +79,13 @@ fun ShowDetailScreen(
                     ShowDetailContent(
                         state = state,
                         communityState = communityState,
+                        currentUserId = reviewViewModel.currentUserId,
                         onToggleWatched = { viewModel.toggleEpisodeWatched(it) },
                         onToggleMovieWatched = { viewModel.toggleMovieWatched(it) },
                         onToggleWatchlist = { viewModel.toggleWatchlist() },
                         onRecommendationClick = { id, type -> onShowClick?.invoke(id, type) },
                         onPostReview = { text, rating, isSpoiler -> reviewViewModel.postReview(text, rating, isSpoiler) },
+                        onDeleteReview = { reviewId -> reviewViewModel.deleteReview(reviewId) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -112,32 +116,52 @@ fun ShowDetailScreen(
 private fun ShowDetailContent(
     state: DetailUiState.Success,
     communityState: CommunityState,
+    currentUserId: String?,
     onToggleWatched: (EpisodeUi) -> Unit,
     onToggleMovieWatched: (Boolean) -> Unit,
     onToggleWatchlist: () -> Unit,
     onRecommendationClick: (Int, String) -> Unit,
     onPostReview: (String, Int?, Boolean) -> Unit,
+    onDeleteReview: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val show = state.show
     var showReviewInput by remember { mutableStateOf(false) }
+    var showRatingDialog by remember { mutableStateOf(false) }
 
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(
         bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 120.dp
     )) {
-        // ── Hero Backdrop ──
+        // ── Hero Backdrop & Poster ──
         item {
-            Box(Modifier.fillMaxWidth().height(400.dp)) {
+            Box(Modifier.fillMaxWidth().height(420.dp)) {
+                // Blurred backdrop for atmosphere
                 AsyncImage(
-                    model = TmdbImageUtil.backdropUrl(show.backdropPath),
-                    contentDescription = "${show.title} backdrop",
-                    contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
+                    model = TmdbImageUtil.backdropUrl(show.backdropPath ?: show.posterPath),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop, 
+                    modifier = Modifier.fillMaxSize().background(Color(0xFF0F1115))
                 )
+                Box(Modifier.fillMaxSize().background(Color(0xFF0F1115).copy(alpha = 0.6f)))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                    listOf(Color.Transparent, MaterialTheme.colorScheme.background.copy(0.5f), MaterialTheme.colorScheme.background), startY = 300f
+                    listOf(Color.Transparent, MaterialTheme.colorScheme.background.copy(0.8f), MaterialTheme.colorScheme.background), startY = 150f
                 )))
-                Column(Modifier.align(Alignment.BottomStart).padding(24.dp)) {
-                    Text(show.title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = Color.White)
+                
+                // Centered Poster with space around it
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(top = 80.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AsyncImage(
+                        model = TmdbImageUtil.posterUrl(show.posterPath),
+                        contentDescription = "${show.title} poster",
+                        contentScale = ContentScale.Fit, 
+                        modifier = Modifier
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(show.title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Star, "Rating", tint = Color(0xFFFFD700), modifier = Modifier.size(20.dp))
@@ -223,7 +247,12 @@ private fun ShowDetailContent(
                         Modifier.weight(1f).height(56.dp)
                             .glassmorphicBackground(RoundedCornerShape(28.dp),
                                 surfaceTint = if (state.isMovieWatched) MaterialTheme.colorScheme.primary.copy(0.8f) else Color(0xCC1A1D24))
-                            .hapticClickable { onToggleMovieWatched(state.isMovieWatched) },
+                            .hapticClickable { 
+                                onToggleMovieWatched(!state.isMovieWatched)
+                                if (!state.isMovieWatched && state.userRating == null) {
+                                    showRatingDialog = true
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -234,6 +263,32 @@ private fun ShowDetailContent(
                             Spacer(Modifier.width(8.dp))
                             Text(if (state.isMovieWatched) "Watched" else "Mark Watched",
                                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Your Rating Block ──
+        if (state.userRating != null || state.isMovieWatched || state.seasons.any { s -> s.episodes.any { it.isWatched } }) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Your Rating", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Box(
+                        modifier = Modifier
+                            .glassmorphicBackground(RoundedCornerShape(16.dp))
+                            .hapticClickable { showRatingDialog = true }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(if (state.userRating != null) Icons.Filled.Star else Icons.Outlined.Star, "Rate", tint = Color(0xFFFFD700), modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (state.userRating != null) "${state.userRating}/10" else "Rate", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -277,7 +332,12 @@ private fun ShowDetailContent(
             }
             state.seasons.forEach { season ->
                 item(key = "season_${season.seasonNumber}") {
-                    SeasonHeader(season = season, onToggleWatched = onToggleWatched)
+                    SeasonHeader(season = season, onToggleWatched = { ep ->
+                        onToggleWatched(ep)
+                        if (!ep.isWatched && state.userRating == null) {
+                            showRatingDialog = true
+                        }
+                    })
                 }
             }
         }
@@ -334,7 +394,6 @@ private fun ShowDetailContent(
                 }
             }
         }
-
         // Review Cards
         when (communityState) {
             is CommunityState.Loading -> item {
@@ -354,11 +413,33 @@ private fun ShowDetailContent(
                     }
                 } else {
                     items(communityState.reviews.size, key = { communityState.reviews[it].id ?: it }) { index ->
-                        ReviewCard(communityState.reviews[index], state.isMovieWatched || state.seasons.all { s -> s.episodes.all { it.isWatched } })
+                        val isFullyWatched = if (show.mediaType == "movie") {
+                            state.isMovieWatched
+                        } else {
+                            state.seasons.isNotEmpty() && state.seasons.all { s -> s.episodes.all { it.isWatched } }
+                        }
+                        val review = communityState.reviews[index]
+                        ReviewCard(
+                            review = review,
+                            isWatched = isFullyWatched,
+                            isMyReview = review.userId == currentUserId || review.userId == "you",
+                            onDelete = { review.id?.let { onDeleteReview(it) } }
+                        )
                     }
                 }
             }
         }
+    }
+
+    if (showRatingDialog) {
+        RatingDialog(
+            currentRating = state.userRating,
+            onDismiss = { showRatingDialog = false },
+            onSubmit = { rating ->
+                onPostReview("", rating, false)
+                showRatingDialog = false
+            }
+        )
     }
 }
 
@@ -430,7 +511,12 @@ private fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit)
 }
 
 @Composable
-fun ReviewCard(review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto, isWatched: Boolean) {
+fun ReviewCard(
+    review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto, 
+    isWatched: Boolean,
+    isMyReview: Boolean,
+    onDelete: () -> Unit
+) {
     Box(Modifier.fillMaxWidth().padding(24.dp, 6.dp).glassmorphicBackground(RoundedCornerShape(16.dp))) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -440,7 +526,15 @@ fun ReviewCard(review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text("Community Member", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    if (review.isSpoiler) Text("SPOILER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        review.vibeEmoji?.toIntOrNull()?.let { rating ->
+                            Icon(Icons.Filled.Star, "Rating", tint = Color(0xFFFFD700), modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("$rating/10", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(0.8f), fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        if (review.isSpoiler) Text("SPOILER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             if (!review.reviewText.isNullOrBlank()) {
@@ -457,26 +551,9 @@ fun ReviewCard(review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto
 fun ReviewInputBar(onPostReview: (String, Int?, Boolean) -> Unit) {
     var text by remember { mutableStateOf("") }
     var isSpoiler by remember { mutableStateOf(false) }
-    var selectedRating by remember { mutableIntStateOf(0) }
 
     Box(Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(20.dp)).padding(16.dp)) {
         Column(Modifier.fillMaxWidth()) {
-            Text("Your Rating", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                (1..10).forEach { rating ->
-                    Box(
-                        Modifier.size(32.dp).clip(CircleShape)
-                            .background(if (selectedRating == rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.08f))
-                            .hapticClickable { selectedRating = if (selectedRating == rating) 0 else rating },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("$rating", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
-                            color = if (selectedRating == rating) Color.White else MaterialTheme.colorScheme.onSurface)
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextField(
                     text, { text = it },
@@ -502,8 +579,8 @@ fun ReviewInputBar(onPostReview: (String, Int?, Boolean) -> Unit) {
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
                         .hapticClickable {
-                            onPostReview(text, if (selectedRating > 0) selectedRating else null, isSpoiler)
-                            text = ""; isSpoiler = false; selectedRating = 0
+                            onPostReview(text, null, isSpoiler)
+                            text = ""; isSpoiler = false
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -512,4 +589,51 @@ fun ReviewInputBar(onPostReview: (String, Int?, Boolean) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+fun RatingDialog(currentRating: Int?, onDismiss: () -> Unit, onSubmit: (Int) -> Unit) {
+    var selectedRating by remember { mutableIntStateOf(currentRating ?: 0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rate this Title") },
+        text = {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
+                    (1..5).forEach { rating ->
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape)
+                                .background(if (selectedRating == rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.08f))
+                                .hapticClickable { selectedRating = rating },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("$rating", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (selectedRating == rating) Color.White else MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
+                    (6..10).forEach { rating ->
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape)
+                                .background(if (selectedRating == rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.08f))
+                                .hapticClickable { selectedRating = rating },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("$rating", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (selectedRating == rating) Color.White else MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { if (selectedRating > 0) onSubmit(selectedRating) }) {
+                Text("Submit")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

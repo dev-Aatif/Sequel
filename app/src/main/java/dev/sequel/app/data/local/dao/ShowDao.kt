@@ -13,10 +13,10 @@ interface ShowDao {
 
     // ── Inserts ───────────────────────────────────────────────────
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     suspend fun insertShow(show: ShowEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     suspend fun insertShows(shows: List<ShowEntity>)
 
     // ── Updates ───────────────────────────────────────────────────
@@ -88,4 +88,7 @@ interface ShowDao {
 
     @androidx.room.Query("SELECT * FROM shows WHERE media_type = :mediaType")
     fun getPagingShows(mediaType: String): androidx.paging.PagingSource<Int, ShowEntity>
+
+    @Query("SELECT COUNT(*) FROM shows WHERE media_type = :mediaType")
+    suspend fun getShowsCountByMediaType(mediaType: String): Int
 }

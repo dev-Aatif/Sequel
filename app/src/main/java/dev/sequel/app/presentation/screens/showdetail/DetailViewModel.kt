@@ -75,6 +75,7 @@ sealed interface DetailUiState {
         val seasons: List<SeasonUi>,
         val isMovieWatched: Boolean = false,
         val isInWatchlist: Boolean = false,
+        val userRating: Int? = null,
         val dropOffInsight: String? = null,
         val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailUiState
@@ -91,6 +92,7 @@ class DetailViewModel @Inject constructor(
     private val showDao: ShowDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val watchlistDao: WatchlistDao,
+    private val reviewDao: dev.sequel.app.data.local.dao.ReviewDao,
     private val syncManager: SyncManager,
     private val supabaseSyncService: dev.sequel.app.data.remote.supabase.SupabaseSyncService
 ) : ViewModel() {
@@ -106,6 +108,9 @@ class DetailViewModel @Inject constructor(
     /** Whether this show is in the user's watchlist, observed reactively. */
     private val isInWatchlistFlow = watchlistDao.observeIsInWatchlist(showId)
 
+    /** User's own review/rating for this show */
+    private val myReviewFlow = reviewDao.observeReviewForMedia(showId)
+
     /**
      * Combines the fetched show+season data with the reactive watched-episode flow
      * so the UI always reflects the latest watched state without re-fetching.
@@ -113,8 +118,9 @@ class DetailViewModel @Inject constructor(
     val uiState: StateFlow<DetailUiState> = combine(
         _detailState,
         watchedFlow,
-        isInWatchlistFlow
-    ) { internal, watchedList, isInWatchlist ->
+        isInWatchlistFlow,
+        myReviewFlow
+    ) { internal, watchedList, isInWatchlist, myReview ->
         when (internal) {
             is DetailInternalState.Loading -> DetailUiState.Loading
             is DetailInternalState.Error -> DetailUiState.Error(internal.message)
@@ -125,6 +131,7 @@ class DetailViewModel @Inject constructor(
                     show = internal.show,
                     isMovieWatched = isMovieWatched,
                     isInWatchlist = isInWatchlist,
+                    userRating = myReview?.rating,
                     dropOffInsight = internal.dropOffInsight,
                     recommendations = internal.recommendations,
                     seasons = internal.seasonDetails.map { seasonDetail ->
@@ -272,6 +279,7 @@ class DetailViewModel @Inject constructor(
                         syncStatus = SyncStatus.PENDING
                     )
                 )
+                watchlistDao.removeFromWatchlist(showId)
             }
             syncManager.syncWatchedEpisodesNow()
         }

@@ -124,7 +124,7 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                         seasonNum = record.seasonNum,
                         episodeNum = record.episodeNum,
                         reviewText = record.reviewText,
-                        vibeEmoji = null,
+                        vibeEmoji = record.rating?.toString(),
                         isSpoiler = record.isSpoiler
                         // createdAt can remain null for upsert so DB uses current timestamp
                     )

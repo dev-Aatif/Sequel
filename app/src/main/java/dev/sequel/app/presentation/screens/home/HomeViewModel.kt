@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -23,6 +26,7 @@ class HomeViewModel @Inject constructor(
     private val showRepository: ShowRepository,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val watchedEpisodeDao: dev.sequel.app.data.local.dao.WatchedEpisodeDao,
+    private val showDao: dev.sequel.app.data.local.dao.ShowDao,
     private val syncManager: dev.sequel.app.data.sync.SyncManager
 ) : ViewModel() {
 
@@ -37,6 +41,23 @@ class HomeViewModel @Inject constructor(
 
     fun setMediaType(type: String) {
         _mediaType.value = type
+    }
+    
+    val continueWatchingTvShows: StateFlow<List<ShowEntity>> = showDao.observeStartedTvShows()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _loopingMovies = MutableStateFlow<List<ShowEntity>>(emptyList())
+    val loopingMovies = _loopingMovies.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            try {
+                val response = tmdbApiService.getTrending(mediaType = "movie", page = 1)
+                _loopingMovies.value = response.results.take(6).map { it.toEntity("movie") }
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
     }
 
     fun addToWatchlist(show: ShowEntity) {
