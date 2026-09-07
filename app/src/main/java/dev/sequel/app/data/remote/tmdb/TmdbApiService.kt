@@ -109,4 +109,10 @@ interface TmdbApiService {
         @Path("movie_id") movieId: Int,
         @Query("page") page: Int = 1
     ): TmdbPagedResponse<TmdbShowDto>
+
+    /** Get TV shows airing today. */
+    @GET("tv/airing_today")
+    suspend fun getAiringToday(
+        @Query("page") page: Int = 1
+    ): TmdbPagedResponse<TmdbShowDto>
 }

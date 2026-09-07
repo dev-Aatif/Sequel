@@ -94,7 +94,11 @@ fun ShowDetailScreen(
             // Floating Glassmorphic Top Bar
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .padding(
+                        top = 16.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+                        start = 16.dp,
+                        end = 16.dp
+                    )
                     .glassmorphicBackground(RoundedCornerShape(32.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically

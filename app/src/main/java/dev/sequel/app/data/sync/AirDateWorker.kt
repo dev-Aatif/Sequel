@@ -37,14 +37,35 @@ class AirDateWorker @AssistedInject constructor(
             val startedShows = showDao.getStartedTvShows().map { it.id }
             val watchlistShows = watchlistDao.getAllWatchlistTvShows().map { it.tmdbId }
             val allTrackedShowIds = (startedShows + watchlistShows).distinct()
+            if (allTrackedShowIds.isEmpty()) return Result.success()
 
             val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-            // 2. Fetch details for each and check next_episode_to_air
-            for (showId in allTrackedShowIds) {
+            // 2. Fetch all shows airing today to prevent 500+ individual requests
+            val airingTodayIds = mutableSetOf<Int>()
+            var page = 1
+            var totalPages = 1
+            
+            do {
+                try {
+                    val response = tmdbApiService.getAiringToday(page = page)
+                    airingTodayIds.addAll(response.results.map { it.id })
+                    totalPages = response.totalPages
+                    page++
+                } catch (e: Exception) {
+                    break // Stop paginating on error
+                }
+            } while (page <= totalPages && page <= 10) // Cap at 10 pages to be safe
+
+            // 3. Intersect tracked shows with airing today
+            val trackedAiringToday = allTrackedShowIds.intersect(airingTodayIds)
+
+            // 4. Fetch details only for the matched shows to get episode names
+            for (showId in trackedAiringToday) {
                 try {
                     val detail = tmdbApiService.getTvShowDetail(showId)
-                    val nextEpisode = detail.nextEpisodeToAir
+                    val nextEpisode = detail.nextEpisodeToAir ?: detail.lastEpisodeToAir
+                    
                     if (nextEpisode != null && nextEpisode.airDate == todayStr) {
                         showNotification(
                             showName = detail.name,

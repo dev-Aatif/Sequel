@@ -45,12 +45,7 @@ fun MainScaffold() {
             SequelNavGraph(
                 navController = navController,
                 startDestination = Screen.Login.route,
-                // Do not pad bottom if we want content to flow under the floating bar, 
-                // but we might want standard padding for top/bottom system bars.
-                modifier = Modifier.padding(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = 0.dp // we will handle bottom padding manually per screen for floating elements
-                )
+                modifier = Modifier.fillMaxSize() // Let screens handle their own top insets for true edge-to-edge
             )
 
             AnimatedVisibility(

@@ -42,6 +42,24 @@ interface WatchedEpisodeDao {
     @Query("SELECT * FROM watched_episodes WHERE sync_status != 'DELETED' ORDER BY watched_at DESC LIMIT :limit")
     fun observeRecentlyWatched(limit: Int = 20): Flow<List<WatchedEpisodeEntity>>
 
+    @Query("""
+        SELECT 
+            we.id as historyId,
+            we.watched_at as watchedAt,
+            we.media_type as mediaType,
+            we.show_id as showId,
+            s.title as showTitle,
+            s.poster_path as posterPath,
+            we.season_number as seasonNumber,
+            we.episode_number as episodeNumber
+        FROM watched_episodes we
+        INNER JOIN shows s ON we.show_id = s.id
+        WHERE we.sync_status != 'DELETED'
+        ORDER BY we.watched_at DESC
+        LIMIT :limit
+    """)
+    fun observeRecentActivity(limit: Int = 20): Flow<List<dev.sequel.app.data.local.entity.RecentActivityItem>>
+
     // ── Queries (suspend) ─────────────────────────────────────────
 
     @Query("SELECT * FROM watched_episodes WHERE sync_status = :status")

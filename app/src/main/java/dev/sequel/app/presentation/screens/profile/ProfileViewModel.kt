@@ -16,7 +16,8 @@ data class ProfileUiState(
     val email: String? = null,
     val totalRuntimeMinutes: Int = 0,
     val totalEpisodesWatched: Int = 0,
-    val totalMoviesWatched: Int = 0
+    val totalMoviesWatched: Int = 0,
+    val recentActivity: List<dev.sequel.app.data.local.entity.RecentActivityItem> = emptyList()
 ) {
     val watchTimeFormatted: String
         get() {
@@ -43,13 +44,15 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = combine(
         watchedEpisodeDao.observeTotalEpisodesWatched(),
         watchedEpisodeDao.observeTotalMoviesWatched(),
-        watchedEpisodeDao.observeTotalRuntimeMinutes()
-    ) { episodes, movies, runtime ->
+        watchedEpisodeDao.observeTotalRuntimeMinutes(),
+        watchedEpisodeDao.observeRecentActivity(limit = 10)
+    ) { episodes, movies, runtime, recentActivity ->
         ProfileUiState(
             email = authRepository.currentUserEmail,
             totalEpisodesWatched = episodes,
             totalMoviesWatched = movies,
-            totalRuntimeMinutes = runtime
+            totalRuntimeMinutes = runtime,
+            recentActivity = recentActivity
         )
     }.stateIn(
         viewModelScope,

@@ -71,6 +71,9 @@ fun SequelNavGraph(
                 },
                 onNavigateToWatchlist = {
                     navController.navigate(Screen.Watchlist.route)
+                },
+                onNavigateToSearch = {
+                    navController.navigate(Screen.Search.route)
                 }
             )
         }

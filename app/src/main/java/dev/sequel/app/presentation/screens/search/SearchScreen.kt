@@ -57,7 +57,12 @@ fun SearchScreen(
     var isSearchFocused by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+                .padding(bottom = 100.dp)
+        ) {
             // Glassmorphic Search Bar
             Box(
                 modifier = Modifier

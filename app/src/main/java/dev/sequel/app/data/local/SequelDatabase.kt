@@ -35,9 +35,10 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         WatchedEpisodeEntity::class,
         ReviewEntity::class,
         RemoteKeys::class,
-        WatchlistEntity::class
+        WatchlistEntity::class,
+        dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -50,6 +51,7 @@ abstract class SequelDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun remoteKeysDao(): RemoteKeysDao
     abstract fun watchlistDao(): dev.sequel.app.data.local.dao.WatchlistDao
+    abstract fun trendingShowDao(): dev.sequel.app.data.local.dao.TrendingShowDao
 
     companion object {
         const val DATABASE_NAME = "sequel_database"
@@ -73,6 +75,15 @@ abstract class SequelDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE shows ADD COLUMN genres_display TEXT DEFAULT NULL")
                 db.execSQL("ALTER TABLE shows ADD COLUMN episode_runtime INTEGER DEFAULT NULL")
                 db.execSQL("ALTER TABLE shows ADD COLUMN content_rating TEXT DEFAULT NULL")
+            }
+        }
+
+        /**
+         * Migration 9→10: Add trending_shows table to map trending positions without losing show data.
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `trending_shows` (`showId` INTEGER NOT NULL, `mediaType` TEXT NOT NULL, `page` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`showId`))")
             }
         }
     }

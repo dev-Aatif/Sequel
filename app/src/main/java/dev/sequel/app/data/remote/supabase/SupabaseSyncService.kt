@@ -36,14 +36,14 @@ class SupabaseSyncService @Inject constructor(
      * Batch upsert watched episodes.
      * @return List of Supabase UUIDs.
      */
-    suspend fun upsertWatchedEpisodes(dtos: List<SupabaseWatchedEpisodeDto>): List<String> {
+    suspend fun upsertWatchedEpisodes(dtos: List<SupabaseWatchedEpisodeDto>): List<SupabaseWatchedEpisodeDto> {
         if (dtos.isEmpty()) return emptyList()
         val results = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
             .upsert(dtos) {
-                select(Columns.list("id"))
+                select() // Select all columns to map back to local rows
             }
             .decodeList<SupabaseWatchedEpisodeDto>()
-        return results.mapNotNull { it.id }
+        return results
     }
 
     /**

@@ -44,16 +44,27 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
         var hasFailures = false
 
         // 1. Sync Watched Episodes
-        val unsyncedEpisodes = watchedEpisodeDao.getUnsynced()
-        for (record in unsyncedEpisodes) {
-            try {
-                if (record.syncStatus == SyncStatus.DELETED) {
+        try {
+            val unsyncedEpisodes = watchedEpisodeDao.getUnsynced()
+            val toDelete = unsyncedEpisodes.filter { it.syncStatus == SyncStatus.DELETED }
+            val toUpsert = unsyncedEpisodes.filter { it.syncStatus != SyncStatus.DELETED }
+
+            // Handle deletes
+            for (record in toDelete) {
+                try {
                     if (record.supabaseId != null) {
                         supabaseSyncService.deleteWatchedEpisode(record.supabaseId)
                     }
                     watchedEpisodeDao.deleteEpisodeById(record.id)
-                } else {
-                    val dto = SupabaseWatchedEpisodeDto(
+                } catch (e: Exception) {
+                    hasFailures = true
+                }
+            }
+
+            // Handle bulk upserts
+            if (toUpsert.isNotEmpty()) {
+                val dtos = toUpsert.map { record ->
+                    SupabaseWatchedEpisodeDto(
                         id = record.supabaseId,
                         userId = userId,
                         mediaType = record.mediaType.name.lowercase(),
@@ -63,19 +74,34 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                         episodeNumber = record.episodeNumber,
                         watchedAt = record.watchedAt
                     )
+                }
 
-                    val supabaseId = supabaseSyncService.upsertWatchedEpisode(dto)
-                    watchedEpisodeDao.markAsSynced(
-                        id = record.id,
-                        supabaseId = supabaseId
-                    )
+                // Chunking to avoid massive requests (e.g., 500 at a time)
+                val chunkedDtos = dtos.chunked(500)
+                for (chunk in chunkedDtos) {
+                    val results = supabaseSyncService.upsertWatchedEpisodes(chunk)
+                    
+                    // Map results back to local entities to update supabaseId
+                    for (result in results) {
+                        val supabaseId = result.id ?: continue
+                        val localMatch = toUpsert.find { 
+                            it.showId == result.tmdbShowId && 
+                            it.episodeId == result.tmdbEpisodeId &&
+                            it.seasonNumber == result.seasonNumber &&
+                            it.episodeNumber == result.episodeNumber
+                        }
+                        if (localMatch != null) {
+                            watchedEpisodeDao.markAsSynced(
+                                id = localMatch.id,
+                                supabaseId = supabaseId
+                            )
+                        }
+                    }
                 }
-            } catch (e: Exception) {
-                if (runAttemptCount > 3) {
-                    watchedEpisodeDao.updateSyncStatus(record.id, SyncStatus.FAILED)
-                } else {
-                    hasFailures = true
-                }
+            }
+        } catch (e: Exception) {
+            if (runAttemptCount <= 3) {
+                hasFailures = true
             }
         }
 

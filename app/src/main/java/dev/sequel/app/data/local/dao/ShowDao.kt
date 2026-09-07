@@ -13,16 +13,20 @@ interface ShowDao {
 
     // ── Inserts ───────────────────────────────────────────────────
 
-    @androidx.room.Upsert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertShow(show: ShowEntity)
 
-    @androidx.room.Upsert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertShows(shows: List<ShowEntity>)
 
     // ── Updates ───────────────────────────────────────────────────
 
     @Update
     suspend fun updateShow(show: ShowEntity)
+
+    @Query("UPDATE shows SET title = :title, overview = :overview, poster_path = :posterPath, backdrop_path = :backdropPath, vote_average = :voteAverage, last_updated = :lastUpdated WHERE id = :id")
+    suspend fun updateShowApiData(id: Int, title: String, overview: String, posterPath: String?, backdropPath: String?, voteAverage: Double, lastUpdated: Long)
+
 
     @Query("UPDATE shows SET is_favorite = :isFavorite WHERE id = :showId")
     suspend fun updateFavoriteStatus(showId: Int, isFavorite: Boolean)
@@ -86,7 +90,7 @@ interface ShowDao {
 
     // ── Paging ────────────────────────────────────────────────────
 
-    @androidx.room.Query("SELECT * FROM shows WHERE media_type = :mediaType")
+    @androidx.room.Query("SELECT s.* FROM shows s INNER JOIN trending_shows t ON s.id = t.showId WHERE t.mediaType = :mediaType ORDER BY t.page ASC, t.position ASC")
     fun getPagingShows(mediaType: String): androidx.paging.PagingSource<Int, ShowEntity>
 
     @Query("SELECT COUNT(*) FROM shows WHERE media_type = :mediaType")

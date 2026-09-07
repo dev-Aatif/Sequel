@@ -8,6 +8,7 @@ import androidx.room.withTransaction
 import dev.sequel.app.data.local.SequelDatabase
 import dev.sequel.app.data.local.entity.RemoteKeys
 import dev.sequel.app.data.local.entity.ShowEntity
+import dev.sequel.app.data.local.entity.TrendingShowEntity
 import dev.sequel.app.data.remote.tmdb.TmdbApiService
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import retrofit2.HttpException
@@ -30,6 +31,7 @@ class ShowRemoteMediator(
 
     private val showDao = database.showDao()
     private val remoteKeysDao = database.remoteKeysDao()
+    private val trendingShowDao = database.trendingShowDao()
 
     override suspend fun load(
         loadType: LoadType,
@@ -62,7 +64,8 @@ class ShowRemoteMediator(
             database.withTransaction {
                 if (loadType == LoadType.REFRESH) {
                     remoteKeysDao.clearRemoteKeysByMediaType(mediaType)
-                    showDao.clearShowsByMediaType(mediaType)
+                    trendingShowDao.clearTrendingByMediaType(mediaType)
+                    // DO NOT clear shows table! This caused catastrophic data loss.
                 }
                 
                 val prevKey = if (page == 1) null else page - 1
@@ -72,8 +75,34 @@ class ShowRemoteMediator(
                     RemoteKeys(showId = it.id, prevKey = prevKey, nextKey = nextKey)
                 }
                 
+                val entities = shows.map { it.toEntity() }
+                
+                val trendingShows = shows.mapIndexed { index, show ->
+                    TrendingShowEntity(
+                        showId = show.id,
+                        mediaType = mediaType,
+                        page = page,
+                        position = index
+                    )
+                }
+                
                 remoteKeysDao.insertAll(keys)
-                showDao.insertShows(shows.map { it.toEntity() })
+                showDao.insertShows(entities)
+                
+                // Update existing shows to refresh their API data without dropping user state
+                entities.forEach { entity ->
+                    showDao.updateShowApiData(
+                        id = entity.id,
+                        title = entity.title,
+                        overview = entity.overview,
+                        posterPath = entity.posterPath,
+                        backdropPath = entity.backdropPath,
+                        voteAverage = entity.voteAverage,
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                }
+                
+                trendingShowDao.insertAll(trendingShows)
             }
             MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
         } catch (exception: IOException) {

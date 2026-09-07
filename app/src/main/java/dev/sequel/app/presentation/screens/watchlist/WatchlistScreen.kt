@@ -62,7 +62,11 @@ fun WatchlistScreen(
     val sheetState = rememberModalBottomSheetState()
     val view = LocalView.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+    ) {
         // ── 3-Tab Glassmorphic Segmented Control ──
         Box(
             modifier = Modifier

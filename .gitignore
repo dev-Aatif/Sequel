@@ -70,3 +70,6 @@ Thumbs.db
 # Scratch Scripts
 test_compile.kt
 install.cmd
+
+# Test
+test.kt

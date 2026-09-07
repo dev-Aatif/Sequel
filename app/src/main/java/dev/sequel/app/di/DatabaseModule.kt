@@ -31,7 +31,8 @@ object DatabaseModule {
         )
             .addMigrations(
                 SequelDatabase.MIGRATION_7_8,
-                SequelDatabase.MIGRATION_8_9
+                SequelDatabase.MIGRATION_8_9,
+                SequelDatabase.MIGRATION_9_10
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -57,4 +58,7 @@ object DatabaseModule {
 
     @Provides
     fun provideWatchlistDao(database: SequelDatabase): dev.sequel.app.data.local.dao.WatchlistDao = database.watchlistDao()
+
+    @Provides
+    fun provideTrendingShowDao(database: SequelDatabase) = database.trendingShowDao()
 }

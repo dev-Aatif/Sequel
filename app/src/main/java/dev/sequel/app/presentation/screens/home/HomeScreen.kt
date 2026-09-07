@@ -50,6 +50,7 @@ import dev.sequel.app.presentation.components.hapticClickable
 fun HomeScreen(
     onShowClick: (showId: Int, mediaType: String) -> Unit,
     onNavigateToWatchlist: () -> Unit,
+    onNavigateToSearch: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val pagedShows = viewModel.pagedShows.collectAsLazyPagingItems()
@@ -96,15 +97,23 @@ fun HomeScreen(
                     }
                 }
             }
-        } else if (pagedShows.itemCount == 0 && pagedShows.loadState.refresh is LoadState.NotLoading) {
-            // ── Zero-history onboarding empty state ──
-            ZeroHistoryOnboarding()
+        } else if (pagedShows.itemCount == 0 && continueWatchingTvShows.isEmpty()) {
+            ZeroHistoryOnboarding(onNavigateToSearch = onNavigateToSearch)
         } else {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp) // Space for floating bottom nav
             ) {
+                // ── Hero Section ──
+                item {
+                    val firstShow = if (pagedShows.itemCount > 0) pagedShows[0] else null
+                    HeroBanner(
+                        show = firstShow,
+                        onMarkWatched = { if (it != null) viewModel.markAsWatched(it) }
+                    )
+                }
+
                 // ── Dynamic Top Section ──
                 item {
                     if (currentType == "tv") {
@@ -218,42 +227,7 @@ fun HomeScreen(
                     }
                 }
                 
-                // ── Recommended Feed ──
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(
-                        text = "Recommended For You",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                    )
-                    
-                    val recommendedRowState = rememberLazyListState()
-                    LazyRow(
-                        state = recommendedRowState,
-                        flingBehavior = rememberSnapFlingBehavior(lazyListState = recommendedRowState),
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(
-                            count = pagedShows.itemCount,
-                            key = pagedShows.itemKey { "rec_${it.id}" }
-                        ) { index ->
-                            val show = pagedShows[pagedShows.itemCount - 1 - index] // reverse for variety
-                            if (show != null) {
-                                Box(modifier = Modifier.width(140.dp)) {
-                                    ShowCard(
-                                        show = show,
-                                        onClick = { onShowClick(show.id, show.mediaType) },
-                                        onLongClick = { viewModel.addToWatchlist(show) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+
             }
         }
 
@@ -386,7 +360,9 @@ fun HeroBanner(
 
 // ── Zero-history onboarding state ──
 @Composable
-fun ZeroHistoryOnboarding() {
+fun ZeroHistoryOnboarding(
+    onNavigateToSearch: () -> Unit
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -417,7 +393,7 @@ fun ZeroHistoryOnboarding() {
             )
             Spacer(modifier = Modifier.height(32.dp))
             Button(
-                onClick = { /* Navigate to search – handled by parent nav */ },
+                onClick = onNavigateToSearch,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(24.dp),
                 contentPadding = PaddingValues(horizontal = 32.dp, vertical = 14.dp)
@@ -511,41 +487,6 @@ fun HomeShimmerSkeleton() {
                 }
             }
         }
-        // Second section skeleton
-        item {
-            Spacer(modifier = Modifier.height(32.dp))
-            ShimmerBox(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .width(200.dp)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(4.dp))
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-        item {
-            Row(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                repeat(3) {
-                    Column {
-                        ShimmerBox(
-                            modifier = Modifier
-                                .width(140.dp)
-                                .height(210.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        ShimmerBox(
-                            modifier = Modifier
-                                .width(100.dp)
-                                .height(14.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                        )
-                    }
-                }
-            }
-        }
+
     }
 }

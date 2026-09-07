@@ -42,27 +42,24 @@ class TvTimeImporterUseCase @Inject constructor(
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                    // Skip header
-                    val header = reader.readLine()
-                    if (header == null) {
-                        emit(ImportProgress.Error("Empty file"))
-                        return@flow
-                    }
-
-                    var line = reader.readLine()
-                    while (line != null) {
-                        // Very naive CSV parsing, assuming quotes or not.
-                        // Format is typically: "Show Name","Season","Episode","Date"
-                        // Or without quotes.
-                        val parts = line.split("\",\"").map { it.replace("\"", "") }
-                        if (parts.size >= 4) {
-                            val showName = parts[0]
-                            val seasonNumber = parts[1].toIntOrNull() ?: 0
-                            val episodeNumber = parts[2].toIntOrNull() ?: 0
-                            val date = parts[3]
-                            rows.add(TvTimeRow(showName, seasonNumber, episodeNumber, date))
+                    com.opencsv.CSVReader(reader).use { csvReader ->
+                        // Skip header
+                        csvReader.readNext() ?: run {
+                            emit(ImportProgress.Error("Empty file"))
+                            return@flow
                         }
-                        line = reader.readLine()
+
+                        var line: Array<String>? = csvReader.readNext()
+                        while (line != null) {
+                            if (line.size >= 4) {
+                                val showName = line[0]
+                                val seasonNumber = line[1].toIntOrNull() ?: 0
+                                val episodeNumber = line[2].toIntOrNull() ?: 0
+                                val date = line[3]
+                                rows.add(TvTimeRow(showName, seasonNumber, episodeNumber, date))
+                            }
+                            line = csvReader.readNext()
+                        }
                     }
                 }
             }
@@ -91,19 +88,40 @@ class TvTimeImporterUseCase @Inject constructor(
                 val showId = searchResult.results.firstOrNull()?.id
                 
                 if (showId != null) {
-                    // 2. Insert Watched Episodes
-                    val entities = episodes.map { ep ->
-                        WatchedEpisodeEntity(
-                            mediaType = MediaType.TV,
-                            showId = showId,
-                            episodeId = -1, // Placeholder
-                            seasonNumber = ep.seasonNumber,
-                            episodeNumber = ep.episodeNumber,
-                            syncStatus = SyncStatus.PENDING
-                        )
+                    // Group episodes by season to minimize API calls
+                    val episodesBySeason = episodes.groupBy { it.seasonNumber }
+                    val entities = mutableListOf<WatchedEpisodeEntity>()
+
+                    for ((seasonNum, seasonEps) in episodesBySeason) {
+                        try {
+                            // Fetch season details to get real episode IDs
+                            val seasonDetail = tmdbApiService.getSeasonDetail(showId, seasonNum)
+                            val episodeMap = seasonDetail.episodes.associateBy { it.episodeNumber }
+
+                            for (ep in seasonEps) {
+                                val tmdbEpisode = episodeMap[ep.episodeNumber]
+                                if (tmdbEpisode != null) {
+                                    entities.add(
+                                        WatchedEpisodeEntity(
+                                            mediaType = MediaType.TV,
+                                            showId = showId,
+                                            episodeId = tmdbEpisode.id,
+                                            seasonNumber = ep.seasonNumber,
+                                            episodeNumber = ep.episodeNumber,
+                                            syncStatus = SyncStatus.PENDING
+                                        )
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Skip this season if network error or missing data
+                        }
                     }
-                    watchedEpisodeDao.insertWatchedEpisodes(entities)
-                    totalImported += entities.size
+
+                    if (entities.isNotEmpty()) {
+                        watchedEpisodeDao.insertWatchedEpisodes(entities)
+                        totalImported += entities.size
+                    }
                 }
             } catch (e: Exception) {
                 // Skip on error (could be rate limit, network issue, etc.)
