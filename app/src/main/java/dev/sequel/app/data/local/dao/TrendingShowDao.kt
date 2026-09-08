@@ -12,4 +12,7 @@ interface TrendingShowDao {
 
     @Query("DELETE FROM trending_shows WHERE mediaType = :mediaType")
     suspend fun clearTrendingByMediaType(mediaType: String)
+
+    @Query("SELECT COUNT(*) FROM trending_shows WHERE mediaType = :mediaType")
+    suspend fun getTrendingCountByMediaType(mediaType: String): Int
 }

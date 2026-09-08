@@ -84,42 +84,47 @@ private fun SequelBottomBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         BottomNavItem.entries.forEach { item ->
-            val isSelected = currentRoute == item.route
-            val scale by animateFloatAsState(
-                targetValue = if (isSelected) 1.15f else 1.0f,
-                animationSpec = tween(150),
-                label = "icon_scale"
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .hapticClickable(
-                        indication = null, // No ripple for clean glassmorphic look
-                    ) {
-                        if (currentRoute != item.route) {
-                            navController.navigate(item.route) {
-                                popUpTo(Screen.Home.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                    contentDescription = item.label,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .scale(scale)
-                        .shadow(
-                            elevation = if (isSelected) 8.dp else 0.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            ambientColor = MaterialTheme.colorScheme.primary,
-                            spotColor = MaterialTheme.colorScheme.primary
-                        )
+            androidx.compose.runtime.key(item.route) {
+                val isSelected = currentRoute == item.route
+                val scale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.15f else 1.0f,
+                    animationSpec = tween(150),
+                    label = "icon_scale"
                 )
+
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .hapticClickable(
+                            indication = null, // No ripple for clean glassmorphic look
+                        ) {
+                            if (currentRoute != item.route) {
+                                navController.navigate(item.route) {
+                                    popUpTo(Screen.Home.route) { 
+                                        saveState = true 
+                                    }
+                                    launchSingleTop = true
+                                    // Don't restore state when navigating to Home to prevent bringing back popped tabs
+                                    restoreState = item.route != Screen.Home.route
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label,
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .scale(scale)
+                            .shadow(
+                                elevation = if (isSelected) 8.dp else 0.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                ambientColor = MaterialTheme.colorScheme.primary,
+                                spotColor = MaterialTheme.colorScheme.primary
+                            )
+                    )
+                }
             }
         }
     }

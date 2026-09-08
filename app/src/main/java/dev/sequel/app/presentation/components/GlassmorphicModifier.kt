@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
  * - Adds a subtle semi-transparent white border
  * - Does not use Modifier.blur to prevent child blurring and UI flickering
  */
-@Composable
 fun Modifier.glassmorphicBackground(
     shape: Shape = RoundedCornerShape(16.dp),
     blurRadius: Dp = 16.dp, // Kept for compatibility with existing calls, but unused
@@ -43,17 +42,17 @@ fun Modifier.glassmorphicBackground(
 /**
  * A clickable modifier that triggers haptic feedback (vibration) on click.
  */
-@Composable
 fun Modifier.hapticClickable(
-    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    indication: androidx.compose.foundation.Indication? = androidx.compose.foundation.LocalIndication.current,
+    interactionSource: MutableInteractionSource? = null,
+    indication: androidx.compose.foundation.Indication? = null,
     enabled: Boolean = true,
     onClick: () -> Unit
 ): Modifier = composed {
+    val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     val view = LocalView.current
     this.clickable(
-        interactionSource = interactionSource,
-        indication = indication,
+        interactionSource = actualInteractionSource,
+        indication = indication ?: androidx.compose.foundation.LocalIndication.current,
         enabled = enabled,
         onClick = {
             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)

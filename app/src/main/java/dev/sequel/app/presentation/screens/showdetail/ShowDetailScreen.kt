@@ -136,24 +136,24 @@ private fun ShowDetailContent(
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(
         bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 120.dp
     )) {
-        // ── Hero Backdrop & Poster ──
+        // ── Hero Backdrop & Poster & Metadata ──
         item {
-            Box(Modifier.fillMaxWidth().height(420.dp)) {
+            Box(Modifier.fillMaxWidth()) {
                 // Blurred backdrop for atmosphere
                 AsyncImage(
                     model = TmdbImageUtil.backdropUrl(show.backdropPath ?: show.posterPath),
                     contentDescription = null,
                     contentScale = ContentScale.Crop, 
-                    modifier = Modifier.fillMaxSize().background(Color(0xFF0F1115))
+                    modifier = Modifier.matchParentSize().background(Color(0xFF0F1115))
                 )
-                Box(Modifier.fillMaxSize().background(Color(0xFF0F1115).copy(alpha = 0.6f)))
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+                Box(Modifier.matchParentSize().background(Color(0xFF0F1115).copy(alpha = 0.6f)))
+                Box(Modifier.matchParentSize().background(Brush.verticalGradient(
                     listOf(Color.Transparent, MaterialTheme.colorScheme.background.copy(0.8f), MaterialTheme.colorScheme.background), startY = 150f
                 )))
                 
                 // Centered Poster with space around it
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(top = 80.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 96.dp, bottom = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     AsyncImage(
@@ -161,7 +161,7 @@ private fun ShowDetailContent(
                         contentDescription = "${show.title} poster",
                         contentScale = ContentScale.Fit, 
                         modifier = Modifier
-                            .height(220.dp)
+                            .height(180.dp)
                             .clip(RoundedCornerShape(12.dp))
                     )
                     Spacer(Modifier.height(16.dp))
@@ -173,48 +173,45 @@ private fun ShowDetailContent(
                         Text(String.format("%.1f", show.voteAverage), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
                         show.status?.let { Text("  •  $it", style = MaterialTheme.typography.titleMedium, color = Color.White.copy(0.7f)) }
                     }
-                }
-            }
-        }
+                    
+                    // ── Metadata Text ──
+                    val metaLine1 = buildList {
+                        show.firstAirDate?.take(4)?.let { add(it) }
+                        show.contentRating?.let { add(it) }
+                        if (show.mediaType == "movie") {
+                            show.runtime?.let { runtime ->
+                                val hours = runtime / 60
+                                val mins = runtime % 60
+                                add(if (hours > 0) "${hours}h ${mins}m" else "${mins}m")
+                            }
+                        }
+                    }.joinToString("  •  ")
 
-        // ── Metadata Chips ──
-        item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                // Release year
-                show.firstAirDate?.take(4)?.let { year ->
-                    item { MetadataChip(year) }
-                }
-                // Genres
-                show.genresDisplay?.let { genres ->
-                    item { MetadataChip(genres) }
-                }
-                // Content rating
-                show.contentRating?.let { rating ->
-                    item { MetadataChip(rating) }
-                }
-                if (show.mediaType == "tv") {
-                    // Episode count
-                    show.numberOfEpisodes?.let { count ->
-                        item { MetadataChip("$count eps") }
-                    }
-                    // Episode runtime
-                    show.episodeRuntime?.let { runtime ->
-                        item { MetadataChip("~${runtime}m/ep") }
-                    }
-                    // Seasons
-                    show.numberOfSeasons?.let { seasons ->
-                        item { MetadataChip("$seasons seasons") }
-                    }
-                } else {
-                    // Movie runtime
-                    show.runtime?.let { runtime ->
-                        val hours = runtime / 60
-                        val mins = runtime % 60
-                        item { MetadataChip(if (hours > 0) "${hours}h ${mins}m" else "${mins}m") }
+                    val metaLine2 = if (show.mediaType == "tv") {
+                        buildList {
+                            show.numberOfSeasons?.let { add("$it Seasons") }
+                            show.numberOfEpisodes?.let { add("$it Episodes") }
+                            show.episodeRuntime?.let { add("~${it}m") }
+                        }.joinToString("  •  ")
+                    } else null
+
+                    val metaLine3 = show.genresDisplay
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 16.dp, start = 24.dp, end = 24.dp)
+                    ) {
+                        if (metaLine1.isNotEmpty()) {
+                            Text(metaLine1, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(0.9f), fontWeight = FontWeight.Bold)
+                        }
+                        if (!metaLine3.isNullOrEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(metaLine3, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(0.7f))
+                        }
+                        if (metaLine2?.isNotEmpty() == true) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(metaLine2, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary.copy(0.9f), fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -447,15 +444,7 @@ private fun ShowDetailContent(
     }
 }
 
-@Composable
-private fun MetadataChip(text: String) {
-    Box(
-        Modifier.glassmorphicBackground(RoundedCornerShape(12.dp), surfaceTint = Color(0xFF1A1D24).copy(0.9f))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    ) {
-        Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.8f), fontWeight = FontWeight.Bold)
-    }
-}
+
 
 @Composable
 private fun SeasonHeader(season: SeasonUi, onToggleWatched: (EpisodeUi) -> Unit) {

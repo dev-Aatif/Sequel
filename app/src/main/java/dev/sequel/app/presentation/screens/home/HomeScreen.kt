@@ -55,6 +55,7 @@ fun HomeScreen(
 ) {
     val pagedShows = viewModel.pagedShows.collectAsLazyPagingItems()
     val currentType by viewModel.mediaType.collectAsState()
+    val continueWatchingTvShows by viewModel.continueWatchingTvShows.collectAsState()
     
     val listState = rememberLazyListState()
     
@@ -117,8 +118,7 @@ fun HomeScreen(
                 // ── Dynamic Top Section ──
                 item {
                     if (currentType == "tv") {
-                        val continueWatchingShows by viewModel.continueWatchingTvShows.collectAsState()
-                        if (continueWatchingShows.isNotEmpty()) {
+                        if (continueWatchingTvShows.isNotEmpty()) {
                             Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
@@ -138,7 +138,7 @@ fun HomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    items(continueWatchingShows, key = { it.id }) { show ->
+                                    items(continueWatchingTvShows, key = { it.id }) { show ->
                                         Box(modifier = Modifier.width(140.dp)) {
                                             ShowCard(
                                                 show = show,

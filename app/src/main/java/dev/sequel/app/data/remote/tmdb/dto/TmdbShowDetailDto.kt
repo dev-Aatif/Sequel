@@ -64,7 +64,10 @@ data class TmdbShowDetailDto(
     val episodeRunTime: List<Int> = emptyList(),
 
     @SerialName("content_ratings")
-    val contentRatings: TmdbContentRatingsWrapper? = null
+    val contentRatings: TmdbContentRatingsWrapper? = null,
+
+    @SerialName("last_episode_to_air")
+    val lastEpisodeToAir: TmdbNextEpisodeDto? = null
 )
 
 @Serializable

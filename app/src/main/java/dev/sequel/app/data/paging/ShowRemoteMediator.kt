@@ -22,7 +22,7 @@ class ShowRemoteMediator(
 ) : RemoteMediator<Int, ShowEntity>() {
 
     override suspend fun initialize(): InitializeAction {
-        return if (database.showDao().getShowsCountByMediaType(mediaType) > 0) {
+        return if (database.trendingShowDao().getTrendingCountByMediaType(mediaType) > 0) {
             InitializeAction.SKIP_INITIAL_REFRESH
         } else {
             InitializeAction.LAUNCH_INITIAL_REFRESH
@@ -105,9 +105,7 @@ class ShowRemoteMediator(
                 trendingShowDao.insertAll(trendingShows)
             }
             MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
-        } catch (exception: IOException) {
-            MediatorResult.Error(exception)
-        } catch (exception: HttpException) {
+        } catch (exception: Exception) {
             MediatorResult.Error(exception)
         }
     }

@@ -93,14 +93,14 @@ fun SequelNavGraph(
                 },
                 onNavigateHome = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        popUpTo(Screen.Home.route) { saveState = true }
                         launchSingleTop = true
-                        restoreState = true
+                        restoreState = false
                     }
                 },
                 onNavigateSearch = {
                     navController.navigate(Screen.Search.route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        popUpTo(Screen.Home.route) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
