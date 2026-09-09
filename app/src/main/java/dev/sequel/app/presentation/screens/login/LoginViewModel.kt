@@ -12,8 +12,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 
 /**
  * UI state for the Login / Sign-Up screen.
@@ -25,8 +29,7 @@ data class LoginUiState(
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isPasswordVisible: Boolean = false,
-    val isCheckingSession: Boolean = true
+    val isPasswordVisible: Boolean = false
 )
 
 /**
@@ -44,19 +47,8 @@ class LoginViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<LoginEvent>()
-    val events: SharedFlow<LoginEvent> = _events.asSharedFlow()
-
-    init {
-        viewModelScope.launch {
-            val isAuthenticated = authRepository.authStateFlow.first()
-            if (isAuthenticated) {
-                _events.emit(LoginEvent.NavigateToHome)
-            } else {
-                _uiState.update { it.copy(isCheckingSession = false) }
-            }
-        }
-    }
+    private val _events = Channel<LoginEvent>(Channel.BUFFERED)
+    val events: Flow<LoginEvent> = _events.receiveAsFlow()
 
     fun onEmailChange(value: String) {
         _uiState.update { it.copy(email = value.trim(), errorMessage = null) }
@@ -123,7 +115,7 @@ class LoginViewModel @Inject constructor(
             result.fold(
                 onSuccess = {
                     _uiState.update { it.copy(isLoading = false) }
-                    _events.emit(LoginEvent.NavigateToHome)
+                    _events.send(LoginEvent.NavigateToHome)
                 },
                 onFailure = { throwable ->
                     _uiState.update {

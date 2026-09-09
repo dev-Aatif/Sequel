@@ -11,6 +11,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.foundation.shape.RoundedCornerShape
+import dev.sequel.app.presentation.components.glassmorphicBackground
 
 @Composable
 fun LoginScreen(
@@ -27,94 +36,121 @@ fun LoginScreen(
         }
     }
 
-    if (uiState.isCheckingSession) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "Sequel",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                CircularProgressIndicator()
-            }
-        }
-    } else {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
+                .fillMaxWidth()
+                .padding(24.dp)
+                .glassmorphicBackground(RoundedCornerShape(32.dp))
+                .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Sequel",
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.primary
+        Text(
+            text = "Sequel",
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Track your shows. Rate your favorites.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(48.dp))
+
+        OutlinedTextField(
+            value = uiState.email,
+            onValueChange = viewModel::onEmailChange,
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            isError = uiState.errorMessage != null,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Track your shows. Rate your favorites.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(48.dp))
+        )
+        Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = uiState.email,
-                onValueChange = viewModel::onEmailChange,
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = uiState.password,
-                onValueChange = viewModel::onPasswordChange,
-                label = { Text("Password") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            )
-
-            if (uiState.isSignUpMode) {
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = uiState.confirmPassword,
-                    onValueChange = viewModel::onConfirmPasswordChange,
-                    label = { Text("Confirm Password") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation()
-                )
-            }
-
-            if (uiState.errorMessage != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = uiState.errorMessage!!, color = MaterialTheme.colorScheme.error)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = viewModel::submit,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Text(if (uiState.isSignUpMode) "Sign Up" else "Login")
+        OutlinedTextField(
+            value = uiState.password,
+            onValueChange = viewModel::onPasswordChange,
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            isError = uiState.errorMessage != null,
+            visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                imeAction = if (uiState.isSignUpMode) androidx.compose.ui.text.input.ImeAction.Next else androidx.compose.ui.text.input.ImeAction.Done
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onDone = { if (!uiState.isSignUpMode) viewModel.submit() }
+            ),
+            trailingIcon = {
+                IconButton(onClick = viewModel::togglePasswordVisibility) {
+                    Icon(
+                        imageVector = if (uiState.isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (uiState.isPasswordVisible) "Hide password" else "Show password"
+                    )
                 }
             }
+        )
 
+        if (uiState.isSignUpMode) {
             Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = uiState.confirmPassword,
+                onValueChange = viewModel::onConfirmPasswordChange,
+                label = { Text("Confirm Password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = uiState.errorMessage != null,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onDone = { viewModel.submit() }
+                )
+            )
+        }
 
-            TextButton(onClick = viewModel::toggleMode) {
-                Text(if (uiState.isSignUpMode) "Already have an account? Login" else "Don't have an account? Sign Up")
+        if (uiState.errorMessage != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = uiState.errorMessage!!, 
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = viewModel::submit,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = !uiState.isLoading
+        ) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp).semantics { contentDescription = "Loading" }, 
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(if (uiState.isSignUpMode) "Sign Up" else "Login")
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(onClick = viewModel::toggleMode) {
+            Text(if (uiState.isSignUpMode) "Already have an account? Login" else "Don't have an account? Sign Up")
+        }
+    }
     }
 }

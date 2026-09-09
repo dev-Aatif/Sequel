@@ -27,39 +27,54 @@ import dev.sequel.app.presentation.navigation.BottomNavItem
 import dev.sequel.app.presentation.navigation.Screen
 import dev.sequel.app.presentation.navigation.SequelNavGraph
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.background
+
 @Composable
-fun MainScaffold() {
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+fun MainScaffold(viewModel: MainViewModel = hiltViewModel()) {
+    val startDestination by viewModel.startDestination.collectAsState()
 
-    // Bottom bar is visible only on main tab screens
-    val bottomBarRoutes = BottomNavItem.entries.map { it.route }
-    val showBottomBar = currentRoute in bottomBarRoutes
+    if (startDestination == null) {
+        // Show blank background matching splash screen while determining session state
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        )
+    } else {
+        val navController = rememberNavController()
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            SequelNavGraph(
-                navController = navController,
-                startDestination = Screen.Login.route,
-                modifier = Modifier.fillMaxSize() // Let screens handle their own top insets for true edge-to-edge
-            )
+        // Bottom bar is visible only on main tab screens
+        val bottomBarRoutes = BottomNavItem.entries.map { it.route }
+        val showBottomBar = currentRoute in bottomBarRoutes
 
-            AnimatedVisibility(
-                visible = showBottomBar,
-                enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(200)),
-                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200)),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp, start = 32.dp, end = 32.dp)
-            ) {
-                SequelBottomBar(
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+        ) { innerPadding ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                SequelNavGraph(
                     navController = navController,
-                    currentRoute = currentRoute
+                    startDestination = startDestination!!,
+                    modifier = Modifier.fillMaxSize() // Let screens handle their own top insets for true edge-to-edge
                 )
+
+                AnimatedVisibility(
+                    visible = showBottomBar,
+                    enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(200)),
+                    exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200)),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp, start = 32.dp, end = 32.dp)
+                ) {
+                    SequelBottomBar(
+                        navController = navController,
+                        currentRoute = currentRoute
+                    )
+                }
             }
         }
     }
