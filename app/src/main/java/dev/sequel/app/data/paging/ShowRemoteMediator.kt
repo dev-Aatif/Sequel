@@ -72,7 +72,7 @@ class ShowRemoteMediator(
                 val nextKey = if (endOfPaginationReached) null else page + 1
                 
                 val keys = shows.map {
-                    RemoteKeys(showId = it.id, prevKey = prevKey, nextKey = nextKey)
+                    RemoteKeys(showId = it.id, mediaType = mediaType, prevKey = prevKey, nextKey = nextKey)
                 }
                 
                 val entities = shows.map { it.toEntity() }
@@ -113,14 +113,14 @@ class ShowRemoteMediator(
     private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, ShowEntity>): RemoteKeys? {
         return state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull()
             ?.let { show ->
-                remoteKeysDao.remoteKeysShowId(show.id)
+                remoteKeysDao.remoteKeysShowId(show.id, mediaType)
             }
     }
 
     private suspend fun getRemoteKeyForFirstItem(state: PagingState<Int, ShowEntity>): RemoteKeys? {
         return state.pages.firstOrNull { it.data.isNotEmpty() }?.data?.firstOrNull()
             ?.let { show ->
-                remoteKeysDao.remoteKeysShowId(show.id)
+                remoteKeysDao.remoteKeysShowId(show.id, mediaType)
             }
     }
 
@@ -129,7 +129,7 @@ class ShowRemoteMediator(
     ): RemoteKeys? {
         return state.anchorPosition?.let { position ->
             state.closestItemToPosition(position)?.id?.let { showId ->
-                remoteKeysDao.remoteKeysShowId(showId)
+                remoteKeysDao.remoteKeysShowId(showId, mediaType)
             }
         }
     }

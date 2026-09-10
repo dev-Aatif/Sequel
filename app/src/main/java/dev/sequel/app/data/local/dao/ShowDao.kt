@@ -51,6 +51,9 @@ interface ShowDao {
     @Query("SELECT * FROM shows WHERE title LIKE '%' || :query || '%' ORDER BY vote_average DESC")
     fun searchShows(query: String): Flow<List<ShowEntity>>
 
+    @Query("SELECT s.* FROM shows s INNER JOIN trending_shows t ON s.id = t.showId WHERE t.mediaType = :mediaType ORDER BY t.page ASC, t.position ASC LIMIT :limit")
+    fun observeTrendingShows(mediaType: String, limit: Int): Flow<List<ShowEntity>>
+
     @Query("""
         SELECT s.* FROM shows s
         WHERE s.media_type = 'tv' 

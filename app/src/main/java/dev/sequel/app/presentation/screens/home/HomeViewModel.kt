@@ -46,30 +46,28 @@ class HomeViewModel @Inject constructor(
     val continueWatchingTvShows: StateFlow<List<ShowEntity>> = showDao.observeStartedTvShows()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _loopingMovies = MutableStateFlow<List<ShowEntity>>(emptyList())
-    val loopingMovies = _loopingMovies.asStateFlow()
+    val trendingThisWeekMovies: StateFlow<List<ShowEntity>> = showDao.observeTrendingShows("movie", limit = 6)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    init {
-        viewModelScope.launch {
-            try {
-                val response = tmdbApiService.getTrending(mediaType = "movie", page = 1)
-                _loopingMovies.value = response.results.take(6).map { it.toEntity("movie") }
-            } catch (e: Exception) {
-                // Ignore
-            }
-        }
-    }
+    private val _isProcessingAction = MutableStateFlow(false)
+    val isProcessingAction = _isProcessingAction.asStateFlow()
 
     fun addToWatchlist(show: ShowEntity) {
+        if (_isProcessingAction.value) return
+        _isProcessingAction.value = true
         viewModelScope.launch {
-            watchlistDao.insertToWatchlist(
-                dev.sequel.app.data.local.entity.WatchlistEntity(
-                    tmdbId = show.id,
-                    mediaType = if (show.mediaType == "movie") dev.sequel.app.data.local.entity.MediaType.MOVIE else dev.sequel.app.data.local.entity.MediaType.TV,
-                    title = show.title,
-                    posterPath = show.posterPath
+            try {
+                watchlistDao.insertToWatchlist(
+                    dev.sequel.app.data.local.entity.WatchlistEntity(
+                        tmdbId = show.id,
+                        mediaType = if (show.mediaType == "movie") dev.sequel.app.data.local.entity.MediaType.MOVIE else dev.sequel.app.data.local.entity.MediaType.TV,
+                        title = show.title,
+                        posterPath = show.posterPath
+                    )
                 )
-            )
+            } finally {
+                _isProcessingAction.value = false
+            }
         }
     }
 

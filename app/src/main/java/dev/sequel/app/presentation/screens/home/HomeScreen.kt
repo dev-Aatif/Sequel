@@ -19,10 +19,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +61,7 @@ fun HomeScreen(
     val pagedShows = viewModel.pagedShows.collectAsLazyPagingItems()
     val currentType by viewModel.mediaType.collectAsState()
     val continueWatchingTvShows by viewModel.continueWatchingTvShows.collectAsState()
+    val isProcessingAction by viewModel.isProcessingAction.collectAsState()
     
     val listState = rememberLazyListState()
     
@@ -108,10 +114,19 @@ fun HomeScreen(
             ) {
                 // ── Hero Section ──
                 item {
-                    val firstShow = if (pagedShows.itemCount > 0) pagedShows[0] else null
+                    var heroIndex by rememberSaveable(currentType) { mutableIntStateOf(0) }
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val firstShow = if (pagedShows.itemCount > heroIndex) pagedShows[heroIndex] else if (pagedShows.itemCount > 0) pagedShows[0] else null
                     HeroBanner(
                         show = firstShow,
-                        onMarkWatched = { if (it != null) viewModel.markAsWatched(it) }
+                        onShowClick = { onShowClick(it.id, it.mediaType) },
+                        onAddToWatchlist = { show ->
+                            if (!isProcessingAction) {
+                                viewModel.addToWatchlist(show)
+                                android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
+                                heroIndex++
+                            }
+                        }
                     )
                 }
 
@@ -143,7 +158,13 @@ fun HomeScreen(
                                             ShowCard(
                                                 show = show,
                                                 onClick = { onShowClick(show.id, show.mediaType) },
-                                                onLongClick = { viewModel.addToWatchlist(show) }
+                                                onLongClick = { 
+                                                    if (!isProcessingAction) {
+                                                        viewModel.addToWatchlist(show)
+                                                        val context = view.context
+                                                        android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             )
                                         }
                                     }
@@ -151,10 +172,10 @@ fun HomeScreen(
                             }
                         }
                     } else if (currentType == "movie") {
-                        val loopingMovies by viewModel.loopingMovies.collectAsState()
-                        if (loopingMovies.isNotEmpty()) {
+                        val trendingThisWeekMovies by viewModel.trendingThisWeekMovies.collectAsState()
+                        if (trendingThisWeekMovies.isNotEmpty()) {
                             Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                                Text("Popular Movies Today", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                                Text("Trending This Week", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
                                 val loopState = rememberLazyListState()
                                 LazyRow(
                                     state = loopState,
@@ -163,12 +184,18 @@ fun HomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    items(loopingMovies, key = { it.id }) { show ->
+                                    items(trendingThisWeekMovies, key = { it.id }) { show ->
                                         Box(modifier = Modifier.width(140.dp)) {
                                             ShowCard(
                                                 show = show,
                                                 onClick = { onShowClick(show.id, show.mediaType) },
-                                                onLongClick = { viewModel.addToWatchlist(show) }
+                                                onLongClick = {
+                                                    if (!isProcessingAction) {
+                                                        viewModel.addToWatchlist(show)
+                                                        val context = view.context
+                                                        android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             )
                                         }
                                     }
@@ -276,13 +303,15 @@ fun HomeScreen(
 @Composable
 fun HeroBanner(
     show: ShowEntity?,
-    onMarkWatched: (ShowEntity) -> Unit
+    onShowClick: (ShowEntity) -> Unit,
+    onAddToWatchlist: (ShowEntity) -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(400.dp)
             .background(MaterialTheme.colorScheme.surface)
+            .hapticClickable { if (show != null) onShowClick(show) }
     ) {
         if (show != null) {
             AsyncImage(
@@ -319,7 +348,7 @@ fun HeroBanner(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "UP NEXT",
+                        text = "FEATURED",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -339,14 +368,15 @@ fun HeroBanner(
                 
                 Row(
                     modifier = Modifier
+                        .semantics { role = androidx.compose.ui.semantics.Role.Button }
                         .glassmorphicBackground(RoundedCornerShape(16.dp))
-                        .hapticClickable { onMarkWatched(show) }
+                        .hapticClickable { onAddToWatchlist(show) }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = "Mark Watched", tint = Color.White)
+                    Icon(Icons.Filled.Add, contentDescription = "Add to Watchlist", tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Mark Watched", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("Add to Watchlist", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         } else {
