@@ -131,14 +131,9 @@ fun SearchScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.align(Alignment.Center)) {
                             Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
                             Spacer(Modifier.height(8.dp))
-                            val msg = if (state.message.contains("UnknownHostException", true) || state.message.contains("ConnectException", true)) {
-                                "No Internet Connection"
-                            } else {
-                                "Something went wrong"
-                            }
-                            Text(msg, color = MaterialTheme.colorScheme.onBackground.copy(0.7f), style = MaterialTheme.typography.titleMedium)
+                            Text(state.message, color = MaterialTheme.colorScheme.onBackground.copy(0.7f), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                             Spacer(Modifier.height(16.dp))
-                            Button(onClick = viewModel::retrySearch) {
+                            Button(onClick = viewModel::retrySearch, modifier = Modifier.semantics { role = Role.Button }) {
                                 Text("Retry")
                             }
                         }
@@ -236,10 +231,10 @@ fun ZeroStateDiscovery(
                 items(tags.size) { index ->
                     Box(
                         modifier = Modifier
-                            .glassmorphicBackground(RoundedCornerShape(16.dp))
                             .semantics { role = Role.Button }
+                            .glassmorphicBackground(RoundedCornerShape(16.dp))
                             .hapticClickable { onTagClick(tags[index]) }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
                     ) {
                         Text(tags[index], color = Color.White)
                     }

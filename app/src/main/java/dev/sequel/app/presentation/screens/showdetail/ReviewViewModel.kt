@@ -92,7 +92,7 @@ class ReviewViewModel @Inject constructor(
                     createdAt = System.currentTimeMillis().toString()
                 )
                 _communityState.value = CommunityState.Success(
-                    listOf(optimisticReview) + currentState.reviews
+                    listOf(optimisticReview) + currentState.reviews.filter { it.userId != "you" && it.userId != currentUserId }
                 )
             }
         }

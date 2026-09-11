@@ -112,8 +112,13 @@ class SearchViewModel @Inject constructor(
                             emit(SearchUiState.Success(results))
                         }
                     } catch (e: Exception) {
-                        // Friendly mapped message is better handled in the UI, but we can pass simple class name
-                        emit(SearchUiState.Error(e.javaClass.simpleName))
+                        val friendlyMessage = when {
+                            e is java.net.UnknownHostException || e is java.net.ConnectException -> "Couldn't connect. Check your internet connection."
+                            e is java.net.SocketTimeoutException -> "The request took too long. Please try again."
+                            e is retrofit2.HttpException -> "Something went wrong while loading results."
+                            else -> "Something went wrong. Please try again."
+                        }
+                        emit(SearchUiState.Error(friendlyMessage))
                     }
                 }
             }

@@ -46,6 +46,7 @@ fun Modifier.hapticClickable(
     interactionSource: MutableInteractionSource? = null,
     indication: androidx.compose.foundation.Indication? = null,
     enabled: Boolean = true,
+    role: androidx.compose.ui.semantics.Role? = null,
     onClick: () -> Unit
 ): Modifier = composed {
     val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
@@ -54,6 +55,7 @@ fun Modifier.hapticClickable(
         interactionSource = actualInteractionSource,
         indication = indication ?: androidx.compose.foundation.LocalIndication.current,
         enabled = enabled,
+        role = role,
         onClick = {
             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             onClick()

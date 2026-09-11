@@ -414,12 +414,20 @@ private fun ShowDetailContent(
                     }
                 } else {
                     items(communityState.reviews.size, key = { communityState.reviews[it].id ?: it }) { index ->
+                        val review = communityState.reviews[index]
                         val isFullyWatched = if (show.mediaType == "movie") {
                             state.isMovieWatched
                         } else {
-                            state.seasons.isNotEmpty() && state.seasons.all { s -> s.episodes.all { it.isWatched } }
+                            if (review.seasonNum != null && review.episodeNum != null) {
+                                state.seasons.find { it.seasonNumber == review.seasonNum }
+                                    ?.episodes?.find { it.episodeNumber == review.episodeNum }
+                                    ?.isWatched == true
+                            } else if (review.seasonNum != null) {
+                                state.seasons.find { it.seasonNumber == review.seasonNum }?.episodes?.all { it.isWatched } == true
+                            } else {
+                                state.seasons.any { s -> s.episodes.any { it.isWatched } }
+                            }
                         }
-                        val review = communityState.reviews[index]
                         ReviewCard(
                             review = review,
                             isWatched = isFullyWatched,

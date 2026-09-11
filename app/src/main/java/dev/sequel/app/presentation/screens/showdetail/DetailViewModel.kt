@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -213,11 +215,13 @@ class DetailViewModel @Inject constructor(
                 val seasonDetails = showDetail.seasons
                     .filter { it.seasonNumber > 0 } // exclude "Specials" (season 0)
                     .map { seasonSummary ->
-                        val detail = tmdbApiService.getSeasonDetail(showId, seasonSummary.seasonNumber)
-                        // Cache episodes to Room
-                        episodeDao.insertEpisodes(detail.toEpisodeEntities(showId))
-                        detail
-                    }
+                        async {
+                            val detail = tmdbApiService.getSeasonDetail(showId, seasonSummary.seasonNumber)
+                            // Cache episodes to Room
+                            episodeDao.insertEpisodes(detail.toEpisodeEntities(showId))
+                            detail
+                        }
+                    }.awaitAll()
 
                 val dropOff = if (mediaType == "tv") calculateDropOff(showId) else null
 
