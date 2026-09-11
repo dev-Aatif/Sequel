@@ -21,6 +21,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
+import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
+import dev.sequel.app.presentation.state.BottomSheetUiState
+import dev.sequel.app.data.local.entity.WatchlistEntity
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
 data class UpNextItem(
@@ -55,6 +60,8 @@ class WatchlistViewModel @Inject constructor(
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val syncManager: SyncManager,
+    private val getNextEpisodeUseCase: GetNextEpisodeUseCase,
+    private val tmdbApiService: dev.sequel.app.data.remote.tmdb.TmdbApiService,
     private val savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
@@ -211,6 +218,153 @@ class WatchlistViewModel @Inject constructor(
     fun removeFromWatchlist(tmdbId: Int) {
         viewModelScope.launch {
             watchlistDao.removeFromWatchlist(tmdbId)
+        }
+    }
+
+    // ── Bottom Sheet ────────────────────────────────────────────────
+
+    private val _isProcessingAction = MutableStateFlow(false)
+    val isProcessingAction = _isProcessingAction.asStateFlow()
+
+    private val _bottomSheetState = MutableStateFlow(BottomSheetUiState())
+    val bottomSheetState = _bottomSheetState.asStateFlow()
+
+    fun openBottomSheet(showId: Int, mediaType: String) {
+        _bottomSheetState.value = BottomSheetUiState(isLoading = true)
+        viewModelScope.launch {
+            try {
+                val show = showDao.getShowById(showId) ?: return@launch
+                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id).firstOrNull() ?: false
+                
+                if (show.mediaType == "movie") {
+                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id).firstOrNull() ?: emptyList()
+                    val isMovieWatched = watchedList.isNotEmpty()
+                    
+                    _bottomSheetState.value = BottomSheetUiState(
+                        show = show,
+                        inWatchlist = inWatchlist,
+                        isWatched = isMovieWatched,
+                        isLoading = false
+                    )
+                } else {
+                    val progression = getNextEpisodeUseCase(show.id)
+                    
+                    _bottomSheetState.value = BottomSheetUiState(
+                        show = show,
+                        inWatchlist = inWatchlist,
+                        isWatched = false,
+                        isCompleted = progression.isCompleted,
+                        nextEpisodeString = progression.nextEpisodeString,
+                        nextEpisodeData = progression.nextEpisodeData,
+                        isLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _bottomSheetState.value = BottomSheetUiState(isLoading = false)
+            }
+        }
+    }
+
+    fun toggleWatchlist(onSuccess: (String) -> Unit = {}) {
+        if (_isProcessingAction.value) return
+        
+        val state = _bottomSheetState.value
+        val show = state.show ?: return
+        
+        _isProcessingAction.value = true
+        viewModelScope.launch {
+            try {
+                if (state.inWatchlist) {
+                    watchlistDao.removeFromWatchlist(show.id)
+                    _bottomSheetState.value = state.copy(inWatchlist = false)
+                    onSuccess("Removed from Watchlist")
+                } else {
+                    watchlistDao.insertToWatchlist(
+                        WatchlistEntity(
+                            tmdbId = show.id,
+                            mediaType = if (show.mediaType == "movie") MediaType.MOVIE else MediaType.TV,
+                            title = show.title,
+                            posterPath = show.posterPath
+                        )
+                    )
+                    _bottomSheetState.value = state.copy(inWatchlist = true)
+                    onSuccess("Added to Watchlist")
+                }
+            } finally {
+                _isProcessingAction.value = false
+            }
+        }
+    }
+
+    fun toggleWatched(onSuccess: (String) -> Unit = {}) {
+        if (_isProcessingAction.value) return
+        
+        val state = _bottomSheetState.value
+        val show = state.show ?: return
+        
+        _isProcessingAction.value = true
+        viewModelScope.launch {
+            try {
+                if (show.mediaType == "movie") {
+                    if (state.isWatched) {
+                        watchedEpisodeDao.unwatchAllForShow(show.id)
+                        _bottomSheetState.value = state.copy(isWatched = false)
+                        onSuccess("Removed from Watched")
+                    } else {
+                        watchedEpisodeDao.insertWatchedEpisode(
+                            WatchedEpisodeEntity(
+                                mediaType = MediaType.MOVIE,
+                                showId = show.id,
+                                episodeId = null,
+                                seasonNumber = null,
+                                episodeNumber = null,
+                                syncStatus = SyncStatus.PENDING
+                            )
+                        )
+                        watchlistDao.removeFromWatchlist(show.id)
+                        _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
+                        onSuccess("Marked as Watched")
+                    }
+                } else {
+                    val next = state.nextEpisodeData ?: return@launch
+                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                    episodeDao.insertEpisodes(episodeEntities)
+                    
+                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    
+                    if (ep != null) {
+                        watchedEpisodeDao.insertWatchedEpisode(
+                            WatchedEpisodeEntity(
+                                mediaType = MediaType.TV,
+                                showId = show.id,
+                                episodeId = ep.id,
+                                seasonNumber = next.seasonNumber,
+                                episodeNumber = next.episodeNumber,
+                                syncStatus = SyncStatus.PENDING
+                            )
+                        )
+                        if (!state.inWatchlist) {
+                            watchlistDao.insertToWatchlist(
+                                WatchlistEntity(
+                                    tmdbId = show.id,
+                                    mediaType = MediaType.TV,
+                                    title = show.title,
+                                    posterPath = show.posterPath
+                                )
+                            )
+                        }
+                        onSuccess("Marked as Watched")
+                        openBottomSheet(show.id, show.mediaType)
+                    } else {
+                        onSuccess("Episode not found")
+                    }
+                }
+                syncManager.syncWatchedEpisodesNow()
+            } catch (e: Exception) {
+            } finally {
+                _isProcessingAction.value = false
+            }
         }
     }
 }

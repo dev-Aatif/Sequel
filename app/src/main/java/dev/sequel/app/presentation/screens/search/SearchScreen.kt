@@ -23,6 +23,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,9 +44,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.sequel.app.data.local.entity.ShowEntity
+import dev.sequel.app.presentation.components.SharedActionBottomSheet
 import dev.sequel.app.presentation.components.ShowCard
 import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
+import dev.sequel.app.presentation.state.BottomSheetUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +63,14 @@ fun SearchScreen(
     var selectedItemForAction by remember { mutableStateOf<ShowEntity?>(null) }
     val sheetState = rememberModalBottomSheetState()
     var isSearchFocused by remember { mutableStateOf(false) }
+    
+    val isProcessingAction by viewModel.isProcessingAction.collectAsState()
+    val bottomSheetState by viewModel.bottomSheetState.collectAsState()
+    val context = LocalContext.current
+    
+    LaunchedEffect(selectedItemForAction) {
+        selectedItemForAction?.let { viewModel.openBottomSheet(it) }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -93,7 +109,7 @@ fun SearchScreen(
                         Icon(
                             Icons.Default.Close, "Clear",
                             tint = MaterialTheme.colorScheme.onSurface.copy(0.5f),
-                            modifier = Modifier.size(24.dp).hapticClickable { viewModel.onQueryChange("") }
+                            modifier = Modifier.size(24.dp).semantics { role = Role.Button }.hapticClickable { viewModel.onQueryChange("") }
                         )
                     }
                 }
@@ -105,14 +121,27 @@ fun SearchScreen(
                     is SearchUiState.Idle -> {
                         ZeroStateDiscovery(
                             onTagClick = { tag -> viewModel.onQueryChange(tag) },
-                            onCategoryClick = { genre -> viewModel.onQueryChange(genre) }
+                            onCategoryClick = { genreName, genreId -> viewModel.onCategoryClick(genreName, genreId) }
                         )
                     }
                     is SearchUiState.Loading -> {
                         SearchResultsShimmer()
                     }
                     is SearchUiState.Error -> {
-                        Text(state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.align(Alignment.Center)) {
+                            Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+                            Spacer(Modifier.height(8.dp))
+                            val msg = if (state.message.contains("UnknownHostException", true) || state.message.contains("ConnectException", true)) {
+                                "No Internet Connection"
+                            } else {
+                                "Something went wrong"
+                            }
+                            Text(msg, color = MaterialTheme.colorScheme.onBackground.copy(0.7f), style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(16.dp))
+                            Button(onClick = viewModel::retrySearch) {
+                                Text("Retry")
+                            }
+                        }
                     }
                     is SearchUiState.Success -> {
                         val filteredResults = state.results.filter {
@@ -142,9 +171,9 @@ fun SearchScreen(
             }
         }
 
-        // Contextual Filters – appear when search input is focused
+        // Contextual Filters – appear when search input is focused or query is not empty
         AnimatedVisibility(
-            visible = isSearchFocused,
+            visible = isSearchFocused || query.isNotEmpty(),
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp)
@@ -168,27 +197,28 @@ fun SearchScreen(
 
     // Bottom sheet for long-press actions
     if (selectedItemForAction != null) {
-        val show = selectedItemForAction!!
-        ModalBottomSheet(onDismissRequest = { selectedItemForAction = null }, sheetState = sheetState) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(show.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Button(onClick = { viewModel.addToWatchlist(show); selectedItemForAction = null }, Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Add, null); Spacer(Modifier.width(8.dp)); Text("Add to Watchlist")
-                }
-                Button(onClick = { viewModel.markAsWatched(show); selectedItemForAction = null }, Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.CheckCircle, null); Spacer(Modifier.width(8.dp))
-                    Text(if (show.mediaType == "movie") "Mark as Watched" else "Mark S1E1 as Watched")
-                }
-                Spacer(Modifier.height(32.dp))
+        SharedActionBottomSheet(
+            sheetState = sheetState,
+            bottomSheetState = bottomSheetState,
+            isProcessingAction = isProcessingAction,
+            onDismissRequest = { selectedItemForAction = null },
+            onToggleWatchlist = { onSuccess ->
+                viewModel.toggleWatchlist(onSuccess)
+            },
+            onToggleWatched = { onSuccess ->
+                viewModel.toggleWatched(onSuccess)
+            },
+            onShowDetailClick = {
+                onShowClick(selectedItemForAction!!.id, selectedItemForAction!!.mediaType)
             }
-        }
+        )
     }
 }
 
 @Composable
 fun ZeroStateDiscovery(
     onTagClick: (String) -> Unit,
-    onCategoryClick: (String) -> Unit
+    onCategoryClick: (String, Int) -> Unit
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -207,6 +237,7 @@ fun ZeroStateDiscovery(
                     Box(
                         modifier = Modifier
                             .glassmorphicBackground(RoundedCornerShape(16.dp))
+                            .semantics { role = Role.Button }
                             .hapticClickable { onTagClick(tags[index]) }
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
@@ -220,19 +251,20 @@ fun ZeroStateDiscovery(
             Text("Browse Categories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
         }
         val categories = listOf(
-            "Action" to listOf(Color(0xFFEF4444), Color(0xFF991B1B)),
-            "Sci-Fi" to listOf(Color(0xFF3B82F6), Color(0xFF1E3A8A)),
-            "Comedy" to listOf(Color(0xFFF59E0B), Color(0xFF92400E)),
-            "Drama" to listOf(Color(0xFF10B981), Color(0xFF064E3B)),
-            "Horror" to listOf(Color(0xFF8B5CF6), Color(0xFF4C1D95)),
-            "Anime" to listOf(Color(0xFFEC4899), Color(0xFF831843))
+            Triple("Action", 28, listOf(Color(0xFFEF4444), Color(0xFF991B1B))),
+            Triple("Sci-Fi", 878, listOf(Color(0xFF3B82F6), Color(0xFF1E3A8A))),
+            Triple("Comedy", 35, listOf(Color(0xFFF59E0B), Color(0xFF92400E))),
+            Triple("Drama", 18, listOf(Color(0xFF10B981), Color(0xFF064E3B))),
+            Triple("Horror", 27, listOf(Color(0xFF8B5CF6), Color(0xFF4C1D95))),
+            Triple("Anime", 16, listOf(Color(0xFFEC4899), Color(0xFF831843)))
         )
         items(categories.size) { index ->
-            val (name, colors) = categories[index]
+            val (name, id, colors) = categories[index]
             Box(
                 modifier = Modifier.height(80.dp)
                     .background(Brush.linearGradient(colors), RoundedCornerShape(16.dp))
-                    .hapticClickable { onCategoryClick(name) }
+                    .semantics { role = Role.Button }
+                    .hapticClickable { onCategoryClick(name, id) }
                     .padding(16.dp),
                 contentAlignment = Alignment.BottomStart
             ) {

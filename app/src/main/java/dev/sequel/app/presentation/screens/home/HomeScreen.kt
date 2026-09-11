@@ -46,11 +46,13 @@ import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import coil.compose.AsyncImage
 import dev.sequel.app.data.local.entity.ShowEntity
+import dev.sequel.app.presentation.components.SharedActionBottomSheet
 import dev.sequel.app.presentation.components.ShowCard
 import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
+import dev.sequel.app.presentation.state.BottomSheetUiState
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onShowClick: (showId: Int, mediaType: String) -> Unit,
@@ -62,6 +64,13 @@ fun HomeScreen(
     val currentType by viewModel.mediaType.collectAsState()
     val continueWatchingTvShows by viewModel.continueWatchingTvShows.collectAsState()
     val isProcessingAction by viewModel.isProcessingAction.collectAsState()
+    val bottomSheetState by viewModel.bottomSheetState.collectAsState()
+    val sheetState = rememberModalBottomSheetState()
+    var selectedItemForAction by remember { mutableStateOf<ShowEntity?>(null) }
+
+    LaunchedEffect(selectedItemForAction) {
+        selectedItemForAction?.let { viewModel.openBottomSheet(it) }
+    }
     
     val listState = rememberLazyListState()
     
@@ -158,13 +167,7 @@ fun HomeScreen(
                                             ShowCard(
                                                 show = show,
                                                 onClick = { onShowClick(show.id, show.mediaType) },
-                                                onLongClick = { 
-                                                    if (!isProcessingAction) {
-                                                        viewModel.addToWatchlist(show)
-                                                        val context = view.context
-                                                        android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
+                                                onLongClick = { selectedItemForAction = show }
                                             )
                                         }
                                     }
@@ -189,13 +192,7 @@ fun HomeScreen(
                                             ShowCard(
                                                 show = show,
                                                 onClick = { onShowClick(show.id, show.mediaType) },
-                                                onLongClick = {
-                                                    if (!isProcessingAction) {
-                                                        viewModel.addToWatchlist(show)
-                                                        val context = view.context
-                                                        android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
+                                                onLongClick = { selectedItemForAction = show }
                                             )
                                         }
                                     }
@@ -235,7 +232,7 @@ fun HomeScreen(
                                     ShowCard(
                                         show = show,
                                         onClick = { onShowClick(show.id, show.mediaType) },
-                                        onLongClick = { viewModel.addToWatchlist(show) }
+                                        onLongClick = { selectedItemForAction = show }
                                     )
                                 }
                             }
@@ -297,6 +294,24 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    if (selectedItemForAction != null) {
+        SharedActionBottomSheet(
+            sheetState = sheetState,
+            bottomSheetState = bottomSheetState,
+            isProcessingAction = isProcessingAction,
+            onDismissRequest = { selectedItemForAction = null },
+            onToggleWatchlist = { onSuccess ->
+                viewModel.toggleWatchlist(onSuccess)
+            },
+            onToggleWatched = { onSuccess ->
+                viewModel.toggleWatched(onSuccess)
+            },
+            onShowDetailClick = {
+                onShowClick(selectedItemForAction!!.id, selectedItemForAction!!.mediaType)
+            }
+        )
     }
 }
 

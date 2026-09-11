@@ -83,6 +83,7 @@ interface TmdbApiService {
     /** Discover popular TV shows. */
     @GET("discover/tv")
     suspend fun discoverTv(
+        @Query("with_genres") withGenres: String? = null,
         @Query("sort_by") sortBy: String = "popularity.desc",
         @Query("page") page: Int = 1
     ): TmdbPagedResponse<TmdbShowDto>
@@ -90,6 +91,7 @@ interface TmdbApiService {
     /** Discover popular movies. */
     @GET("discover/movie")
     suspend fun discoverMovies(
+        @Query("with_genres") withGenres: String? = null,
         @Query("sort_by") sortBy: String = "popularity.desc",
         @Query("page") page: Int = 1
     ): TmdbPagedResponse<TmdbShowDto>

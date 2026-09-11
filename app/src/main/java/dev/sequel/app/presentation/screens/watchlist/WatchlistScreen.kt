@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
+import dev.sequel.app.presentation.components.SharedActionBottomSheet
 import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
 
@@ -58,7 +59,10 @@ fun WatchlistScreen(
     val activeTab by viewModel.currentTab.collectAsState()
     var watchedSubTab by remember { mutableStateOf("Shows") } // "Shows" or "Movies"
     
-    var selectedItemForAction by remember { mutableStateOf<Any?>(null) }
+    val bottomSheetState by viewModel.bottomSheetState.collectAsState()
+    val isProcessingAction by viewModel.isProcessingAction.collectAsState()
+    
+    var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val view = LocalView.current
 
@@ -116,7 +120,11 @@ fun WatchlistScreen(
                                 UpNextGlassmorphicRow(
                                     item = item,
                                     onClick = { onShowClick(item.showId, item.mediaType) },
-                                    onLongClick = { view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); selectedItemForAction = item },
+                                    onLongClick = { 
+                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                        viewModel.openBottomSheet(item.showId, item.mediaType)
+                                        showBottomSheet = true
+                                    },
                                     onMarkWatched = { viewModel.markAsWatched(item) }
                                 )
                             }
@@ -138,7 +146,11 @@ fun WatchlistScreen(
                                 PlanToWatchGlassmorphicRow(
                                     item = item,
                                     onClick = { onShowClick(item.tmdbId, item.mediaType.name.lowercase()) },
-                                    onLongClick = { view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); selectedItemForAction = item }
+                                    onLongClick = { 
+                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                        viewModel.openBottomSheet(item.tmdbId, item.mediaType.name.lowercase())
+                                        showBottomSheet = true
+                                    }
                                 )
                             }
                         }
@@ -188,7 +200,12 @@ fun WatchlistScreen(
                                 items(displayItems, key = { it.showId }) { item ->
                                     WatchedGlassmorphicRow(
                                         item = item,
-                                        onClick = { onShowClick(item.showId, item.mediaType) }
+                                        onClick = { onShowClick(item.showId, item.mediaType) },
+                                        onLongClick = {
+                                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                            viewModel.openBottomSheet(item.showId, item.mediaType)
+                                            showBottomSheet = true
+                                        }
                                     )
                                 }
                             }
@@ -200,37 +217,25 @@ fun WatchlistScreen(
     }
 
     // ── Bottom Sheet Actions ──
-    if (selectedItemForAction != null) {
-        ModalBottomSheet(onDismissRequest = { selectedItemForAction = null }, sheetState = sheetState) {
-            val title = when (selectedItemForAction) {
-                is UpNextItem -> (selectedItemForAction as UpNextItem).title
-                is dev.sequel.app.data.local.entity.WatchlistEntity -> (selectedItemForAction as dev.sequel.app.data.local.entity.WatchlistEntity).title
-                else -> ""
-            }
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                if (selectedItemForAction is dev.sequel.app.data.local.entity.WatchlistEntity) {
-                    Button(
-                        onClick = { 
-                            viewModel.removeFromWatchlist((selectedItemForAction as dev.sequel.app.data.local.entity.WatchlistEntity).tmdbId)
-                            selectedItemForAction = null 
-                        }, 
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
-                    ) {
-                        Icon(Icons.Outlined.BookmarkBorder, null); Spacer(Modifier.width(8.dp)); Text("Remove from Watchlist")
-                    }
-                } else {
-                    Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.VisibilityOff, null); Spacer(Modifier.width(8.dp)); Text("Dismiss")
-                    }
+    if (showBottomSheet) {
+        SharedActionBottomSheet(
+            sheetState = sheetState,
+            bottomSheetState = bottomSheetState,
+            isProcessingAction = isProcessingAction,
+            onDismissRequest = { showBottomSheet = false },
+            onToggleWatchlist = { onSuccess ->
+                viewModel.toggleWatchlist(onSuccess)
+            },
+            onToggleWatched = { onSuccess ->
+                viewModel.toggleWatched(onSuccess)
+            },
+            onShowDetailClick = {
+                val show = bottomSheetState.show
+                if (show != null) {
+                    onShowClick(show.id, show.mediaType)
                 }
-                Button(onClick = { selectedItemForAction = null }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
-                    Icon(Icons.Filled.Share, null); Spacer(Modifier.width(8.dp)); Text("Share")
-                }
-                Spacer(Modifier.height(32.dp))
             }
-        }
+        )
     }
 }
 
@@ -333,7 +338,7 @@ fun PlanToWatchGlassmorphicRow(item: dev.sequel.app.data.local.entity.WatchlistE
 
 // ── Watched Row (with status tag) ──
 @Composable
-fun WatchedGlassmorphicRow(item: WatchedItem, onClick: () -> Unit) {
+fun WatchedGlassmorphicRow(item: WatchedItem, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
     val statusColor = when (item.statusTag) {
         "Completed" -> Color(0xFF10B981)
         "Up to Date" -> Color(0xFF3B82F6)
@@ -343,7 +348,8 @@ fun WatchedGlassmorphicRow(item: WatchedItem, onClick: () -> Unit) {
     }
 
     Box(
-        modifier = Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(16.dp)).hapticClickable { onClick() }
+        modifier = Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(16.dp))
+            .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() }) }
     ) {
         Row(Modifier.fillMaxWidth().height(130.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
