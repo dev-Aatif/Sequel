@@ -54,5 +54,8 @@ data class WatchedEpisodeEntity(
 
     /** The remote ID from Supabase after successful sync, null if not yet synced. */
     @ColumnInfo(name = "supabase_id")
-    val supabaseId: String? = null
+    val supabaseId: String? = null,
+
+    @ColumnInfo(name = "is_skipped")
+    val isSkipped: Boolean = false
 )

@@ -38,7 +38,7 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         WatchlistEntity::class,
         dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -93,6 +93,12 @@ abstract class SequelDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS `remote_keys`")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `remote_keys` (`showId` INTEGER NOT NULL, `mediaType` TEXT NOT NULL, `prevKey` INTEGER, `nextKey` INTEGER, PRIMARY KEY(`showId`, `mediaType`))")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE watched_episodes ADD COLUMN is_skipped INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

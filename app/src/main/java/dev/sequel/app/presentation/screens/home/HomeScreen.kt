@@ -308,6 +308,9 @@ fun HomeScreen(
             onToggleWatched = { onSuccess ->
                 viewModel.toggleWatched(onSuccess)
             },
+            onSkip = { onSuccess ->
+                viewModel.skipEpisodeAction(onSuccess)
+            },
             onShowDetailClick = {
                 onShowClick(selectedItemForAction!!.id, selectedItemForAction!!.mediaType)
             }

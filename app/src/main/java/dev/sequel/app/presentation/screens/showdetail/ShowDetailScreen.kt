@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -501,10 +502,20 @@ private fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit)
             episode.runtime?.let { Text("${it}m", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.6f)) }
         }
         Box(Modifier.size(48.dp).hapticClickable { onToggleWatched(episode) }, contentAlignment = Alignment.Center) {
+            val icon = when {
+                episode.isWatched -> Icons.Filled.CheckCircle
+                episode.isSkipped -> Icons.Outlined.ArrowForward
+                else -> Icons.Outlined.CheckCircleOutline
+            }
+            val tint = when {
+                episode.isWatched -> MaterialTheme.colorScheme.primary
+                episode.isSkipped -> MaterialTheme.colorScheme.onSurface.copy(0.7f)
+                else -> MaterialTheme.colorScheme.onSurface.copy(0.4f)
+            }
             Icon(
-                if (episode.isWatched) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircleOutline,
-                if (episode.isWatched) "Unwatch" else "Watch",
-                tint = if (episode.isWatched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.4f),
+                icon,
+                if (episode.isWatched) "Unwatch" else if (episode.isSkipped) "Unskip" else "Watch",
+                tint = tint,
                 modifier = Modifier.size(28.dp)
             )
         }

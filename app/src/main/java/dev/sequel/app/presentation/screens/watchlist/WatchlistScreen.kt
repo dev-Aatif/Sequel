@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -125,7 +126,8 @@ fun WatchlistScreen(
                                         viewModel.openBottomSheet(item.showId, item.mediaType)
                                         showBottomSheet = true
                                     },
-                                    onMarkWatched = { viewModel.markAsWatched(item) }
+                                    onMarkWatched = { viewModel.markAsWatched(item) },
+                                    onSkip = { viewModel.skipEpisode(item) }
                                 )
                             }
                         }
@@ -223,12 +225,9 @@ fun WatchlistScreen(
             bottomSheetState = bottomSheetState,
             isProcessingAction = isProcessingAction,
             onDismissRequest = { showBottomSheet = false },
-            onToggleWatchlist = { onSuccess ->
-                viewModel.toggleWatchlist(onSuccess)
-            },
-            onToggleWatched = { onSuccess ->
-                viewModel.toggleWatched(onSuccess)
-            },
+            onToggleWatchlist = { viewModel.toggleWatchlist(it) },
+            onToggleWatched = { viewModel.toggleWatched(it) },
+            onSkip = { viewModel.skipEpisodeAction(it) },
             onShowDetailClick = {
                 val show = bottomSheetState.show
                 if (show != null) {
@@ -279,7 +278,7 @@ fun EmptyTabState(icon: ImageVector, title: String, subtitle: String, ctaLabel: 
 
 // ── Up Next Row ──
 @Composable
-fun UpNextGlassmorphicRow(item: UpNextItem, onClick: () -> Unit, onLongClick: () -> Unit, onMarkWatched: () -> Unit) {
+fun UpNextGlassmorphicRow(item: UpNextItem, onClick: () -> Unit, onLongClick: () -> Unit, onMarkWatched: () -> Unit, onSkip: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(16.dp))
             .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() }) }
@@ -299,8 +298,15 @@ fun UpNextGlassmorphicRow(item: UpNextItem, onClick: () -> Unit, onLongClick: ()
                         Text("Movie", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
                     }
                 }
-                Box(Modifier.padding(end = 16.dp).size(48.dp).glassmorphicBackground(RoundedCornerShape(24.dp)).hapticClickable { onMarkWatched() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.CheckCircleOutline, "Mark watched", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Row(Modifier.padding(end = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (item.mediaType == "tv") {
+                        Box(Modifier.size(48.dp).glassmorphicBackground(RoundedCornerShape(24.dp)).hapticClickable { onSkip() }, contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.ArrowForward, "Skip episode", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), modifier = Modifier.size(24.dp))
+                        }
+                    }
+                    Box(Modifier.size(48.dp).glassmorphicBackground(RoundedCornerShape(24.dp)).hapticClickable { onMarkWatched() }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.CheckCircleOutline, "Mark watched", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    }
                 }
             }
             // Progress bar for TV shows

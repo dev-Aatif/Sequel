@@ -19,7 +19,14 @@ interface WatchlistDao {
     @Query("DELETE FROM watchlist WHERE tmdb_id = :tmdbId")
     suspend fun deleteWatchlistById(tmdbId: Int)
 
-    @Query("SELECT * FROM watchlist WHERE sync_status != 'DELETED' ORDER BY added_at DESC")
+    @Query("""
+        SELECT * FROM watchlist w
+        WHERE sync_status != 'DELETED' 
+        AND NOT EXISTS (
+            SELECT 1 FROM watched_episodes we WHERE we.show_id = w.tmdb_id
+        )
+        ORDER BY added_at DESC
+    """)
     fun observeWatchlist(): Flow<List<WatchlistEntity>>
 
     @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE tmdb_id = :tmdbId AND sync_status != 'DELETED')")

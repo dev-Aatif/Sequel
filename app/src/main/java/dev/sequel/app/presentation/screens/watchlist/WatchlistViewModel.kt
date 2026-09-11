@@ -73,7 +73,7 @@ class WatchlistViewModel @Inject constructor(
         if (shows.isEmpty()) return@flatMapLatest flowOf(emptyList<UpNextItem>())
         
         val nextEpisodeFlows = shows.map { show ->
-            episodeDao.observeNextUnwatchedEpisode(show.id).map { nextEp ->
+            episodeDao.observeCanonicalNextEpisode(show.id).map { nextEp ->
                 if (nextEp != null) {
                     UpNextItem(
                         showId = show.id,
@@ -112,7 +112,7 @@ class WatchlistViewModel @Inject constructor(
             combine(
                 showDao.observeShowById(showId),
                 watchedEpisodeDao.observeWatchedByShow(showId),
-                episodeDao.observeNextUnwatchedEpisode(showId)
+                episodeDao.observeCanonicalNextEpisode(showId)
             ) { show, watchedEpisodes, nextUnwatched ->
                 if (show == null) return@combine null
                 val watchedCount = watchedEpisodes.size
@@ -188,7 +188,7 @@ class WatchlistViewModel @Inject constructor(
                         )
                     )
                     // Auto-queue: next episode automatically appears in Up Next
-                    // because observeNextUnwatchedEpisode is reactive
+                    // because observeCanonicalNextEpisode is reactive
                 }
             } else {
                 watchedEpisodeDao.insertWatchedEpisode(
@@ -204,6 +204,25 @@ class WatchlistViewModel @Inject constructor(
                 watchlistDao.removeFromWatchlist(item.showId)
             }
             syncManager.syncWatchedEpisodesNow()
+        }
+    }
+
+    fun skipEpisode(item: UpNextItem) {
+        viewModelScope.launch {
+            if (item.mediaType == "tv" && item.nextEpisodeId != null) {
+                watchedEpisodeDao.insertWatchedEpisode(
+                    WatchedEpisodeEntity(
+                        mediaType = MediaType.TV,
+                        showId = item.showId,
+                        episodeId = item.nextEpisodeId,
+                        seasonNumber = item.seasonNumber,
+                        episodeNumber = item.episodeNumber,
+                        syncStatus = SyncStatus.PENDING,
+                        isSkipped = true
+                    )
+                )
+                syncManager.syncWatchedEpisodesNow()
+            }
         }
     }
 
@@ -344,17 +363,48 @@ class WatchlistViewModel @Inject constructor(
                                 syncStatus = SyncStatus.PENDING
                             )
                         )
-                        if (!state.inWatchlist) {
-                            watchlistDao.insertToWatchlist(
-                                WatchlistEntity(
-                                    tmdbId = show.id,
-                                    mediaType = MediaType.TV,
-                                    title = show.title,
-                                    posterPath = show.posterPath
-                                )
-                            )
-                        }
                         onSuccess("Marked as Watched")
+                        openBottomSheet(show.id, show.mediaType)
+                    } else {
+                        onSuccess("Episode not found")
+                    }
+                }
+                syncManager.syncWatchedEpisodesNow()
+            } catch (e: Exception) {
+            } finally {
+                _isProcessingAction.value = false
+            }
+        }
+    }
+
+    fun skipEpisodeAction(onSuccess: (String) -> Unit = {}) {
+        if (_isProcessingAction.value) return
+        val state = _bottomSheetState.value
+        val show = state.show ?: return
+        val next = state.nextEpisodeData ?: return
+
+        _isProcessingAction.value = true
+        viewModelScope.launch {
+            try {
+                if (show.mediaType == "tv") {
+                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                    episodeDao.insertEpisodes(episodeEntities)
+                    
+                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    if (ep != null) {
+                        watchedEpisodeDao.insertWatchedEpisode(
+                            WatchedEpisodeEntity(
+                                mediaType = MediaType.TV,
+                                showId = show.id,
+                                episodeId = ep.id,
+                                seasonNumber = next.seasonNumber,
+                                episodeNumber = next.episodeNumber,
+                                syncStatus = SyncStatus.PENDING,
+                                isSkipped = true
+                            )
+                        )
+                        onSuccess("Skipped Episode")
                         openBottomSheet(show.id, show.mediaType)
                     } else {
                         onSuccess("Episode not found")

@@ -44,7 +44,8 @@ data class EpisodeUi(
     val stillPath: String?,
     val airDate: String?,
     val runtime: Int?,
-    val isWatched: Boolean
+    val isWatched: Boolean,
+    val isSkipped: Boolean
 )
 
 /**
@@ -127,7 +128,7 @@ class DetailViewModel @Inject constructor(
             is DetailInternalState.Loading -> DetailUiState.Loading
             is DetailInternalState.Error -> DetailUiState.Error(internal.message)
             is DetailInternalState.Loaded -> {
-                val watchedIds = watchedList.map { it.episodeId }.toSet()
+                val watchedMap = watchedList.associateBy { it.episodeId }
                 val isMovieWatched = internal.show.mediaType == "movie" && watchedList.isNotEmpty()
                 DetailUiState.Success(
                     show = internal.show,
@@ -150,7 +151,8 @@ class DetailViewModel @Inject constructor(
                                     stillPath = ep.stillPath,
                                     airDate = ep.airDate,
                                     runtime = ep.runtime,
-                                    isWatched = ep.id in watchedIds
+                                    isWatched = watchedMap.containsKey(ep.id) && watchedMap[ep.id]?.isSkipped != true,
+                                    isSkipped = watchedMap[ep.id]?.isSkipped == true
                                 )
                             }
                         )

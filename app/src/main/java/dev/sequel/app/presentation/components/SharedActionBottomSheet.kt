@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ fun SharedActionBottomSheet(
     onDismissRequest: () -> Unit,
     onToggleWatchlist: ((String) -> Unit) -> Unit,
     onToggleWatched: ((String) -> Unit) -> Unit,
+    onSkip: ((String) -> Unit) -> Unit = {},
     onShowDetailClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -103,6 +105,24 @@ fun SharedActionBottomSheet(
                         Icon(icon, null)
                         Spacer(Modifier.width(8.dp))
                         Text(text)
+                    }
+
+                    if (show.mediaType == "tv") {
+                        val skipText = bottomSheetState.nextEpisodeString?.replace("Mark ", "Skip ")?.replace(" as Watched", "") ?: "Skip Episode"
+                        OutlinedButton(
+                            onClick = {
+                                onSkip { msg ->
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    onDismissRequest()
+                                }
+                            },
+                            Modifier.fillMaxWidth(),
+                            enabled = !isProcessingAction
+                        ) {
+                            Icon(Icons.Outlined.ArrowForward, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(skipText)
+                        }
                     }
                 }
             }
