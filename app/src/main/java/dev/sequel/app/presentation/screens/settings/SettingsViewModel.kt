@@ -27,14 +27,18 @@ class SettingsViewModel @Inject constructor(
                 authService.deleteUser()
                 
                 // 2. Wipe the local Room database
-                appDatabase.clearAllTables()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    appDatabase.clearAllTables()
+                }
                 
                 // 3. Navigate back to Auth
                 onSuccess()
             } catch (e: Exception) {
                 // Ignore error, force sign out locally
                 authService.signOut()
-                appDatabase.clearAllTables()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    appDatabase.clearAllTables()
+                }
                 onSuccess()
             } finally {
                 _isDeleting.value = false
@@ -45,7 +49,9 @@ class SettingsViewModel @Inject constructor(
     fun signOut(onSuccess: () -> Unit) {
         viewModelScope.launch {
             authService.signOut()
-            appDatabase.clearAllTables()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                appDatabase.clearAllTables()
+            }
             onSuccess()
         }
     }

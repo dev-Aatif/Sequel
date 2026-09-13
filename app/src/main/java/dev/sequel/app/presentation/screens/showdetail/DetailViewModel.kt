@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.sequel.app.util.toUserFriendlyMessage
 import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
@@ -234,9 +235,7 @@ class DetailViewModel @Inject constructor(
                     recommendations = recommendations
                 )
             } catch (e: Exception) {
-                _detailState.value = DetailInternalState.Error(
-                    e.localizedMessage ?: "Failed to load show details"
-                )
+                _detailState.value = DetailInternalState.Error(e.toUserFriendlyMessage())
             }
         }
     }

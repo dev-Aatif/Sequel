@@ -25,6 +25,7 @@ import dev.sequel.app.data.local.entity.SyncStatus
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
 import javax.inject.Inject
+import dev.sequel.app.util.toUserFriendlyMessage
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -206,7 +207,7 @@ class HomeViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: Network or Offline Error")
+                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -223,11 +224,15 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (show.mediaType == "tv") {
-                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                    episodeDao.insertEpisodes(episodeEntities)
-                    
-                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                        .find { it.episodeNumber == next.episodeNumber }
+                        
+                    if (ep == null) {
+                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                        episodeDao.insertEpisodes(episodeEntities)
+                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                    }
                     if (ep != null) {
                         watchedEpisodeDao.insertWatchedEpisode(
                             WatchedEpisodeEntity(
@@ -248,7 +253,7 @@ class HomeViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: Network or Offline Error")
+                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
             } finally {
                 _isProcessingAction.value = false
             }

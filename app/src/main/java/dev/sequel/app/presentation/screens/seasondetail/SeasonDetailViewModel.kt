@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import dev.sequel.app.util.toUserFriendlyMessage
 
 sealed interface SeasonDetailUiState {
     data object Loading : SeasonDetailUiState
@@ -100,7 +101,7 @@ class SeasonDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 // If local data exists, it will just show that. Otherwise error.
                 if (episodeDao.getEpisodesBySeason(showId, seasonNumber).isEmpty()) {
-                    _loadingError.value = "Failed to load episodes: ${e.localizedMessage}"
+                    _loadingError.value = e.toUserFriendlyMessage()
                 }
             }
         }

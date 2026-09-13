@@ -25,6 +25,7 @@ import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import dev.sequel.app.data.local.entity.WatchlistEntity
+import dev.sequel.app.util.toUserFriendlyMessage
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
@@ -195,9 +196,9 @@ class WatchlistViewModel @Inject constructor(
                     WatchedEpisodeEntity(
                         mediaType = MediaType.MOVIE,
                         showId = item.showId,
-                        episodeId = null,
-                        seasonNumber = null,
-                        episodeNumber = null,
+                        episodeId = -1,
+                        seasonNumber = -1,
+                        episodeNumber = -1,
                         syncStatus = SyncStatus.PENDING
                     )
                 )
@@ -346,11 +347,15 @@ class WatchlistViewModel @Inject constructor(
                     }
                 } else {
                     val next = state.nextEpisodeData ?: return@launch
-                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                    episodeDao.insertEpisodes(episodeEntities)
+                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                        .find { it.episodeNumber == next.episodeNumber }
                     
-                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    if (ep == null) {
+                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                        episodeDao.insertEpisodes(episodeEntities)
+                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                    }
                     
                     if (ep != null) {
                         watchedEpisodeDao.insertWatchedEpisode(
@@ -371,7 +376,7 @@ class WatchlistViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: Network or Offline Error")
+                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -388,11 +393,15 @@ class WatchlistViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (show.mediaType == "tv") {
-                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                    episodeDao.insertEpisodes(episodeEntities)
+                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                        .find { it.episodeNumber == next.episodeNumber }
                     
-                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    if (ep == null) {
+                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                        episodeDao.insertEpisodes(episodeEntities)
+                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                    }
                     if (ep != null) {
                         watchedEpisodeDao.insertWatchedEpisode(
                             WatchedEpisodeEntity(
@@ -413,7 +422,7 @@ class WatchlistViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: Network or Offline Error")
+                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
             } finally {
                 _isProcessingAction.value = false
             }

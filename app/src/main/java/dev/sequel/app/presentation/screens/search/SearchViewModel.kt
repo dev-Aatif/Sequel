@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import dev.sequel.app.util.toUserFriendlyMessage
 
 sealed interface SearchUiState {
     data object Idle : SearchUiState
@@ -112,13 +113,7 @@ class SearchViewModel @Inject constructor(
                             emit(SearchUiState.Success(results))
                         }
                     } catch (e: Exception) {
-                        val friendlyMessage = when {
-                            e is java.net.UnknownHostException || e is java.net.ConnectException -> "Couldn't connect. Check your internet connection."
-                            e is java.net.SocketTimeoutException -> "The request took too long. Please try again."
-                            e is retrofit2.HttpException -> "Something went wrong while loading results."
-                            else -> "Something went wrong. Please try again."
-                        }
-                        emit(SearchUiState.Error(friendlyMessage))
+                        emit(SearchUiState.Error(e.toUserFriendlyMessage()))
                     }
                 }
             }
@@ -250,11 +245,15 @@ class SearchViewModel @Inject constructor(
                     }
                 } else {
                     val next = state.nextEpisodeData ?: return@launch
-                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                    episodeDao.insertEpisodes(episodeEntities)
-                    
-                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                        .find { it.episodeNumber == next.episodeNumber }
+                        
+                    if (ep == null) {
+                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                        episodeDao.insertEpisodes(episodeEntities)
+                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                    }
                     
                     if (ep != null) {
                         watchedEpisodeDao.insertWatchedEpisode(
@@ -277,7 +276,7 @@ class SearchViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: Network or Offline Error")
+                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -319,7 +318,7 @@ class SearchViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: Network or Offline Error")
+                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
             } finally {
                 _isProcessingAction.value = false
             }
