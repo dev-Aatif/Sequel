@@ -53,7 +53,7 @@ class ReviewRepositoryImpl @Inject constructor(
         if (existing != null) {
             reviewDao.updateReview(entity)
         } else {
-            reviewDao.insertReview(entity)
+            reviewDao.upsertReview(entity)
         }
 
         // Trigger immediate sync attempt

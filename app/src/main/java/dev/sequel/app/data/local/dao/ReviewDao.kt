@@ -14,8 +14,26 @@ interface ReviewDao {
 
     // ── Inserts ───────────────────────────────────────────────────
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertReview(review: ReviewEntity): Long
+    @Insert
+    suspend fun insertReviewInternal(review: ReviewEntity): Long
+
+    @androidx.room.Transaction
+    suspend fun upsertReview(newReview: ReviewEntity) {
+        val existing = getReviewForMediaAndEpisode(newReview.mediaId, newReview.seasonNum, newReview.episodeNum)
+        if (existing != null) {
+            val merged = newReview.copy(
+                id = existing.id,
+                reviewText = newReview.reviewText ?: existing.reviewText,
+                createdAt = existing.createdAt
+            )
+            updateReview(merged)
+        } else {
+            insertReviewInternal(newReview)
+        }
+    }
+
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND (season_num = :seasonNum OR (season_num IS NULL AND :seasonNum IS NULL)) AND (episode_num = :episodeNum OR (episode_num IS NULL AND :episodeNum IS NULL))")
+    suspend fun getReviewForMediaAndEpisode(mediaId: Int, seasonNum: Int?, episodeNum: Int?): ReviewEntity?
 
     // ── Updates ───────────────────────────────────────────────────
 

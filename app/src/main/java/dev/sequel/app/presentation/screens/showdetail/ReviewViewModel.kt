@@ -74,7 +74,7 @@ class ReviewViewModel @Inject constructor(
                 isSpoiler = isSpoiler,
                 syncStatus = SyncStatus.PENDING
             )
-            reviewDao.insertReview(entity)
+            reviewDao.upsertReview(entity)
             syncManager.syncWatchedEpisodesNow() // Forces WorkManager to run sync which includes reviews
             
             // Optimistically add review to the list so user sees it immediately

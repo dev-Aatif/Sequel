@@ -279,9 +279,9 @@ class DetailViewModel @Inject constructor(
                     WatchedEpisodeEntity(
                         mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
                         showId = showId,
-                        episodeId = null,
-                        seasonNumber = null,
-                        episodeNumber = null,
+                        episodeId = -1,
+                        seasonNumber = -1,
+                        episodeNumber = -1,
                         syncStatus = SyncStatus.PENDING
                     )
                 )

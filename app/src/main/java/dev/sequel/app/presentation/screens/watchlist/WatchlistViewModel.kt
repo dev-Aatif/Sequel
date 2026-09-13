@@ -334,9 +334,9 @@ class WatchlistViewModel @Inject constructor(
                             WatchedEpisodeEntity(
                                 mediaType = MediaType.MOVIE,
                                 showId = show.id,
-                                episodeId = null,
-                                seasonNumber = null,
-                                episodeNumber = null,
+                                episodeId = -1,
+                                seasonNumber = -1,
+                                episodeNumber = -1,
                                 syncStatus = SyncStatus.PENDING
                             )
                         )
@@ -371,6 +371,7 @@ class WatchlistViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
+                onSuccess("Action failed: Network or Offline Error")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -412,6 +413,7 @@ class WatchlistViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
+                onSuccess("Action failed: Network or Offline Error")
             } finally {
                 _isProcessingAction.value = false
             }

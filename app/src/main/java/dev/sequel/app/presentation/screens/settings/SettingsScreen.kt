@@ -62,6 +62,16 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        // Sign Out Button
+        OutlinedButton(
+            onClick = { viewModel.signOut(onSuccess = onNavigateToAuth) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Sign Out")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Delete Account Button
         Button(
             onClick = { showDeleteDialog = true },

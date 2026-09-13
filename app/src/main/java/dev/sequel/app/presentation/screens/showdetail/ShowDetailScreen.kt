@@ -487,7 +487,7 @@ private fun SeasonHeader(season: SeasonUi, onToggleWatched: (EpisodeUi) -> Unit)
 }
 
 @Composable
-private fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit) {
+fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onToggleWatched(episode) }.padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically

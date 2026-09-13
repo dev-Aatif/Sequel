@@ -41,4 +41,12 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    fun signOut(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            authService.signOut()
+            appDatabase.clearAllTables()
+            onSuccess()
+        }
+    }
 }
