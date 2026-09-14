@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
 import dev.sequel.app.presentation.state.BottomSheetUiState
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import dev.sequel.app.data.local.entity.MediaType
 import dev.sequel.app.data.local.entity.SyncStatus
@@ -58,6 +59,14 @@ class HomeViewModel @Inject constructor(
 
     val trendingThisWeekMovies: StateFlow<List<ShowEntity>> = showDao.observeTrendingShows("movie", limit = 6)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val hasAnyTrackingHistory: StateFlow<Boolean> = combine(
+        watchlistDao.observeWatchlist(),
+        showDao.observeStartedTvShows(),
+        watchedEpisodeDao.observeTotalMoviesWatched()
+    ) { watchlist, startedTv, moviesWatched ->
+        watchlist.isNotEmpty() || startedTv.isNotEmpty() || moviesWatched > 0
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     private val _isProcessingAction = MutableStateFlow(false)
     val isProcessingAction = _isProcessingAction.asStateFlow()
@@ -182,11 +191,15 @@ class HomeViewModel @Inject constructor(
                     }
                 } else {
                     val next = state.nextEpisodeData ?: return@launch
-                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                    episodeDao.insertEpisodes(episodeEntities)
+                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                        .find { it.episodeNumber == next.episodeNumber }
                     
-                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
+                    if (ep == null) {
+                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                        episodeDao.insertEpisodes(episodeEntities)
+                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                    }
                     
                     if (ep != null) {
                         watchedEpisodeDao.insertWatchedEpisode(

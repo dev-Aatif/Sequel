@@ -72,6 +72,7 @@ fun HomeScreen(
         selectedItemForAction?.let { viewModel.openBottomSheet(it) }
     }
     
+    val hasAnyTrackingHistory by viewModel.hasAnyTrackingHistory.collectAsState()
     val listState = rememberLazyListState()
     
     // ── Proper scroll-direction tracking ──
@@ -113,8 +114,79 @@ fun HomeScreen(
                     }
                 }
             }
-        } else if (pagedShows.itemCount == 0 && continueWatchingTvShows.isEmpty()) {
-            ZeroHistoryOnboarding(onNavigateToSearch = onNavigateToSearch)
+        } else if (!hasAnyTrackingHistory) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp)
+            ) {
+                item {
+                    ZeroHistoryOnboarding(onNavigateToSearch = onNavigateToSearch)
+                }
+                
+                // Show trending below onboarding
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Trending Now",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+                    
+                    val trendingRowState = rememberLazyListState()
+                    LazyRow(
+                        state = trendingRowState,
+                        flingBehavior = rememberSnapFlingBehavior(lazyListState = trendingRowState),
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(
+                            count = pagedShows.itemCount,
+                            key = pagedShows.itemKey { it.id },
+                            contentType = pagedShows.itemContentType { "ShowCard" }
+                        ) { index ->
+                            val show = pagedShows[index]
+                            if (show != null) {
+                                Box(modifier = Modifier.width(140.dp)) {
+                                    ShowCard(
+                                        show = show,
+                                        onClick = { onShowClick(show.id, show.mediaType) },
+                                        onLongClick = { selectedItemForAction = show }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        if (pagedShows.loadState.append is LoadState.Loading) {
+                            item {
+                                Box(
+                                    modifier = Modifier.height(210.dp).width(140.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        } else if (pagedShows.loadState.append is LoadState.Error) {
+                            item {
+                                Box(
+                                    modifier = Modifier.height(210.dp).width(140.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = "Retry", tint = MaterialTheme.colorScheme.error)
+                                        TextButton(onClick = { pagedShows.retry() }) {
+                                            Text("Retry")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         } else {
             LazyColumn(
                 state = listState,
@@ -245,6 +317,20 @@ fun HomeScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        } else if (pagedShows.loadState.append is LoadState.Error) {
+                            item {
+                                Box(
+                                    modifier = Modifier.height(210.dp).width(140.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = "Retry", tint = MaterialTheme.colorScheme.error)
+                                        TextButton(onClick = { pagedShows.retry() }) {
+                                            Text("Retry")
+                                        }
+                                    }
                                 }
                             }
                         }
