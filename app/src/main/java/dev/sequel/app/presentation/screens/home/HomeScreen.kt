@@ -112,7 +112,7 @@ fun HomeScreen(
             ) {
                 item {
                     ZeroHistoryOnboarding(
-                        modifier = Modifier.fillParentMaxSize(),
+                        modifier = Modifier.fillMaxWidth(),
                         onNavigateToSearch = onNavigateToSearch
                     )
                 }
