@@ -22,7 +22,9 @@ class ShowRemoteMediator(
 ) : RemoteMediator<Int, ShowEntity>() {
 
     override suspend fun initialize(): InitializeAction {
-        return if (database.trendingShowDao().getTrendingCountByMediaType(mediaType) > 0) {
+        val lastUpdated = database.trendingShowDao().getTrendingLastUpdated(mediaType) ?: 0L
+        val cacheTimeout = 24 * 60 * 60 * 1000L // 24 hours
+        return if (System.currentTimeMillis() - lastUpdated < cacheTimeout && database.trendingShowDao().getTrendingCountByMediaType(mediaType) > 0) {
             InitializeAction.SKIP_INITIAL_REFRESH
         } else {
             InitializeAction.LAUNCH_INITIAL_REFRESH

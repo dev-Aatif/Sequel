@@ -222,7 +222,11 @@ fun HomeScreen(
                                         viewModel.addToWatchlist(show)
                                         android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
                                     }
-                                    heroIndex++
+                                    if (pagedShows.itemCount > 0) {
+                                        heroIndex = (heroIndex + 1) % pagedShows.itemCount
+                                    } else {
+                                        heroIndex++
+                                    }
                                 }
                             }
                         )

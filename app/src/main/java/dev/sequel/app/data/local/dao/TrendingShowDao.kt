@@ -15,4 +15,7 @@ interface TrendingShowDao {
 
     @Query("SELECT COUNT(*) FROM trending_shows WHERE mediaType = :mediaType")
     suspend fun getTrendingCountByMediaType(mediaType: String): Int
+
+    @Query("SELECT s.last_updated FROM shows s INNER JOIN trending_shows t ON s.id = t.showId WHERE t.mediaType = :mediaType LIMIT 1")
+    suspend fun getTrendingLastUpdated(mediaType: String): Long?
 }
