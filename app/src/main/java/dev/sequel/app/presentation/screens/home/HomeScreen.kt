@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -99,12 +100,6 @@ fun HomeScreen(
         if (hasAnyTrackingHistory == null) {
             // ── Shimmer Skeleton while initial data loads ──
             HomeShimmerSkeleton()
-        } else if (hasError) {
-            dev.sequel.app.presentation.components.BeautifulErrorState(
-                error = dev.sequel.app.domain.error.AppError.NoInternet,
-                onRetry = { pagedShows.retry() },
-                modifier = Modifier.fillMaxSize()
-            )
         } else if (hasAnyTrackingHistory == false) {
             LazyColumn(
                 state = listState,
@@ -161,6 +156,16 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                        } else if (hasError) {
+                            item {
+                                Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
+                                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        onRetry = { pagedShows.retry() },
+                                        isCard = true
+                                    )
+                                }
+                            }
                         }
                         
                         if (pagedShows.loadState.append is LoadState.Loading) {
@@ -199,17 +204,22 @@ fun HomeScreen(
                 item {
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val firstShow = if (actualHeroIndex != -1) pagedShows[actualHeroIndex] else null
-                    HeroBanner(
-                        show = firstShow,
-                        onShowClick = { onShowClick(it.id, it.mediaType) },
-                        onAddToWatchlist = { show ->
-                            if (!isProcessingAction) {
-                                viewModel.addToWatchlist(show)
-                                android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
-                                heroIndex++
+                    
+                    if (firstShow != null || pagedShows.loadState.refresh is LoadState.Loading) {
+                        HeroBanner(
+                            show = firstShow,
+                            onShowClick = { onShowClick(it.id, it.mediaType) },
+                            onAddToWatchlist = { show ->
+                                if (!isProcessingAction) {
+                                    if (!show.isInWatchlist) {
+                                        viewModel.addToWatchlist(show)
+                                        android.widget.Toast.makeText(context, "Added to Watchlist", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                    heroIndex++
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
 
                 // ── Dynamic Top Section ──
@@ -275,7 +285,7 @@ fun HomeScreen(
                             contentType = pagedShows.itemContentType { "ShowCard" }
                         ) { index ->
                             val show = pagedShows[index]
-                            if (show != null && index != actualHeroIndex) { // Skip hero
+                            if (show != null) { // Include hero
                                 Box(modifier = Modifier.width(140.dp)) {
                                     ShowCard(
                                         show = show,
@@ -294,6 +304,16 @@ fun HomeScreen(
                                             modifier = Modifier.width(140.dp).height(210.dp).clip(RoundedCornerShape(12.dp))
                                         )
                                     }
+                                }
+                            }
+                        } else if (hasError) {
+                            item {
+                                Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
+                                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        onRetry = { pagedShows.retry() },
+                                        isCard = true
+                                    )
                                 }
                             }
                         }
@@ -406,7 +426,9 @@ fun HeroBanner(
                 model = "https://image.tmdb.org/t/p/w780${show.posterPath}",
                 contentDescription = show.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                placeholder = androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color.DarkGray),
+                error = androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color.DarkGray)
             )
             
             // Gradient Overlay
@@ -462,9 +484,11 @@ fun HeroBanner(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add to Watchlist", tint = Color.White)
+                    val icon = if (show.isInWatchlist) Icons.Filled.Check else Icons.Filled.Add
+                    val text = if (show.isInWatchlist) "In Watchlist" else "Add to Watchlist"
+                    Icon(icon, contentDescription = text, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add to Watchlist", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(text, color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         } else {
