@@ -89,10 +89,10 @@ fun SeasonDetailScreen(
                     )
                 }
                 is SeasonDetailUiState.Error -> {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
+                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                        error = state.error,
+                        modifier = Modifier.align(Alignment.Center),
+                        onRetry = { viewModel.retry() }
                     )
                 }
                 is SeasonDetailUiState.Success -> {

@@ -25,7 +25,8 @@ import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import dev.sequel.app.data.local.entity.WatchlistEntity
-import dev.sequel.app.util.toUserFriendlyMessage
+import dev.sequel.app.domain.error.AppError
+import dev.sequel.app.domain.error.toAppError
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
@@ -376,7 +377,7 @@ class WatchlistViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
+                onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -422,7 +423,7 @@ class WatchlistViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
+                onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
                 _isProcessingAction.value = false
             }

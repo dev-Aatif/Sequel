@@ -21,12 +21,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import dev.sequel.app.util.toUserFriendlyMessage
+import dev.sequel.app.domain.error.AppError
+import dev.sequel.app.domain.error.toAppError
 
 sealed interface SeasonDetailUiState {
     data object Loading : SeasonDetailUiState
     data class Success(val season: SeasonUi) : SeasonDetailUiState
-    data class Error(val message: String) : SeasonDetailUiState
+    data class Error(val error: AppError) : SeasonDetailUiState
 }
 
 @HiltViewModel
@@ -41,7 +42,7 @@ class SeasonDetailViewModel @Inject constructor(
     private val showId: Int = savedStateHandle.get<Int>("showId") ?: -1
     private val seasonNumber: Int = savedStateHandle.get<Int>("seasonNumber") ?: -1
 
-    private val _loadingError = MutableStateFlow<String?>(null)
+    private val _loadingError = MutableStateFlow<AppError?>(null)
 
     val uiState: StateFlow<SeasonDetailUiState> = combine(
         episodeDao.observeEpisodesBySeason(showId, seasonNumber),
@@ -87,7 +88,7 @@ class SeasonDetailViewModel @Inject constructor(
 
     private fun fetchEpisodesIfNeeded() {
         if (showId == -1 || seasonNumber == -1) {
-            _loadingError.value = "Invalid arguments"
+            _loadingError.value = AppError.Validation("Invalid arguments")
             return
         }
         viewModelScope.launch {
@@ -101,7 +102,7 @@ class SeasonDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 // If local data exists, it will just show that. Otherwise error.
                 if (episodeDao.getEpisodesBySeason(showId, seasonNumber).isEmpty()) {
-                    _loadingError.value = e.toUserFriendlyMessage()
+                    _loadingError.value = e.toAppError()
                 }
             }
         }

@@ -68,13 +68,11 @@ fun ShowDetailScreen(
                     }
                 }
                 is DetailUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(state.message, color = MaterialTheme.colorScheme.error)
-                            Spacer(Modifier.height(16.dp))
-                            Button(onClick = { viewModel.loadShowDetail() }) { Text("Retry") }
-                        }
-                    }
+                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                        error = state.error,
+                        modifier = Modifier.align(Alignment.Center),
+                        onRetry = { viewModel.loadShowDetail() }
+                    )
                 }
                 is DetailUiState.Success -> {
                     ShowDetailContent(
@@ -87,6 +85,7 @@ fun ShowDetailScreen(
                         onRecommendationClick = { id, type -> onShowClick?.invoke(id, type) },
                         onPostReview = { text, rating, isSpoiler -> reviewViewModel.postReview(text, rating, isSpoiler) },
                         onDeleteReview = { reviewId -> reviewViewModel.deleteReview(reviewId) },
+                        onRetryReviews = { showId?.let { reviewViewModel.loadReviews(it, null, null) } },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -128,6 +127,7 @@ private fun ShowDetailContent(
     onRecommendationClick: (Int, String) -> Unit,
     onPostReview: (String, Int?, Boolean) -> Unit,
     onDeleteReview: (String) -> Unit,
+    onRetryReviews: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val show = state.show
@@ -404,7 +404,13 @@ private fun ShowDetailContent(
                 }
             }
             is CommunityState.Error -> item {
-                Text("Failed to load reviews.", Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
+                Box(Modifier.padding(horizontal = 24.dp)) {
+                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                        error = (communityState as CommunityState.Error).error,
+                        onRetry = onRetryReviews,
+                        isCard = true
+                    )
+                }
             }
             is CommunityState.Success -> {
                 if (communityState.reviews.isEmpty() && !showReviewInput) {

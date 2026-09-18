@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import dev.sequel.app.domain.error.AppError
+import dev.sequel.app.domain.error.toAppError
+
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 
@@ -28,7 +31,7 @@ data class LoginUiState(
     val confirmPassword: String = "",
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null,
+    val error: AppError? = null,
     val isPasswordVisible: Boolean = false
 )
 
@@ -51,15 +54,15 @@ class LoginViewModel @Inject constructor(
     val events: Flow<LoginEvent> = _events.receiveAsFlow()
 
     fun onEmailChange(value: String) {
-        _uiState.update { it.copy(email = value.trim(), errorMessage = null) }
+        _uiState.update { it.copy(email = value.trim(), error = null) }
     }
 
     fun onPasswordChange(value: String) {
-        _uiState.update { it.copy(password = value, errorMessage = null) }
+        _uiState.update { it.copy(password = value, error = null) }
     }
 
     fun onConfirmPasswordChange(value: String) {
-        _uiState.update { it.copy(confirmPassword = value, errorMessage = null) }
+        _uiState.update { it.copy(confirmPassword = value, error = null) }
     }
 
     fun togglePasswordVisibility() {
@@ -70,14 +73,14 @@ class LoginViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 isSignUpMode = !it.isSignUpMode,
-                errorMessage = null,
+                error = null,
                 confirmPassword = ""
             )
         }
     }
 
     fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
+        _uiState.update { it.copy(error = null) }
     }
 
     fun submit() {
@@ -86,24 +89,24 @@ class LoginViewModel @Inject constructor(
 
         // ── Validation ──────────────────────────────────────────
         if (state.email.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Email is required") }
+            _uiState.update { it.copy(error = AppError.Validation("Email is required")) }
             return
         }
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches()) {
-            _uiState.update { it.copy(errorMessage = "Please enter a valid email") }
+            _uiState.update { it.copy(error = AppError.Validation("Please enter a valid email")) }
             return
         }
         if (state.password.length < 6) {
-            _uiState.update { it.copy(errorMessage = "Password must be at least 6 characters") }
+            _uiState.update { it.copy(error = AppError.Validation("Password must be at least 6 characters")) }
             return
         }
         if (state.isSignUpMode && state.password != state.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = "Passwords do not match") }
+            _uiState.update { it.copy(error = AppError.Validation("Passwords do not match")) }
             return
         }
 
         // ── Execute auth call ───────────────────────────────────
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update { it.copy(isLoading = true, error = null) }
 
         viewModelScope.launch {
             val result = if (state.isSignUpMode) {
@@ -121,8 +124,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = throwable.localizedMessage
-                                ?: "Authentication failed. Please try again."
+                            error = throwable.toAppError()
                         )
                     }
                 }

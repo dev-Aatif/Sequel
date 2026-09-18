@@ -4,7 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sequel.app.util.toUserFriendlyMessage
+import dev.sequel.app.domain.error.AppError
+import dev.sequel.app.domain.error.toAppError
 import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
@@ -83,7 +84,7 @@ sealed interface DetailUiState {
         val dropOffInsight: String? = null,
         val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailUiState
-    data class Error(val message: String) : DetailUiState
+    data class Error(val error: AppError) : DetailUiState
 }
 
 
@@ -127,7 +128,7 @@ class DetailViewModel @Inject constructor(
     ) { internal, watchedList, isInWatchlist, myReview ->
         when (internal) {
             is DetailInternalState.Loading -> DetailUiState.Loading
-            is DetailInternalState.Error -> DetailUiState.Error(internal.message)
+            is DetailInternalState.Error -> DetailUiState.Error(internal.error)
             is DetailInternalState.Loaded -> {
                 val watchedMap = watchedList.associateBy { it.episodeId }
                 val isMovieWatched = internal.show.mediaType == "movie" && watchedList.isNotEmpty()
@@ -235,7 +236,7 @@ class DetailViewModel @Inject constructor(
                     recommendations = recommendations
                 )
             } catch (e: Exception) {
-                _detailState.value = DetailInternalState.Error(e.toUserFriendlyMessage())
+                _detailState.value = DetailInternalState.Error(e.toAppError())
             }
         }
     }
@@ -370,5 +371,5 @@ private sealed interface DetailInternalState {
         val dropOffInsight: String? = null,
         val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailInternalState
-    data class Error(val message: String) : DetailInternalState
+    data class Error(val error: AppError) : DetailInternalState
 }

@@ -26,7 +26,7 @@ import dev.sequel.app.data.local.entity.SyncStatus
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
 import javax.inject.Inject
-import dev.sequel.app.util.toUserFriendlyMessage
+import dev.sequel.app.domain.error.toAppError
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -221,7 +221,7 @@ class HomeViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
+                onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -267,7 +267,7 @@ class HomeViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
+                onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
                 _isProcessingAction.value = false
             }

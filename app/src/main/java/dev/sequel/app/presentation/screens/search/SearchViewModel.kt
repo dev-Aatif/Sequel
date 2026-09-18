@@ -35,13 +35,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import dev.sequel.app.util.toUserFriendlyMessage
+import dev.sequel.app.domain.error.AppError
+import dev.sequel.app.domain.error.toAppError
 
 sealed interface SearchUiState {
     data object Idle : SearchUiState
     data object Loading : SearchUiState
     data class Success(val results: List<ShowEntity>) : SearchUiState
-    data class Error(val message: String) : SearchUiState
+    data class Error(val error: AppError) : SearchUiState
 }
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -113,7 +114,7 @@ class SearchViewModel @Inject constructor(
                             emit(SearchUiState.Success(results))
                         }
                     } catch (e: Exception) {
-                        emit(SearchUiState.Error(e.toUserFriendlyMessage()))
+                        emit(SearchUiState.Error(e.toAppError()))
                     }
                 }
             }
@@ -276,7 +277,7 @@ class SearchViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
+                onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
                 _isProcessingAction.value = false
             }
@@ -318,7 +319,7 @@ class SearchViewModel @Inject constructor(
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toUserFriendlyMessage()}")
+                onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
                 _isProcessingAction.value = false
             }

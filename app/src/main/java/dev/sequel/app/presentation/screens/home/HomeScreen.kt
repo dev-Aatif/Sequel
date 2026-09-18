@@ -100,19 +100,11 @@ fun HomeScreen(
             // ── Shimmer Skeleton while initial data loads ──
             HomeShimmerSkeleton()
         } else if (hasError) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                    Icon(Icons.Default.Search, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(16.dp))
-                    Text("Failed to load feed", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Check your connection and try again.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
-                    Spacer(Modifier.height(24.dp))
-                    Button(onClick = { pagedShows.retry() }) {
-                        Text("Retry")
-                    }
-                }
-            }
+            dev.sequel.app.presentation.components.BeautifulErrorState(
+                error = dev.sequel.app.domain.error.AppError.NoInternet,
+                onRetry = { pagedShows.retry() },
+                modifier = Modifier.fillMaxSize()
+            )
         } else if (hasAnyTrackingHistory == false) {
             LazyColumn(
                 state = listState,
@@ -182,16 +174,12 @@ fun HomeScreen(
                             }
                         } else if (pagedShows.loadState.append is LoadState.Error) {
                             item {
-                                Box(
-                                    modifier = Modifier.height(210.dp).width(140.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = "Retry", tint = MaterialTheme.colorScheme.error)
-                                        TextButton(onClick = { pagedShows.retry() }) {
-                                            Text("Retry")
-                                        }
-                                    }
+                                Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
+                                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        onRetry = { pagedShows.retry() },
+                                        isCard = true
+                                    )
                                 }
                             }
                         }
@@ -321,16 +309,12 @@ fun HomeScreen(
                             }
                         } else if (pagedShows.loadState.append is LoadState.Error) {
                             item {
-                                Box(
-                                    modifier = Modifier.height(210.dp).width(140.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = "Retry", tint = MaterialTheme.colorScheme.error)
-                                        TextButton(onClick = { pagedShows.retry() }) {
-                                            Text("Retry")
-                                        }
-                                    }
+                                Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
+                                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        onRetry = { pagedShows.retry() },
+                                        isCard = true
+                                    )
                                 }
                             }
                         }

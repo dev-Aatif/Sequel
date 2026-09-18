@@ -117,10 +117,11 @@ fun TvTimeImportScreen(
                     }
                 }
                 is ImportProgress.Error -> {
-                    Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
-                    Button(onClick = viewModel::resetState, modifier = Modifier.padding(top = 16.dp)) {
-                        Text("Try Again")
-                    }
+                    dev.sequel.app.presentation.components.BeautifulErrorState(
+                        error = state.error,
+                        onRetry = viewModel::resetState,
+                        isCard = true
+                    )
                 }
             }
         }

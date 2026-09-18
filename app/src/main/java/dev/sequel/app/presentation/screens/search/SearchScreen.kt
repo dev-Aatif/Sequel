@@ -128,15 +128,11 @@ fun SearchScreen(
                         SearchResultsShimmer()
                     }
                     is SearchUiState.Error -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.align(Alignment.Center)) {
-                            Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(state.message, color = MaterialTheme.colorScheme.onBackground.copy(0.7f), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(16.dp))
-                            Button(onClick = viewModel::retrySearch, modifier = Modifier.semantics { role = Role.Button }) {
-                                Text("Retry")
-                            }
-                        }
+                        dev.sequel.app.presentation.components.BeautifulErrorState(
+                            error = state.error,
+                            modifier = Modifier.align(Alignment.Center),
+                            onRetry = viewModel::retrySearch
+                        )
                     }
                     is SearchUiState.Success -> {
                         val filteredResults = state.results.filter {

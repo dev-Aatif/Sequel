@@ -66,7 +66,7 @@ fun LoginScreen(
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            isError = uiState.errorMessage != null,
+            isError = uiState.error != null,
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
                 imeAction = androidx.compose.ui.text.input.ImeAction.Next
@@ -80,7 +80,7 @@ fun LoginScreen(
             label = { Text("Password") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            isError = uiState.errorMessage != null,
+            isError = uiState.error != null,
             visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
@@ -107,7 +107,7 @@ fun LoginScreen(
                 label = { Text("Confirm Password") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                isError = uiState.errorMessage != null,
+                isError = uiState.error != null,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
@@ -119,12 +119,12 @@ fun LoginScreen(
             )
         }
 
-        if (uiState.errorMessage != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = uiState.errorMessage!!, 
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+        val currentError = uiState.error
+        if (currentError != null) {
+            dev.sequel.app.presentation.components.BeautifulErrorState(
+                error = currentError,
+                modifier = Modifier.padding(top = 16.dp),
+                isCard = true
             )
         }
 

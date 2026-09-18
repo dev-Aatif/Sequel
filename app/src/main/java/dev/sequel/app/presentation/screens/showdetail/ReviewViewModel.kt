@@ -15,10 +15,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import dev.sequel.app.domain.error.AppError
+
 sealed class CommunityState {
     data object Loading : CommunityState()
     data class Success(val reviews: List<SupabaseReviewDto>) : CommunityState()
-    data class Error(val message: String) : CommunityState()
+    data class Error(val error: AppError) : CommunityState()
 }
 
 @HiltViewModel

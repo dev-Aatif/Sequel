@@ -27,7 +27,7 @@ sealed interface ImportProgress {
     data class Parsing(val message: String) : ImportProgress
     data class Importing(val current: Int, val total: Int, val showName: String) : ImportProgress
     data class Success(val importedCount: Int) : ImportProgress
-    data class Error(val message: String) : ImportProgress
+    data class Error(val error: dev.sequel.app.domain.error.AppError) : ImportProgress
 }
 
 class TvTimeImporterUseCase @Inject constructor(
@@ -45,7 +45,7 @@ class TvTimeImporterUseCase @Inject constructor(
                     com.opencsv.CSVReader(reader).use { csvReader ->
                         // Skip header
                         csvReader.readNext() ?: run {
-                            emit(ImportProgress.Error("Empty file"))
+                            emit(ImportProgress.Error(dev.sequel.app.domain.error.AppError.Validation("Empty file")))
                             return@flow
                         }
 
@@ -64,12 +64,12 @@ class TvTimeImporterUseCase @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            emit(ImportProgress.Error("Failed to parse CSV: ${e.message}"))
+            emit(ImportProgress.Error(dev.sequel.app.domain.error.AppError.Validation("Failed to parse CSV: ${e.message}")))
             return@flow
         }
 
         if (rows.isEmpty()) {
-            emit(ImportProgress.Error("No valid rows found in CSV"))
+            emit(ImportProgress.Error(dev.sequel.app.domain.error.AppError.Validation("No valid rows found in CSV")))
             return@flow
         }
 
