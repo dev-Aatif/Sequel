@@ -434,7 +434,7 @@ fun HeroBanner(
     ) {
         if (show != null) {
             AsyncImage(
-                model = "https://image.tmdb.org/t/p/w780${show.posterPath}",
+                model = "https://image.tmdb.org/t/p/w780${show.backdropPath ?: show.posterPath}",
                 contentDescription = show.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

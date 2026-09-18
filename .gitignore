@@ -75,6 +75,8 @@ install.cmd
 test.kt
 test_api.kt
 test.kt
+test*.kt
+test.md
 
 # SKILLS
 skills/
