@@ -57,16 +57,13 @@ class HomeViewModel @Inject constructor(
     val continueWatchingTvShows: StateFlow<List<ShowEntity>> = showDao.observeStartedTvShows()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val trendingThisWeekMovies: StateFlow<List<ShowEntity>> = showDao.observeTrendingShows("movie", limit = 6)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val hasAnyTrackingHistory: StateFlow<Boolean> = combine(
+    val hasAnyTrackingHistory: StateFlow<Boolean?> = combine(
         watchlistDao.observeWatchlist(),
         showDao.observeStartedTvShows(),
         watchedEpisodeDao.observeTotalMoviesWatched()
     ) { watchlist, startedTv, moviesWatched ->
         watchlist.isNotEmpty() || startedTv.isNotEmpty() || moviesWatched > 0
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _isProcessingAction = MutableStateFlow(false)
     val isProcessingAction = _isProcessingAction.asStateFlow()
@@ -87,6 +84,7 @@ class HomeViewModel @Inject constructor(
                         posterPath = show.posterPath
                     )
                 )
+                showDao.updateWatchlistStatus(show.id, true)
             } finally {
                 _isProcessingAction.value = false
             }
@@ -140,6 +138,7 @@ class HomeViewModel @Inject constructor(
             try {
                 if (state.inWatchlist) {
                     watchlistDao.removeFromWatchlist(show.id)
+                    showDao.updateWatchlistStatus(show.id, false)
                     _bottomSheetState.value = state.copy(inWatchlist = false)
                     onSuccess("Removed from Watchlist")
                 } else {
@@ -151,6 +150,7 @@ class HomeViewModel @Inject constructor(
                             posterPath = show.posterPath
                         )
                     )
+                    showDao.updateWatchlistStatus(show.id, true)
                     _bottomSheetState.value = state.copy(inWatchlist = true)
                     onSuccess("Added to Watchlist")
                 }
@@ -186,6 +186,7 @@ class HomeViewModel @Inject constructor(
                             )
                         )
                         watchlistDao.removeFromWatchlist(show.id)
+                        showDao.updateWatchlistStatus(show.id, false)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
                         onSuccess("Marked as Watched")
                     }

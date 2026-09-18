@@ -91,13 +91,12 @@ fun HomeScreen(
     }
 
     val view = LocalView.current
-    val isInitialLoad = pagedShows.loadState.refresh is LoadState.Loading
 
     Box(modifier = Modifier.fillMaxSize()) {
 
         val hasError = pagedShows.loadState.refresh is LoadState.Error && pagedShows.itemCount == 0
 
-        if (isInitialLoad) {
+        if (hasAnyTrackingHistory == null) {
             // ── Shimmer Skeleton while initial data loads ──
             HomeShimmerSkeleton()
         } else if (hasError) {
@@ -114,7 +113,7 @@ fun HomeScreen(
                     }
                 }
             }
-        } else if (!hasAnyTrackingHistory) {
+        } else if (hasAnyTrackingHistory == false) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
@@ -159,6 +158,18 @@ fun HomeScreen(
                                 }
                             }
                         }
+
+                        if (pagedShows.loadState.refresh is LoadState.Loading && pagedShows.itemCount == 0) {
+                            item {
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    repeat(3) {
+                                        ShimmerBox(
+                                            modifier = Modifier.width(140.dp).height(210.dp).clip(RoundedCornerShape(12.dp))
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         
                         if (pagedShows.loadState.append is LoadState.Loading) {
                             item {
@@ -188,6 +199,9 @@ fun HomeScreen(
                 }
             }
         } else {
+            var heroIndex by rememberSaveable(currentType) { mutableIntStateOf(0) }
+            val actualHeroIndex = if (pagedShows.itemCount > heroIndex) heroIndex else if (pagedShows.itemCount > 0) 0 else -1
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
@@ -195,9 +209,8 @@ fun HomeScreen(
             ) {
                 // ── Hero Section ──
                 item {
-                    var heroIndex by rememberSaveable(currentType) { mutableIntStateOf(0) }
                     val context = androidx.compose.ui.platform.LocalContext.current
-                    val firstShow = if (pagedShows.itemCount > heroIndex) pagedShows[heroIndex] else if (pagedShows.itemCount > 0) pagedShows[0] else null
+                    val firstShow = if (actualHeroIndex != -1) pagedShows[actualHeroIndex] else null
                     HeroBanner(
                         show = firstShow,
                         onShowClick = { onShowClick(it.id, it.mediaType) },
@@ -246,31 +259,6 @@ fun HomeScreen(
                                 }
                             }
                         }
-                    } else if (currentType == "movie") {
-                        val trendingThisWeekMovies by viewModel.trendingThisWeekMovies.collectAsState()
-                        if (trendingThisWeekMovies.isNotEmpty()) {
-                            Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                                Text("Trending This Week", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-                                val loopState = rememberLazyListState()
-                                LazyRow(
-                                    state = loopState,
-                                    flingBehavior = rememberSnapFlingBehavior(lazyListState = loopState),
-                                    contentPadding = PaddingValues(horizontal = 24.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    items(trendingThisWeekMovies, key = { it.id }) { show ->
-                                        Box(modifier = Modifier.width(140.dp)) {
-                                            ShowCard(
-                                                show = show,
-                                                onClick = { onShowClick(show.id, show.mediaType) },
-                                                onLongClick = { selectedItemForAction = show }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -299,13 +287,25 @@ fun HomeScreen(
                             contentType = pagedShows.itemContentType { "ShowCard" }
                         ) { index ->
                             val show = pagedShows[index]
-                            if (show != null && index != 0) { // Skip hero
+                            if (show != null && index != actualHeroIndex) { // Skip hero
                                 Box(modifier = Modifier.width(140.dp)) {
                                     ShowCard(
                                         show = show,
                                         onClick = { onShowClick(show.id, show.mediaType) },
                                         onLongClick = { selectedItemForAction = show }
                                     )
+                                }
+                            }
+                        }
+                        
+                        if (pagedShows.loadState.refresh is LoadState.Loading && pagedShows.itemCount == 0) {
+                            item {
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    repeat(3) {
+                                        ShimmerBox(
+                                            modifier = Modifier.width(140.dp).height(210.dp).clip(RoundedCornerShape(12.dp))
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -343,7 +343,7 @@ fun HomeScreen(
 
         // ── Floating Filter Pill (thumb zone — directly above bottom nav) ──
         AnimatedVisibility(
-            visible = isScrollingUp && !isInitialLoad,
+            visible = isScrollingUp,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
