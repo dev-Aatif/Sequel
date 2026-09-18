@@ -1,5 +1,6 @@
 package dev.sequel.app.presentation.screens.home
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
@@ -31,6 +32,7 @@ import dev.sequel.app.domain.error.toAppError
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
     private val tmdbApiService: dev.sequel.app.data.remote.tmdb.TmdbApiService,
     private val showRepository: ShowRepository,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
@@ -41,7 +43,7 @@ class HomeViewModel @Inject constructor(
     private val getNextEpisodeUseCase: GetNextEpisodeUseCase
 ) : ViewModel() {
 
-    private val _mediaType = MutableStateFlow("tv")
+    private val _mediaType = MutableStateFlow(savedStateHandle.get<String>("mediaType") ?: "tv")
     val mediaType: StateFlow<String> = _mediaType.asStateFlow()
 
     val pagedShows: Flow<PagingData<ShowEntity>> = _mediaType
@@ -51,6 +53,7 @@ class HomeViewModel @Inject constructor(
         .cachedIn(viewModelScope)
 
     fun setMediaType(type: String) {
+        savedStateHandle["mediaType"] = type
         _mediaType.value = type
     }
     

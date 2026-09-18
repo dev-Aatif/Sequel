@@ -77,18 +77,22 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     
     // ── Proper scroll-direction tracking ──
-    var previousIndex by remember { mutableIntStateOf(0) }
-    var previousScrollOffset by remember { mutableIntStateOf(0) }
     var isScrollingUp by remember { mutableStateOf(true) }
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        if (previousIndex != listState.firstVisibleItemIndex) {
-            isScrollingUp = previousIndex > listState.firstVisibleItemIndex
-        } else {
-            isScrollingUp = previousScrollOffset >= listState.firstVisibleItemScrollOffset
+    LaunchedEffect(listState) {
+        var previousIndex = listState.firstVisibleItemIndex
+        var previousScrollOffset = listState.firstVisibleItemScrollOffset
+        androidx.compose.runtime.snapshotFlow { 
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset 
+        }.collect { (index, offset) ->
+            if (previousIndex != index) {
+                isScrollingUp = previousIndex > index
+            } else {
+                isScrollingUp = previousScrollOffset >= offset
+            }
+            previousIndex = index
+            previousScrollOffset = offset
         }
-        previousIndex = listState.firstVisibleItemIndex
-        previousScrollOffset = listState.firstVisibleItemScrollOffset
     }
 
     val view = LocalView.current
@@ -107,7 +111,10 @@ fun HomeScreen(
                 contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp)
             ) {
                 item {
-                    ZeroHistoryOnboarding(onNavigateToSearch = onNavigateToSearch)
+                    ZeroHistoryOnboarding(
+                        modifier = Modifier.fillParentMaxSize(),
+                        onNavigateToSearch = onNavigateToSearch
+                    )
                 }
                 
                 // Show trending below onboarding
@@ -503,10 +510,11 @@ fun HeroBanner(
 // ── Zero-history onboarding state ──
 @Composable
 fun ZeroHistoryOnboarding(
+    modifier: Modifier = Modifier,
     onNavigateToSearch: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         Column(
