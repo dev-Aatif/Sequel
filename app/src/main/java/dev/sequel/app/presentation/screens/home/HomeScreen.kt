@@ -76,6 +76,9 @@ fun HomeScreen(
     val hasAnyTrackingHistory by viewModel.hasAnyTrackingHistory.collectAsState()
     val listState = rememberLazyListState()
     
+    val cwState = rememberSaveable(saver = androidx.compose.foundation.lazy.LazyListState.Saver) { androidx.compose.foundation.lazy.LazyListState() }
+    val trendingRowState = rememberSaveable(saver = androidx.compose.foundation.lazy.LazyListState.Saver) { androidx.compose.foundation.lazy.LazyListState() }
+    
     // ── Proper scroll-direction tracking ──
     var isScrollingUp by remember { mutableStateOf(true) }
 
@@ -88,7 +91,9 @@ fun HomeScreen(
             if (previousIndex != index) {
                 isScrollingUp = previousIndex > index
             } else {
-                isScrollingUp = previousScrollOffset >= offset
+                if (kotlin.math.abs(previousScrollOffset - offset) > 10) {
+                    isScrollingUp = previousScrollOffset > offset
+                }
             }
             previousIndex = index
             previousScrollOffset = offset
@@ -128,7 +133,6 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
                     
-                    val trendingRowState = rememberLazyListState()
                     LazyRow(
                         state = trendingRowState,
                         flingBehavior = rememberSnapFlingBehavior(lazyListState = trendingRowState),
@@ -248,7 +252,6 @@ fun HomeScreen(
                                         Text("View All", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                val cwState = rememberLazyListState()
                                 LazyRow(
                                     state = cwState,
                                     flingBehavior = rememberSnapFlingBehavior(lazyListState = cwState),
@@ -282,7 +285,6 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
                     
-                    val trendingRowState = rememberLazyListState()
                     LazyRow(
                         state = trendingRowState,
                         flingBehavior = rememberSnapFlingBehavior(lazyListState = trendingRowState),
