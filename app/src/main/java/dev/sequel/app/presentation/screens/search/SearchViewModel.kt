@@ -80,7 +80,11 @@ class SearchViewModel @Inject constructor(
     ) { query, filter, genreId, retryCount ->
         arrayOf(query, filter, genreId, retryCount)
     }
-        .debounce(500L)
+        .debounce { params ->
+            val query = params[0] as String
+            val genreId = params[2] as Int?
+            if (query.isBlank() && genreId == null) 0L else 500L
+        }
         .distinctUntilChanged { old, new -> old.contentEquals(new) }
         .flatMapLatest { params ->
             val query = params[0] as String
@@ -191,7 +195,8 @@ class SearchViewModel @Inject constructor(
                 // If it fails, degrade gracefully
                 _bottomSheetState.value = BottomSheetUiState(
                     show = show,
-                    isLoading = false
+                    isLoading = false,
+                    hasError = true
                 )
             }
         }
@@ -259,7 +264,14 @@ class SearchViewModel @Inject constructor(
                         onSuccess("Marked as Watched")
                     }
                 } else {
-                    val next = state.nextEpisodeData ?: return@launch
+                    if (state.hasError) {
+                        onSuccess("Cannot determine next episode while offline")
+                        return@launch
+                    }
+                    val next = state.nextEpisodeData ?: run {
+                        onSuccess("No unwatched episodes available")
+                        return@launch
+                    }
                     var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
                         .find { it.episodeNumber == next.episodeNumber }
                         
@@ -302,6 +314,10 @@ class SearchViewModel @Inject constructor(
         if (_isProcessingAction.value) return
         val state = _bottomSheetState.value
         val show = state.show ?: return
+        if (state.hasError) {
+            onSuccess("Cannot determine next episode while offline")
+            return
+        }
         val next = state.nextEpisodeData ?: return
 
         _isProcessingAction.value = true

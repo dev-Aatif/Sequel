@@ -10,5 +10,6 @@ data class BottomSheetUiState(
     val isCompleted: Boolean = false,
     val nextEpisodeString: String? = null,
     val nextEpisodeData: TmdbNextEpisodeDto? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val hasError: Boolean = false
 )
