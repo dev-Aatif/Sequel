@@ -222,6 +222,7 @@ class SearchViewModel @Inject constructor(
                     _bottomSheetState.value = state.copy(inWatchlist = true)
                     onSuccess("Added to Watchlist")
                 }
+                syncManager.syncWatchedEpisodesNow()
             } finally {
                 _isProcessingAction.value = false
             }

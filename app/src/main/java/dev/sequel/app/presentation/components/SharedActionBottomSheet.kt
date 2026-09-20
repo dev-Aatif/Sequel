@@ -8,11 +8,17 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import dev.sequel.app.presentation.state.BottomSheetUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,7 +34,15 @@ fun SharedActionBottomSheet(
     onShowDetailClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val show = bottomSheetState.show ?: return
+
+    val dismissWithAnimation: () -> Unit = {
+        scope.launch {
+            sheetState.hide()
+            onDismissRequest()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -44,10 +58,15 @@ fun SharedActionBottomSheet(
                 show.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.hapticClickable {
-                    onShowDetailClick()
-                    onDismissRequest()
-                }
+                modifier = Modifier
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "Go to ${show.title} details"
+                    }
+                    .hapticClickable {
+                        onShowDetailClick()
+                        dismissWithAnimation()
+                    }
             )
             
             if (bottomSheetState.isLoading) {
@@ -62,7 +81,7 @@ fun SharedActionBottomSheet(
                     onClick = {
                         onToggleWatchlist { msg ->
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            onDismissRequest()
+                            dismissWithAnimation()
                         }
                     },
                     Modifier.fillMaxWidth(),
@@ -90,7 +109,7 @@ fun SharedActionBottomSheet(
                         onClick = {
                             onToggleWatched { msg ->
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                onDismissRequest()
+                                dismissWithAnimation()
                             }
                         },
                         Modifier.fillMaxWidth(),
@@ -113,7 +132,7 @@ fun SharedActionBottomSheet(
                             onClick = {
                                 onSkip { msg ->
                                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    onDismissRequest()
+                                    dismissWithAnimation()
                                 }
                             },
                             Modifier.fillMaxWidth(),
