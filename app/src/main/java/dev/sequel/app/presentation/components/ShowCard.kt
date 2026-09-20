@@ -56,7 +56,7 @@ fun ShowCard(
                     .data(imageUrl)
                     .crossfade(true)
                     .build(),
-                contentDescription = show.title,
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()

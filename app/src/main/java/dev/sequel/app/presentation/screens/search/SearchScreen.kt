@@ -142,14 +142,7 @@ fun SearchScreen(
                         )
                     }
                     is SearchUiState.Success -> {
-                        val filteredResults = state.results.filter {
-                            when (filter) {
-                                "TV Shows" -> it.mediaType == "tv"
-                                "Movies" -> it.mediaType == "movie"
-                                else -> true
-                            }
-                        }
-                        if (filteredResults.isEmpty()) {
+                        if (state.results.isEmpty()) {
                             Text("No results found for '$query'", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground.copy(0.5f), modifier = Modifier.align(Alignment.Center))
                         } else {
                             val gridState = rememberLazyGridState()
@@ -166,7 +159,7 @@ fun SearchScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                items(filteredResults, key = { it.id }) { show ->
+                                items(state.results, key = { it.id }) { show ->
                                     ShowCard(show, onClick = { onShowClick(show.id, show.mediaType) }, onLongClick = { selectedItemForAction = show })
                                 }
                             }

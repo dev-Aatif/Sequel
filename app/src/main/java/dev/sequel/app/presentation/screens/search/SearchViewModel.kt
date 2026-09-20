@@ -74,14 +74,19 @@ class SearchViewModel @Inject constructor(
 
     val searchState: StateFlow<SearchUiState> = combine(
         _searchQuery,
+        _searchFilter,
         _activeGenreId,
         _retryTrigger
-    ) { query, genreId, retryCount ->
-        Triple(query, genreId, retryCount)
+    ) { query, filter, genreId, retryCount ->
+        arrayOf(query, filter, genreId, retryCount)
     }
         .debounce(500L)
-        .distinctUntilChanged()
-        .flatMapLatest { (query, genreId, _) ->
+        .distinctUntilChanged { old, new -> old.contentEquals(new) }
+        .flatMapLatest { params ->
+            val query = params[0] as String
+            val filter = params[1] as String
+            val genreId = params[2] as Int?
+            
             if (query.isBlank()) {
                 flow { emit(SearchUiState.Idle) }
             } else {
@@ -90,27 +95,35 @@ class SearchViewModel @Inject constructor(
                     try {
                         if (genreId != null) {
                             coroutineScope {
-                                val tvDef1 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 1) }
-                                val tvDef2 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 2) }
-                                val movDef1 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 1) }
-                                val movDef2 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 2) }
-                                
-                                val tvResults = (tvDef1.await().results + tvDef2.await().results)
-                                    .map { it.copy(mediaType = "tv").toEntity("tv") }
-                                val movResults = (movDef1.await().results + movDef2.await().results)
-                                    .map { it.copy(mediaType = "movie").toEntity("movie") }
-                                
-                                // Interleave to show a mix of TV and Movies
-                                val combined = tvResults.zip(movResults) { tv, movie -> listOf(tv, movie) }
-                                    .flatten() + tvResults.drop(movResults.size) + movResults.drop(tvResults.size)
-                                    
+                                val combined = if (filter == "TV Shows") {
+                                    val tvDef1 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 1) }
+                                    val tvDef2 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 2) }
+                                    (tvDef1.await().results + tvDef2.await().results).map { it.copy(mediaType = "tv").toEntity("tv") }
+                                } else if (filter == "Movies") {
+                                    val movDef1 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 1) }
+                                    val movDef2 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 2) }
+                                    (movDef1.await().results + movDef2.await().results).map { it.copy(mediaType = "movie").toEntity("movie") }
+                                } else {
+                                    val tvDef1 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 1) }
+                                    val tvDef2 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 2) }
+                                    val movDef1 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 1) }
+                                    val movDef2 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 2) }
+                                    val tvResults = (tvDef1.await().results + tvDef2.await().results).map { it.copy(mediaType = "tv").toEntity("tv") }
+                                    val movResults = (movDef1.await().results + movDef2.await().results).map { it.copy(mediaType = "movie").toEntity("movie") }
+                                    tvResults.zip(movResults) { tv, movie -> listOf(tv, movie) }.flatten() + tvResults.drop(movResults.size) + movResults.drop(tvResults.size)
+                                }
                                 emit(SearchUiState.Success(combined))
                             }
                         } else {
-                            val response = tmdbApiService.searchMulti(query.trim())
-                            val results = response.results
-                                .filter { it.mediaType == "tv" || it.mediaType == "movie" }
-                                .map { it.toEntity(fallbackMediaType = "movie") }
+                            val results = if (filter == "TV Shows") {
+                                tmdbApiService.searchTv(query.trim()).results.map { it.copy(mediaType = "tv").toEntity("tv") }
+                            } else if (filter == "Movies") {
+                                tmdbApiService.searchMovie(query.trim()).results.map { it.copy(mediaType = "movie").toEntity("movie") }
+                            } else {
+                                tmdbApiService.searchMulti(query.trim()).results
+                                    .filter { it.mediaType == "tv" || it.mediaType == "movie" }
+                                    .map { it.toEntity(fallbackMediaType = "movie") }
+                            }
                             emit(SearchUiState.Success(results))
                         }
                     } catch (e: Exception) {
