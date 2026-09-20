@@ -249,15 +249,12 @@ class SearchViewModel @Inject constructor(
                         _bottomSheetState.value = state.copy(isWatched = false)
                         onSuccess("Removed from Watched")
                     } else {
-                        watchedEpisodeDao.insertWatchedEpisode(
-                            WatchedEpisodeEntity(
-                                mediaType = MediaType.MOVIE,
-                                showId = show.id,
-                                episodeId = -1,
-                                seasonNumber = -1,
-                                episodeNumber = -1,
-                                syncStatus = SyncStatus.PENDING
-                            )
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
+                            showId = show.id,
+                            episodeId = -1,
+                            seasonNumber = -1,
+                            episodeNumber = -1
                         )
                         watchlistDao.removeFromWatchlist(show.id)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
@@ -283,18 +280,32 @@ class SearchViewModel @Inject constructor(
                     }
                     
                     if (ep != null) {
-                        watchedEpisodeDao.insertWatchedEpisode(
-                            WatchedEpisodeEntity(
-                                mediaType = MediaType.TV,
-                                showId = show.id,
-                                episodeId = ep.id,
-                                seasonNumber = next.seasonNumber,
-                                episodeNumber = next.episodeNumber,
-                                syncStatus = SyncStatus.PENDING
-                            )
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
+                            showId = show.id,
+                            episodeId = ep.id,
+                            seasonNumber = next.seasonNumber,
+                            episodeNumber = next.episodeNumber
                         )
                         
                         onSuccess("Marked as Watched")
+
+                        // Proactively fetch next season if necessary
+                        val progression = getNextEpisodeUseCase(show.id)
+                        if (!progression.isCompleted && progression.nextEpisodeData != null) {
+                            val nextEp = progression.nextEpisodeData
+                            val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
+                            if (existing.isEmpty()) {
+                                try {
+                                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
+                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                                    episodeDao.insertEpisodes(episodeEntities)
+                                } catch (e: Exception) {
+                                    // Silently fail
+                                }
+                            }
+                        }
+
                         // Refresh the bottom sheet state to show the *next* next episode
                         openBottomSheet(show)
                     } else {
@@ -335,16 +346,13 @@ class SearchViewModel @Inject constructor(
                     }
                     
                     if (ep != null) {
-                        watchedEpisodeDao.insertWatchedEpisode(
-                            WatchedEpisodeEntity(
-                                mediaType = MediaType.TV,
-                                showId = show.id,
-                                episodeId = ep.id,
-                                seasonNumber = next.seasonNumber,
-                                episodeNumber = next.episodeNumber,
-                                syncStatus = SyncStatus.PENDING,
-                                isSkipped = true
-                            )
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
+                            showId = show.id,
+                            episodeId = ep.id,
+                            seasonNumber = next.seasonNumber,
+                            episodeNumber = next.episodeNumber,
+                            isSkipped = true
                         )
                         onSuccess("Skipped Episode")
                         openBottomSheet(show)

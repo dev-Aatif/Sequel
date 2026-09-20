@@ -157,6 +157,7 @@ class HomeViewModel @Inject constructor(
                     _bottomSheetState.value = state.copy(inWatchlist = true)
                     onSuccess("Added to Watchlist")
                 }
+                syncManager.syncWatchlistNow()
             } finally {
                 _isProcessingAction.value = false
             }

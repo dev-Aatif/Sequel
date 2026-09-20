@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -66,6 +67,10 @@ fun WatchlistScreen(
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val view = LocalView.current
+    
+    val upNextListState = rememberLazyListState()
+    val watchlistListState = rememberLazyListState()
+    val watchedListState = rememberLazyListState()
 
     Column(
         modifier = Modifier
@@ -113,6 +118,7 @@ fun WatchlistScreen(
                         }
                     } else {
                         LazyColumn(
+                            state = upNextListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -140,6 +146,7 @@ fun WatchlistScreen(
                         }
                     } else {
                         LazyColumn(
+                            state = watchlistListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -195,6 +202,7 @@ fun WatchlistScreen(
                             }
                         } else {
                             LazyColumn(
+                                state = watchedListState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)

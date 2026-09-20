@@ -14,10 +14,10 @@ interface WatchedEpisodeDao {
 
     // ── Inserts ───────────────────────────────────────────────────
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertWatchedEpisode(watchedEpisode: WatchedEpisodeEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertWatchedEpisodes(watchedEpisodes: List<WatchedEpisodeEntity>)
 
     // ── Updates ───────────────────────────────────────────────────
@@ -30,6 +30,24 @@ interface WatchedEpisodeDao {
 
     @Query("UPDATE watched_episodes SET sync_status = :status, supabase_id = :supabaseId WHERE id = :id")
     suspend fun markAsSynced(id: Long, status: SyncStatus = SyncStatus.SYNCED, supabaseId: String)
+
+    @Query("""
+        INSERT INTO watched_episodes (media_type, show_id, episode_id, season_number, episode_number, watched_at, sync_status, is_skipped)
+        VALUES (:mediaType, :showId, :episodeId, :seasonNumber, :episodeNumber, :watchedAt, 'PENDING', :isSkipped)
+        ON CONFLICT(show_id, episode_id) DO UPDATE SET
+            sync_status = 'PENDING',
+            watched_at = :watchedAt,
+            is_skipped = :isSkipped
+    """)
+    suspend fun upsertWatchedEpisode(
+        mediaType: dev.sequel.app.data.local.entity.MediaType,
+        showId: Int,
+        episodeId: Int?,
+        seasonNumber: Int?,
+        episodeNumber: Int?,
+        watchedAt: Long = System.currentTimeMillis(),
+        isSkipped: Boolean = false
+    )
 
     // ── Queries (reactive) ────────────────────────────────────────
 

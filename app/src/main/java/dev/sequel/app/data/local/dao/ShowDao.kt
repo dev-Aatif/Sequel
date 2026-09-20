@@ -62,6 +62,26 @@ interface ShowDao {
     fun observeStartedTvShows(): Flow<List<ShowEntity>>
 
     @Query("""
+        SELECT s.*, 
+               e.id AS ep_id, e.show_id AS ep_show_id, e.name AS ep_name, e.season_number AS ep_season_number, e.episode_number AS ep_episode_number, e.overview AS ep_overview, e.still_path AS ep_still_path, e.runtime AS ep_runtime, e.air_date AS ep_air_date
+        FROM shows s
+        LEFT JOIN episodes e ON e.id = (
+            SELECT id FROM episodes e2
+            WHERE e2.show_id = s.id
+            AND e2.id NOT IN (
+                SELECT episode_id FROM watched_episodes we WHERE we.show_id = s.id AND we.episode_id IS NOT NULL AND we.sync_status != 'DELETED'
+            )
+            ORDER BY e2.season_number ASC, e2.episode_number ASC
+            LIMIT 1
+        )
+        WHERE s.id IN (
+            SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'TV' AND sync_status != 'DELETED'
+        )
+        ORDER BY s.title ASC
+    """)
+    fun observeUpNextShows(): Flow<List<dev.sequel.app.data.local.entity.UpNextShowTuple>>
+
+    @Query("""
         SELECT s.* FROM shows s
         WHERE s.media_type = 'movie' AND (s.is_in_watchlist = 1 OR s.is_favorite = 1)
         AND NOT EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)

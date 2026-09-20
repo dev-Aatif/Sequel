@@ -55,10 +55,23 @@ class SyncManager @Inject constructor(
         workManager.enqueue(request)
     }
 
-    /** Trigger immediate sync of all data types. */
     fun syncAllNow() {
         syncWatchedEpisodesNow()
         syncReviewsNow()
+        syncWatchlistNow()
+    }
+
+    /** Trigger an immediate sync of watchlist. */
+    fun syncWatchlistNow() {
+        val request = OneTimeWorkRequestBuilder<SyncWatchlistWorker>()
+            .setConstraints(networkConstraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                30, TimeUnit.SECONDS
+            )
+            .build()
+
+        workManager.enqueue(request)
     }
 
     // ── Periodic sync ─────────────────────────────────────────────
@@ -102,12 +115,29 @@ class SyncManager @Inject constructor(
             ExistingPeriodicWorkPolicy.KEEP,
             reviewsWork
         )
+
+        // Watchlist — every 30 minutes
+        val watchlistWork = PeriodicWorkRequestBuilder<SyncWatchlistWorker>(
+            repeatInterval = 30, TimeUnit.MINUTES
+        )
+            .setConstraints(networkConstraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                1, TimeUnit.MINUTES
+            )
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            SyncWatchlistWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            watchlistWork
+        )
     }
 
-    /** Cancel all periodic sync work. Useful on sign-out. */
     fun cancelPeriodicSync() {
         workManager.cancelUniqueWork(SyncWatchedEpisodesWorker.WORK_NAME)
         workManager.cancelUniqueWork(SyncReviewsWorker.WORK_NAME)
+        workManager.cancelUniqueWork(SyncWatchlistWorker.WORK_NAME)
     }
 
     /** Cancel all sync work (periodic + one-time). */

@@ -312,6 +312,7 @@ class DetailViewModel @Inject constructor(
                     )
                 }
             }
+            syncManager.syncWatchlistNow()
         }
     }
 
