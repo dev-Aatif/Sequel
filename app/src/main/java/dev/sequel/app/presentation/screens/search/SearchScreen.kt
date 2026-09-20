@@ -112,7 +112,11 @@ fun SearchScreen(
                         Icon(
                             Icons.Default.Close, "Clear",
                             tint = MaterialTheme.colorScheme.onSurface.copy(0.5f),
-                            modifier = Modifier.size(24.dp).semantics { role = Role.Button }.hapticClickable { viewModel.onQueryChange("") }
+                            modifier = Modifier
+                                .size(48.dp)
+                                .semantics { role = Role.Button }
+                                .hapticClickable { viewModel.onQueryChange("") }
+                                .padding(12.dp)
                         )
                     }
                 }
