@@ -294,11 +294,16 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (show.mediaType == "tv") {
-                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                    episodeDao.insertEpisodes(episodeEntities)
+                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                        .find { it.episodeNumber == next.episodeNumber }
+                        
+                    if (ep == null) {
+                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                        episodeDao.insertEpisodes(episodeEntities)
+                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                    }
                     
-                    val ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }
                     if (ep != null) {
                         watchedEpisodeDao.insertWatchedEpisode(
                             WatchedEpisodeEntity(

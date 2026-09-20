@@ -29,6 +29,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -67,6 +69,7 @@ fun SearchScreen(
     val isProcessingAction by viewModel.isProcessingAction.collectAsState()
     val bottomSheetState by viewModel.bottomSheetState.collectAsState()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     
     LaunchedEffect(selectedItemForAction) {
         selectedItemForAction?.let { viewModel.openBottomSheet(it) }
@@ -145,7 +148,14 @@ fun SearchScreen(
                         if (filteredResults.isEmpty()) {
                             Text("No results found for '$query'", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground.copy(0.5f), modifier = Modifier.align(Alignment.Center))
                         } else {
+                            val gridState = rememberLazyGridState()
+                            LaunchedEffect(gridState.isScrollInProgress) {
+                                if (gridState.isScrollInProgress) {
+                                    focusManager.clearFocus()
+                                }
+                            }
                             LazyVerticalGrid(
+                                state = gridState,
                                 columns = GridCells.Adaptive(minSize = 100.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
