@@ -176,6 +176,7 @@ class WatchlistViewModel @Inject constructor(
                         seasonNumber = item.seasonNumber,
                         episodeNumber = item.episodeNumber
                     )
+                    watchlistDao.removeFromWatchlist(item.showId)
                     // Auto-queue: next episode automatically appears in Up Next
                     // because observeCanonicalNextEpisode is reactive
                 }
@@ -363,6 +364,7 @@ class WatchlistViewModel @Inject constructor(
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
+                        watchlistDao.removeFromWatchlist(show.id)
                         onSuccess("Marked as Watched")
                         
                         // Proactively fetch next season if necessary
