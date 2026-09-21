@@ -23,7 +23,7 @@ interface WatchlistDao {
         SELECT * FROM watchlist w
         WHERE sync_status != 'DELETED' 
         AND NOT EXISTS (
-            SELECT 1 FROM watched_episodes we WHERE we.show_id = w.tmdb_id
+            SELECT 1 FROM watched_episodes we WHERE we.show_id = w.tmdb_id AND we.sync_status != 'DELETED'
         )
         ORDER BY added_at DESC
     """)

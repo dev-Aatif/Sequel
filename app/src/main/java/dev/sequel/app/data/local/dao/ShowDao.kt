@@ -130,4 +130,31 @@ interface ShowDao {
 
     @Query("SELECT COUNT(*) FROM shows WHERE media_type = :mediaType")
     suspend fun getShowsCountByMediaType(mediaType: String): Int
+
+    // ── Watched Tab ───────────────────────────────────────────────
+
+    @Query("""
+        SELECT s.*,
+               (SELECT COUNT(we.id) FROM watched_episodes we WHERE we.show_id = s.id AND we.episode_id IS NOT NULL AND we.sync_status != 'DELETED') AS watchedCount,
+               EXISTS (
+                   SELECT 1 FROM episodes e 
+                   WHERE e.show_id = s.id 
+                   AND e.id NOT IN (
+                       SELECT episode_id FROM watched_episodes we2 
+                       WHERE we2.show_id = s.id AND we2.episode_id IS NOT NULL AND we2.sync_status != 'DELETED'
+                   )
+               ) AS hasUnwatchedEpisodes
+        FROM shows s
+        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'TV' AND sync_status != 'DELETED')
+        ORDER BY s.title ASC
+    """)
+    fun observeWatchedTvShows(): Flow<List<dev.sequel.app.data.local.entity.WatchedTvShowTuple>>
+
+    @Query("""
+        SELECT s.*
+        FROM shows s
+        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'MOVIE' AND sync_status != 'DELETED')
+        ORDER BY s.title ASC
+    """)
+    fun observeWatchedMovies(): Flow<List<ShowEntity>>
 }

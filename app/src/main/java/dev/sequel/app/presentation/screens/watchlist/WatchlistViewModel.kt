@@ -101,60 +101,45 @@ class WatchlistViewModel @Inject constructor(
 
     // ── Watched Tab ────────────────────────────────────────────────
 
-    private val watchedTvShowsFlow = watchedEpisodeDao.observeWatchedTvShowIds().flatMapLatest { ids ->
-        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList<WatchedItem>())
-        
-        val itemFlows = ids.map { showId ->
-            combine(
-                showDao.observeShowById(showId),
-                watchedEpisodeDao.observeWatchedByShow(showId),
-                episodeDao.observeCanonicalNextEpisode(showId)
-            ) { show, watchedEpisodes, nextUnwatched ->
-                if (show == null) return@combine null
-                val watchedCount = watchedEpisodes.size
-                val totalEpisodes = show.numberOfEpisodes
-                
-                val isCompleted = totalEpisodes != null && totalEpisodes > 0 && watchedCount >= totalEpisodes
-                
-                val statusTag = when {
-                    isCompleted -> "Completed"
-                    show.status in listOf("Ended", "Canceled") && nextUnwatched != null -> "In Progress"
-                    show.status == "Returning Series" && nextUnwatched == null -> "Up to Date"
-                    else -> "In Progress"
-                }
-                
-                WatchedItem(
-                    showId = show.id,
-                    mediaType = "tv",
-                    title = show.title,
-                    posterPath = show.posterPath,
-                    statusTag = statusTag,
-                    episodesWatched = watchedCount,
-                    totalEpisodes = totalEpisodes
-                )
+    private val watchedTvShowsFlow = showDao.observeWatchedTvShows().map { tuples ->
+        tuples.map { tuple ->
+            val show = tuple.show
+            val watchedCount = tuple.watchedCount
+            val totalEpisodes = show.numberOfEpisodes
+            
+            val isCompleted = totalEpisodes != null && totalEpisodes > 0 && watchedCount >= totalEpisodes
+            
+            val statusTag = when {
+                isCompleted -> "Completed"
+                show.status in listOf("Ended", "Canceled") && tuple.hasUnwatchedEpisodes -> "In Progress"
+                show.status == "Returning Series" && !tuple.hasUnwatchedEpisodes -> "Up to Date"
+                else -> "In Progress"
             }
+            
+            WatchedItem(
+                showId = show.id,
+                mediaType = "tv",
+                title = show.title,
+                posterPath = show.posterPath,
+                statusTag = statusTag,
+                episodesWatched = watchedCount,
+                totalEpisodes = totalEpisodes
+            )
         }
-        combine(itemFlows) { items -> items.filterNotNull() }
     }
 
-    private val watchedMoviesFlow = watchedEpisodeDao.observeWatchedMovieIds().flatMapLatest { ids ->
-        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList<WatchedItem>())
-        
-        val itemFlows = ids.map { showId ->
-            showDao.observeShowById(showId).map { show ->
-                if (show == null) return@map null
-                WatchedItem(
-                    showId = show.id,
-                    mediaType = "movie",
-                    title = show.title,
-                    posterPath = show.posterPath,
-                    statusTag = "Watched",
-                    episodesWatched = 1,
-                    totalEpisodes = null
-                )
-            }
+    private val watchedMoviesFlow = showDao.observeWatchedMovies().map { shows ->
+        shows.map { show ->
+            WatchedItem(
+                showId = show.id,
+                mediaType = "movie",
+                title = show.title,
+                posterPath = show.posterPath,
+                statusTag = "Watched",
+                episodesWatched = 1,
+                totalEpisodes = null
+            )
         }
-        combine(itemFlows) { items -> items.filterNotNull() }
     }
 
     val watchedTvItems: StateFlow<List<WatchedItem>> = watchedTvShowsFlow.stateIn(
@@ -171,6 +156,8 @@ class WatchlistViewModel @Inject constructor(
         viewModelScope.launch {
             if (item.mediaType == "tv") {
                 if (item.nextEpisodeId != null) {
+                    
+                    // Upsert DB immediately for optimistic UI
                     watchedEpisodeDao.upsertWatchedEpisode(
                         mediaType = MediaType.TV,
                         showId = item.showId,
@@ -179,6 +166,26 @@ class WatchlistViewModel @Inject constructor(
                         episodeNumber = item.episodeNumber
                     )
                     watchlistDao.removeFromWatchlist(item.showId)
+
+                    // Proactively fetch next season in background to avoid UI jank
+                    if (item.seasonNumber != null && item.episodeNumber != null) {
+                        launch {
+                            val nextEp = episodeDao.getNextEpisodeInSeason(item.showId, item.seasonNumber, item.episodeNumber)
+                            if (nextEp == null) {
+                                val nextSeasonNumber = item.seasonNumber + 1
+                                val existing = episodeDao.getEpisodesBySeason(item.showId, nextSeasonNumber)
+                                if (existing.isEmpty()) {
+                                    try {
+                                        val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, nextSeasonNumber)
+                                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(item.showId) }
+                                        episodeDao.insertEpisodes(episodeEntities)
+                                    } catch (e: Exception) {
+                                        // Silently fail, it will retry next time
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             } else {
                 watchedEpisodeDao.upsertWatchedEpisode(
@@ -191,24 +198,6 @@ class WatchlistViewModel @Inject constructor(
                 watchlistDao.removeFromWatchlist(item.showId)
             }
             syncManager.syncWatchedEpisodesNow()
-            
-            // Proactively fetch next season if necessary
-            if (item.mediaType == "tv" && item.seasonNumber != null && item.episodeNumber != null) {
-                val nextEp = episodeDao.getNextEpisodeInSeason(item.showId, item.seasonNumber, item.episodeNumber)
-                if (nextEp == null) {
-                    val nextSeasonNumber = item.seasonNumber + 1
-                    val existing = episodeDao.getEpisodesBySeason(item.showId, nextSeasonNumber)
-                    if (existing.isEmpty()) {
-                        try {
-                            val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, nextSeasonNumber)
-                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(item.showId) }
-                            episodeDao.insertEpisodes(episodeEntities)
-                        } catch (e: Exception) {
-                            // Silently fail, it will retry next time
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -367,23 +356,25 @@ class WatchlistViewModel @Inject constructor(
                         watchlistDao.removeFromWatchlist(show.id)
                         onSuccess("Marked as Watched")
                         
+                        openBottomSheet(show.id, show.mediaType)
+
                         // Proactively fetch next season if necessary
-                        val progression = getNextEpisodeUseCase(show.id)
-                        if (!progression.isCompleted && progression.nextEpisodeData != null) {
-                            val nextEp = progression.nextEpisodeData
-                            val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
-                            if (existing.isEmpty()) {
-                                try {
-                                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
-                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                                    episodeDao.insertEpisodes(episodeEntities)
-                                } catch (e: Exception) {
-                                    // Silently fail
+                        launch {
+                            val progression = getNextEpisodeUseCase(show.id)
+                            if (!progression.isCompleted && progression.nextEpisodeData != null) {
+                                val nextEp = progression.nextEpisodeData
+                                val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
+                                if (existing.isEmpty()) {
+                                    try {
+                                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
+                                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                                        episodeDao.insertEpisodes(episodeEntities)
+                                    } catch (e: Exception) {
+                                        // Silently fail
+                                    }
                                 }
                             }
                         }
-                        
-                        openBottomSheet(show.id, show.mediaType)
                     } else {
                         onSuccess("Episode not found")
                     }
