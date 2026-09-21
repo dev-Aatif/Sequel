@@ -319,8 +319,12 @@ fun UpNextGlassmorphicRow(item: UpNextItem, onClick: () -> Unit, onLongClick: ()
             }
             // Progress bar for TV shows
             if (item.mediaType == "tv" && item.seasonNumber != null && item.episodeNumber != null) {
-                val rough = ((item.seasonNumber - 1) * 10 + (item.episodeNumber - 1)).toFloat() / (item.seasonNumber * 10).coerceAtLeast(1)
-                val animatedProgress by animateFloatAsState(rough.coerceIn(0.01f, 1f), tween(600), label = "progress")
+                val progress = if (item.totalEpisodes > 0) {
+                    (item.watchedEpisodeCount.toFloat() / item.totalEpisodes.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+                val animatedProgress by animateFloatAsState(progress, tween(600), label = "progress")
                 Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)).background(MaterialTheme.colorScheme.onSurface.copy(0.1f))) {
                     Box(Modifier.fillMaxWidth(animatedProgress).fillMaxHeight().clip(RoundedCornerShape(bottomStart = 16.dp)).background(MaterialTheme.colorScheme.primary))
                 }

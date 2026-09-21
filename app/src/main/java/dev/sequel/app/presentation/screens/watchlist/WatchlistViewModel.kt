@@ -38,7 +38,9 @@ data class UpNextItem(
     val nextEpisodeName: String?,
     val nextEpisodeId: Int?,
     val seasonNumber: Int?,
-    val episodeNumber: Int?
+    val episodeNumber: Int?,
+    val watchedEpisodeCount: Int,
+    val totalEpisodes: Int
 )
 
 /**
@@ -80,7 +82,9 @@ class WatchlistViewModel @Inject constructor(
                     nextEpisodeName = "S${tuple.nextEpisode.seasonNumber}E${tuple.nextEpisode.episodeNumber}: ${tuple.nextEpisode.name}",
                     nextEpisodeId = tuple.nextEpisode.id,
                     seasonNumber = tuple.nextEpisode.seasonNumber,
-                    episodeNumber = tuple.nextEpisode.episodeNumber
+                    episodeNumber = tuple.nextEpisode.episodeNumber,
+                    watchedEpisodeCount = tuple.watchedCount,
+                    totalEpisodes = tuple.show.numberOfEpisodes ?: 0
                 )
             } else null
         }
@@ -110,14 +114,12 @@ class WatchlistViewModel @Inject constructor(
                 val watchedCount = watchedEpisodes.size
                 val totalEpisodes = show.numberOfEpisodes
                 
+                val isCompleted = totalEpisodes != null && totalEpisodes > 0 && watchedCount >= totalEpisodes
+                
                 val statusTag = when {
-                    // If no unwatched episodes remain and we have episode data → Completed
-                    nextUnwatched == null && watchedCount > 0 -> "Completed"
-                    // If the show status is "Ended" or "Canceled" and there are unwatched eps
+                    isCompleted -> "Completed"
                     show.status in listOf("Ended", "Canceled") && nextUnwatched != null -> "In Progress"
-                    // If the show is still airing and user is caught up to latest available
                     show.status == "Returning Series" && nextUnwatched == null -> "Up to Date"
-                    // Default: in progress
                     else -> "In Progress"
                 }
                 
@@ -177,8 +179,6 @@ class WatchlistViewModel @Inject constructor(
                         episodeNumber = item.episodeNumber
                     )
                     watchlistDao.removeFromWatchlist(item.showId)
-                    // Auto-queue: next episode automatically appears in Up Next
-                    // because observeCanonicalNextEpisode is reactive
                 }
             } else {
                 watchedEpisodeDao.upsertWatchedEpisode(
@@ -193,14 +193,14 @@ class WatchlistViewModel @Inject constructor(
             syncManager.syncWatchedEpisodesNow()
             
             // Proactively fetch next season if necessary
-            if (item.mediaType == "tv") {
-                val progression = getNextEpisodeUseCase(item.showId)
-                if (!progression.isCompleted && progression.nextEpisodeData != null) {
-                    val nextEp = progression.nextEpisodeData
-                    val existing = episodeDao.getEpisodesBySeason(item.showId, nextEp.seasonNumber)
+            if (item.mediaType == "tv" && item.seasonNumber != null && item.episodeNumber != null) {
+                val nextEp = episodeDao.getNextEpisodeInSeason(item.showId, item.seasonNumber, item.episodeNumber)
+                if (nextEp == null) {
+                    val nextSeasonNumber = item.seasonNumber + 1
+                    val existing = episodeDao.getEpisodesBySeason(item.showId, nextSeasonNumber)
                     if (existing.isEmpty()) {
                         try {
-                            val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, nextEp.seasonNumber)
+                            val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, nextSeasonNumber)
                             val episodeEntities = seasonDetail.episodes.map { it.toEntity(item.showId) }
                             episodeDao.insertEpisodes(episodeEntities)
                         } catch (e: Exception) {

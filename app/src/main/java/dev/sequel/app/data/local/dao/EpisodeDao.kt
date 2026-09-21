@@ -36,4 +36,14 @@ interface EpisodeDao {
         LIMIT 1
     """)
     fun observeCanonicalNextEpisode(showId: Int): Flow<EpisodeEntity?>
+
+    @Query("""
+        SELECT * FROM episodes 
+        WHERE show_id = :showId 
+          AND season_number = :seasonNumber 
+          AND episode_number > :episodeNumber 
+        ORDER BY episode_number ASC 
+        LIMIT 1
+    """)
+    suspend fun getNextEpisodeInSeason(showId: Int, seasonNumber: Int, episodeNumber: Int): EpisodeEntity?
 }
