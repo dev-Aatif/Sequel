@@ -87,7 +87,7 @@ class HomeViewModel @Inject constructor(
                         posterPath = show.posterPath
                     )
                 )
-                showDao.updateWatchlistStatus(show.id, true)
+                showDao.updateWatchlistStatus(show.id, show.mediaType, true)
             } finally {
                 _isProcessingAction.value = false
             }
@@ -99,10 +99,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 showDao.insertShow(show)
-                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id).firstOrNull() ?: false
+                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == "movie") {
-                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id).firstOrNull() ?: emptyList()
+                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
                     val isMovieWatched = watchedList.isNotEmpty()
                     
                     _bottomSheetState.value = BottomSheetUiState(
@@ -140,8 +140,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (state.inWatchlist) {
-                    watchlistDao.removeFromWatchlist(show.id)
-                    showDao.updateWatchlistStatus(show.id, false)
+                    watchlistDao.removeFromWatchlist(show.id, show.mediaType)
+                    showDao.updateWatchlistStatus(show.id, show.mediaType, false)
                     _bottomSheetState.value = state.copy(inWatchlist = false)
                     onSuccess("Removed from Watchlist")
                 } else {
@@ -153,7 +153,7 @@ class HomeViewModel @Inject constructor(
                             posterPath = show.posterPath
                         )
                     )
-                    showDao.updateWatchlistStatus(show.id, true)
+                    showDao.updateWatchlistStatus(show.id, show.mediaType, true)
                     _bottomSheetState.value = state.copy(inWatchlist = true)
                     onSuccess("Added to Watchlist")
                 }
@@ -175,7 +175,7 @@ class HomeViewModel @Inject constructor(
             try {
                 if (show.mediaType == "movie") {
                     if (state.isWatched) {
-                        watchedEpisodeDao.unwatchAllForShow(show.id)
+                        watchedEpisodeDao.unwatchAllForShow(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = false)
                         onSuccess("Removed from Watched")
                     } else {
@@ -189,8 +189,8 @@ class HomeViewModel @Inject constructor(
                                 syncStatus = SyncStatus.PENDING
                             )
                         )
-                        watchlistDao.removeFromWatchlist(show.id)
-                        showDao.updateWatchlistStatus(show.id, false)
+                        watchlistDao.removeFromWatchlist(show.id, show.mediaType)
+                        showDao.updateWatchlistStatus(show.id, show.mediaType, false)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
                         onSuccess("Marked as Watched")
                     }

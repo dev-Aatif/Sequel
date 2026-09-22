@@ -165,7 +165,7 @@ class WatchlistViewModel @Inject constructor(
                         seasonNumber = item.seasonNumber,
                         episodeNumber = item.episodeNumber
                     )
-                    watchlistDao.removeFromWatchlist(item.showId)
+                    watchlistDao.removeFromWatchlist(item.showId, item.mediaType)
 
                     // Proactively fetch next season in background to avoid UI jank
                     if (item.seasonNumber != null && item.episodeNumber != null) {
@@ -195,7 +195,7 @@ class WatchlistViewModel @Inject constructor(
                     seasonNumber = -1,
                     episodeNumber = -1
                 )
-                watchlistDao.removeFromWatchlist(item.showId)
+                watchlistDao.removeFromWatchlist(item.showId, item.mediaType)
             }
             syncManager.syncWatchedEpisodesNow()
         }
@@ -225,9 +225,9 @@ class WatchlistViewModel @Inject constructor(
         savedStateHandle["current_tab"] = tab
     }
 
-    fun removeFromWatchlist(tmdbId: Int) {
+    fun removeFromWatchlist(tmdbId: Int, mediaType: String) {
         viewModelScope.launch {
-            watchlistDao.removeFromWatchlist(tmdbId)
+            watchlistDao.removeFromWatchlist(tmdbId, mediaType)
             syncManager.syncWatchlistNow()
         }
     }
@@ -244,11 +244,11 @@ class WatchlistViewModel @Inject constructor(
         _bottomSheetState.value = BottomSheetUiState(isLoading = true)
         viewModelScope.launch {
             try {
-                val show = showDao.getShowById(showId) ?: return@launch
-                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id).firstOrNull() ?: false
+                val show = showDao.getShowById(showId, mediaType) ?: return@launch
+                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == "movie") {
-                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id).firstOrNull() ?: emptyList()
+                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
                     val isMovieWatched = watchedList.isNotEmpty()
                     
                     _bottomSheetState.value = BottomSheetUiState(
@@ -286,7 +286,7 @@ class WatchlistViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (state.inWatchlist) {
-                    watchlistDao.removeFromWatchlist(show.id)
+                    watchlistDao.removeFromWatchlist(show.id, show.mediaType)
                     _bottomSheetState.value = state.copy(inWatchlist = false)
                     onSuccess("Removed from Watchlist")
                 } else {
@@ -318,7 +318,7 @@ class WatchlistViewModel @Inject constructor(
             try {
                 if (show.mediaType == "movie") {
                     if (state.isWatched) {
-                        watchedEpisodeDao.unwatchAllForShow(show.id)
+                        watchedEpisodeDao.unwatchAllForShow(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = false)
                         onSuccess("Removed from Watched")
                     } else {
@@ -329,7 +329,7 @@ class WatchlistViewModel @Inject constructor(
                             seasonNumber = -1,
                             episodeNumber = -1
                         )
-                        watchlistDao.removeFromWatchlist(show.id)
+                        watchlistDao.removeFromWatchlist(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
                         onSuccess("Marked as Watched")
                     }
@@ -357,7 +357,7 @@ class WatchlistViewModel @Inject constructor(
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
-                        watchlistDao.removeFromWatchlist(show.id)
+                        watchlistDao.removeFromWatchlist(show.id, show.mediaType)
                         onSuccess("Marked as Watched")
                         
                         openBottomSheet(show.id, show.mediaType)

@@ -8,9 +8,11 @@ import androidx.room.PrimaryKey
  * Represents a TV show or movie cached from TMDB.
  * Acts as the single source of truth for show metadata.
  */
-@Entity(tableName = "shows")
+@Entity(
+    tableName = "shows",
+    primaryKeys = ["id", "media_type"]
+)
 data class ShowEntity(
-    @PrimaryKey
     @ColumnInfo(name = "id")
     val id: Int, // TMDB ID
 

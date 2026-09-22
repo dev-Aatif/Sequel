@@ -15,14 +15,14 @@ import androidx.room.PrimaryKey
     foreignKeys = [
         ForeignKey(
             entity = ShowEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["show_id"],
+            parentColumns = ["id", "media_type"],
+            childColumns = ["show_id", "media_type"],
             onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
-        Index(value = ["show_id"]),
-        Index(value = ["show_id", "season_number", "episode_number"], unique = true)
+        Index(value = ["show_id", "media_type"]),
+        Index(value = ["show_id", "media_type", "season_number", "episode_number"], unique = true)
     ]
 )
 data class EpisodeEntity(
@@ -32,6 +32,9 @@ data class EpisodeEntity(
 
     @ColumnInfo(name = "show_id")
     val showId: Int,
+
+    @ColumnInfo(name = "media_type")
+    val mediaType: String = "tv",
 
     @ColumnInfo(name = "season_number")
     val seasonNumber: Int,

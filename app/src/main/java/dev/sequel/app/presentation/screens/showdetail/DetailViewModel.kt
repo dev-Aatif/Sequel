@@ -115,13 +115,13 @@ class DetailViewModel @Inject constructor(
     private val _detailState = MutableStateFlow<DetailInternalState>(DetailInternalState.Loading)
 
     /** Set of watched episode IDs, observed from Room reactively. */
-    private val watchedFlow = watchedEpisodeDao.observeWatchedByShow(showId)
+    private val watchedFlow = watchedEpisodeDao.observeWatchedByShow(showId, mediaType)
     
     /** Whether this show is in the user's watchlist, observed reactively. */
-    private val isInWatchlistFlow = watchlistDao.observeIsInWatchlist(showId)
+    private val isInWatchlistFlow = watchlistDao.observeIsInWatchlist(showId, mediaType)
 
     /** User's own review/rating for this show */
-    private val myReviewFlow = reviewDao.observeReviewForMedia(showId)
+    private val myReviewFlow = reviewDao.observeReviewForMedia(showId, mediaType)
 
     /**
      * Combines the fetched show+season data with the reactive watched-episode flow
@@ -242,7 +242,7 @@ class DetailViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 // FALLBACK: Load from Room on network failure
-                val localShow = showDao.observeShowById(showId).firstOrNull()
+                val localShow = showDao.observeShowById(showId, mediaType).firstOrNull()
                 if (localShow != null) {
                     val localSeasons = if (mediaType == "movie") emptyList() else seasonDao.getSeasonsByShow(showId).filter { it.seasonNumber > 0 }
                     _detailState.value = DetailInternalState.Loaded(
@@ -301,11 +301,9 @@ class DetailViewModel @Inject constructor(
      * Toggle a movie's watched status.
      * Inserts or deletes the WatchedEpisodeEntity with null episode fields.
      */
-    fun toggleMovieWatched(isWatched: Boolean) {
+    fun toggleMovieWatched(targetIsWatched: Boolean) {
         viewModelScope.launch {
-            if (isWatched) {
-                watchedEpisodeDao.unwatchAllForShow(showId)
-            } else {
+            if (targetIsWatched) {
                 watchedEpisodeDao.insertWatchedEpisode(
                     WatchedEpisodeEntity(
                         mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
@@ -316,7 +314,9 @@ class DetailViewModel @Inject constructor(
                         syncStatus = SyncStatus.PENDING
                     )
                 )
-                watchlistDao.removeFromWatchlist(showId)
+                watchlistDao.removeFromWatchlist(showId, mediaType)
+            } else {
+                watchedEpisodeDao.unwatchAllForShow(showId, mediaType)
             }
             syncManager.syncWatchedEpisodesNow()
         }
@@ -327,9 +327,9 @@ class DetailViewModel @Inject constructor(
      */
     fun toggleWatchlist() {
         viewModelScope.launch {
-            val currentlyInWatchlist = watchlistDao.isInWatchlist(showId)
+            val currentlyInWatchlist = watchlistDao.isInWatchlist(showId, mediaType)
             if (currentlyInWatchlist) {
-                watchlistDao.removeFromWatchlist(showId)
+                watchlistDao.removeFromWatchlist(showId, mediaType)
             } else {
                 val currentState = _detailState.value
                 if (currentState is DetailInternalState.Loaded) {

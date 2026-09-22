@@ -23,7 +23,7 @@ interface WatchedRepository {
     suspend fun isWatched(episodeId: Int): Boolean
 
     /** Observe all watched episodes for a show. */
-    fun observeWatchedByShow(showId: Int): Flow<List<WatchedEpisodeEntity>>
+    fun observeWatchedByShow(showId: Int, mediaType: String): Flow<List<WatchedEpisodeEntity>>
 
     /** Observe watched episodes for a specific season. */
     fun observeWatchedBySeason(showId: Int, seasonNumber: Int): Flow<List<WatchedEpisodeEntity>>

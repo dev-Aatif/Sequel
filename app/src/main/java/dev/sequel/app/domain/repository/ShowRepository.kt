@@ -29,7 +29,7 @@ interface ShowRepository {
     // ── Local queries (reactive) ──────────────────────────────────
 
     /** Observe a single show by ID from Room. */
-    fun observeShow(showId: Int): Flow<ShowEntity?>
+    fun observeShow(showId: Int, mediaType: String): Flow<ShowEntity?>
 
     /** Observe all shows by media type from Room. */
     fun observeShowsByType(mediaType: String): Flow<List<ShowEntity>>
@@ -46,8 +46,8 @@ interface ShowRepository {
     // ── Local mutations ───────────────────────────────────────────
 
     /** Toggle favorite status for a show. */
-    suspend fun toggleFavorite(showId: Int, isFavorite: Boolean)
+    suspend fun toggleFavorite(showId: Int, mediaType: String, isFavorite: Boolean)
 
     /** Toggle watchlist status for a show. */
-    suspend fun toggleWatchlist(showId: Int, isInWatchlist: Boolean)
+    suspend fun toggleWatchlist(showId: Int, mediaType: String, isInWatchlist: Boolean)
 }

@@ -35,13 +35,15 @@ class ReviewViewModel @Inject constructor(
     val communityState: StateFlow<CommunityState> = _communityState.asStateFlow()
 
     private var currentMediaId: Int = 0
+    private var currentMediaType: String = "tv"
     private var currentSeasonNum: Int? = null
     private var currentEpisodeNum: Int? = null
 
     val currentUserId: String? = supabaseAuthService.currentUserId
 
-    fun loadReviews(mediaId: Int, seasonNum: Int?, episodeNum: Int?) {
+    fun loadReviews(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?) {
         currentMediaId = mediaId
+        currentMediaType = mediaType
         currentSeasonNum = seasonNum
         currentEpisodeNum = episodeNum
         
@@ -69,6 +71,7 @@ class ReviewViewModel @Inject constructor(
         viewModelScope.launch {
             val entity = ReviewEntity(
                 mediaId = currentMediaId,
+                mediaType = currentMediaType,
                 seasonNum = currentSeasonNum,
                 episodeNum = currentEpisodeNum,
                 reviewText = text.ifBlank { null },
@@ -77,7 +80,7 @@ class ReviewViewModel @Inject constructor(
                 syncStatus = SyncStatus.PENDING
             )
             reviewDao.upsertReview(entity)
-            syncManager.syncWatchedEpisodesNow() // Forces WorkManager to run sync which includes reviews
+            syncManager.syncReviewsNow() // Use syncReviewsNow for reviews
             
             // Optimistically add review to the list so user sees it immediately
             val currentState = _communityState.value
@@ -103,13 +106,14 @@ class ReviewViewModel @Inject constructor(
     fun deleteReview(reviewId: String) {
         viewModelScope.launch {
             try {
-                // Attempt to delete from cloud
+                // Ignore network errors, local delete will still happen
                 supabaseSyncService.deleteReview(reviewId)
             } catch (e: Exception) {
-                // Ignore network errors, local delete will still happen
             }
             // Delete local cache
-            reviewDao.deleteReviewForMedia(currentMediaId, currentSeasonNum, currentEpisodeNum)
+            val localReview = reviewDao.getReviewForMediaAndEpisode(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            localReview?.let { reviewDao.markReviewDeleted(it.id) }
+            syncManager.syncReviewsNow()
 
             // Optimistically update UI
             val currentState = _communityState.value

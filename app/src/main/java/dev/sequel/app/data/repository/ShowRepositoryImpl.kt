@@ -77,8 +77,8 @@ class ShowRepositoryImpl @Inject constructor(
 
     // ── Local queries ─────────────────────────────────────────────
 
-    override fun observeShow(showId: Int): Flow<ShowEntity?> =
-        showDao.observeShowById(showId)
+    override fun observeShow(showId: Int, mediaType: String): Flow<ShowEntity?> =
+        showDao.observeShowById(showId, mediaType)
 
     override fun observeShowsByType(mediaType: String): Flow<List<ShowEntity>> =
         showDao.observeShowsByType(mediaType)
@@ -94,11 +94,11 @@ class ShowRepositoryImpl @Inject constructor(
 
     // ── Local mutations ───────────────────────────────────────────
 
-    override suspend fun toggleFavorite(showId: Int, isFavorite: Boolean) {
-        showDao.updateFavoriteStatus(showId, isFavorite)
+    override suspend fun toggleFavorite(showId: Int, mediaType: String, isFavorite: Boolean) {
+        showDao.updateFavoriteStatus(showId, mediaType, isFavorite)
     }
 
-    override suspend fun toggleWatchlist(showId: Int, isInWatchlist: Boolean) {
-        showDao.updateWatchlistStatus(showId, isInWatchlist)
+    override suspend fun toggleWatchlist(showId: Int, mediaType: String, isInWatchlist: Boolean) {
+        showDao.updateWatchlistStatus(showId, mediaType, isInWatchlist)
     }
 }

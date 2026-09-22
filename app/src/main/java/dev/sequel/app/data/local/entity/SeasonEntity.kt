@@ -15,8 +15,8 @@ import androidx.room.PrimaryKey
     foreignKeys = [
         ForeignKey(
             entity = ShowEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["show_id"],
+            parentColumns = ["id", "media_type"],
+            childColumns = ["show_id", "media_type"],
             onDelete = ForeignKey.CASCADE
         )
     ],
@@ -29,6 +29,9 @@ data class SeasonEntity(
 
     @ColumnInfo(name = "show_id")
     val showId: Int,
+
+    @ColumnInfo(name = "media_type")
+    val mediaType: String = "tv",
 
     @ColumnInfo(name = "season_number")
     val seasonNumber: Int,

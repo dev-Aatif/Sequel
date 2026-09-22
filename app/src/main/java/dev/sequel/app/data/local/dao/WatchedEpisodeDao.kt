@@ -51,8 +51,8 @@ interface WatchedEpisodeDao {
 
     // ── Queries (reactive) ────────────────────────────────────────
 
-    @Query("SELECT * FROM watched_episodes WHERE show_id = :showId AND sync_status != 'DELETED' ORDER BY season_number ASC, episode_number ASC")
-    fun observeWatchedByShow(showId: Int): Flow<List<WatchedEpisodeEntity>>
+    @Query("SELECT * FROM watched_episodes WHERE show_id = :showId AND media_type = :mediaType AND sync_status != 'DELETED' ORDER BY season_number ASC, episode_number ASC")
+    fun observeWatchedByShow(showId: Int, mediaType: String): Flow<List<WatchedEpisodeEntity>>
 
     @Query("SELECT * FROM watched_episodes WHERE show_id = :showId AND season_number = :seasonNumber AND sync_status != 'DELETED' ORDER BY episode_number ASC")
     fun observeWatchedBySeason(showId: Int, seasonNumber: Int): Flow<List<WatchedEpisodeEntity>>
@@ -89,8 +89,8 @@ interface WatchedEpisodeDao {
     @Query("SELECT EXISTS(SELECT 1 FROM watched_episodes WHERE episode_id = :episodeId AND sync_status != 'DELETED')")
     suspend fun isEpisodeWatched(episodeId: Int): Boolean
 
-    @Query("SELECT COUNT(*) FROM watched_episodes WHERE show_id = :showId AND sync_status != 'DELETED'")
-    suspend fun getWatchedCountForShow(showId: Int): Int
+    @Query("SELECT COUNT(*) FROM watched_episodes WHERE show_id = :showId AND media_type = :mediaType AND sync_status != 'DELETED'")
+    suspend fun getWatchedCountForShow(showId: Int, mediaType: String): Int
 
     @Query("SELECT COUNT(*) FROM watched_episodes WHERE show_id = :showId AND season_number = :seasonNumber AND sync_status != 'DELETED'")
     suspend fun getWatchedCountForSeason(showId: Int, seasonNumber: Int): Int
@@ -103,8 +103,8 @@ interface WatchedEpisodeDao {
     @Query("UPDATE watched_episodes SET sync_status = 'DELETED' WHERE show_id = :showId AND season_number = :seasonNumber")
     suspend fun unwatchSeason(showId: Int, seasonNumber: Int)
 
-    @Query("UPDATE watched_episodes SET sync_status = 'DELETED' WHERE show_id = :showId")
-    suspend fun unwatchAllForShow(showId: Int)
+    @Query("UPDATE watched_episodes SET sync_status = 'DELETED' WHERE show_id = :showId AND media_type = :mediaType")
+    suspend fun unwatchAllForShow(showId: Int, mediaType: String)
 
     @Query("DELETE FROM watched_episodes WHERE id = :id")
     suspend fun deleteEpisodeById(id: Long)

@@ -38,7 +38,7 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         WatchlistEntity::class,
         dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

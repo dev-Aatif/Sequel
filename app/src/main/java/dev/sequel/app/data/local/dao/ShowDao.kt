@@ -24,20 +24,20 @@ interface ShowDao {
     @Update
     suspend fun updateShow(show: ShowEntity)
 
-    @Query("UPDATE shows SET title = :title, overview = :overview, poster_path = :posterPath, backdrop_path = :backdropPath, vote_average = :voteAverage, last_updated = :lastUpdated WHERE id = :id")
-    suspend fun updateShowApiData(id: Int, title: String, overview: String, posterPath: String?, backdropPath: String?, voteAverage: Double, lastUpdated: Long)
+    @Query("UPDATE shows SET title = :title, overview = :overview, poster_path = :posterPath, backdrop_path = :backdropPath, vote_average = :voteAverage, last_updated = :lastUpdated WHERE id = :id AND media_type = :mediaType")
+    suspend fun updateShowApiData(id: Int, mediaType: String, title: String, overview: String, posterPath: String?, backdropPath: String?, voteAverage: Double, lastUpdated: Long)
 
 
-    @Query("UPDATE shows SET is_favorite = :isFavorite WHERE id = :showId")
-    suspend fun updateFavoriteStatus(showId: Int, isFavorite: Boolean)
+    @Query("UPDATE shows SET is_favorite = :isFavorite WHERE id = :showId AND media_type = :mediaType")
+    suspend fun updateFavoriteStatus(showId: Int, mediaType: String, isFavorite: Boolean)
 
-    @Query("UPDATE shows SET is_in_watchlist = :isInWatchlist WHERE id = :showId")
-    suspend fun updateWatchlistStatus(showId: Int, isInWatchlist: Boolean)
+    @Query("UPDATE shows SET is_in_watchlist = :isInWatchlist WHERE id = :showId AND media_type = :mediaType")
+    suspend fun updateWatchlistStatus(showId: Int, mediaType: String, isInWatchlist: Boolean)
 
     // ── Queries (reactive) ────────────────────────────────────────
 
-    @Query("SELECT * FROM shows WHERE id = :showId")
-    fun observeShowById(showId: Int): Flow<ShowEntity?>
+    @Query("SELECT * FROM shows WHERE id = :showId AND media_type = :mediaType")
+    fun observeShowById(showId: Int, mediaType: String): Flow<ShowEntity?>
 
     @Query("SELECT * FROM shows WHERE media_type = :mediaType ORDER BY last_updated DESC")
     fun observeShowsByType(mediaType: String): Flow<List<ShowEntity>>
@@ -123,13 +123,13 @@ interface ShowDao {
     """)
     suspend fun getStartedTvShows(): List<ShowEntity>
 
-    @Query("SELECT * FROM shows WHERE id = :showId")
-    suspend fun getShowById(showId: Int): ShowEntity?
+    @Query("SELECT * FROM shows WHERE id = :showId AND media_type = :mediaType")
+    suspend fun getShowById(showId: Int, mediaType: String): ShowEntity?
 
     // ── Deletes ───────────────────────────────────────────────────
 
-    @Query("DELETE FROM shows WHERE id = :showId")
-    suspend fun deleteShow(showId: Int)
+    @Query("DELETE FROM shows WHERE id = :showId AND media_type = :mediaType")
+    suspend fun deleteShow(showId: Int, mediaType: String)
 
     @Query("DELETE FROM shows WHERE media_type = :mediaType AND is_favorite = 0 AND is_in_watchlist = 0")
     suspend fun clearNonTrackedShows(mediaType: String)

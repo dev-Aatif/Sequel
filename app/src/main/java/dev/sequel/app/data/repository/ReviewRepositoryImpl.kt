@@ -18,6 +18,7 @@ class ReviewRepositoryImpl @Inject constructor(
 
     override suspend fun submitReview(
         mediaId: Int,
+        mediaType: String,
         seasonNum: Int?,
         episodeNum: Int?,
         reviewText: String?,
@@ -25,9 +26,9 @@ class ReviewRepositoryImpl @Inject constructor(
         isSpoiler: Boolean
     ) {
         val existing = if (seasonNum != null && episodeNum != null) {
-            reviewDao.getReviewForEpisode(mediaId, seasonNum, episodeNum)
+            reviewDao.getReviewForEpisode(mediaId, mediaType, seasonNum, episodeNum)
         } else {
-            reviewDao.getReviewForMedia(mediaId)
+            reviewDao.getReviewForMedia(mediaId, mediaType)
         }
 
         val entity = if (existing != null) {
@@ -41,6 +42,7 @@ class ReviewRepositoryImpl @Inject constructor(
         } else {
             ReviewEntity(
                 mediaId = mediaId,
+                mediaType = mediaType,
                 seasonNum = seasonNum,
                 episodeNum = episodeNum,
                 reviewText = reviewText,
@@ -60,17 +62,17 @@ class ReviewRepositoryImpl @Inject constructor(
         syncManager.syncReviewsNow()
     }
 
-    override fun observeReviewForMedia(mediaId: Int): Flow<ReviewEntity?> =
-        reviewDao.observeReviewForMedia(mediaId)
+    override fun observeReviewForMedia(mediaId: Int, mediaType: String): Flow<ReviewEntity?> =
+        reviewDao.observeReviewForMedia(mediaId, mediaType)
 
-    override fun observeReviewForEpisode(mediaId: Int, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?> =
-        reviewDao.observeReviewForEpisode(mediaId, seasonNum, episodeNum)
+    override fun observeReviewForEpisode(mediaId: Int, mediaType: String, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?> =
+        reviewDao.observeReviewForEpisode(mediaId, mediaType, seasonNum, episodeNum)
 
     override fun observeAllReviews(): Flow<List<ReviewEntity>> =
         reviewDao.observeAllReviews()
 
-    override suspend fun deleteReview(mediaId: Int, seasonNum: Int?, episodeNum: Int?) {
-        reviewDao.deleteReviewForMedia(mediaId, seasonNum, episodeNum)
+    override suspend fun deleteReview(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?) {
+        reviewDao.deleteReviewForMedia(mediaId, mediaType, seasonNum, episodeNum)
     }
 
     override suspend fun getCommunityReviews(

@@ -15,14 +15,14 @@ import androidx.room.PrimaryKey
     foreignKeys = [
         ForeignKey(
             entity = ShowEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["show_id"],
+            parentColumns = ["id", "media_type"],
+            childColumns = ["show_id", "media_type"],
             onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
-        Index(value = ["show_id", "episode_id"], unique = true), // unique watch per show/episode
-        Index(value = ["show_id"]),
+        Index(value = ["show_id", "media_type", "episode_id"], unique = true), // unique watch per show/episode
+        Index(value = ["show_id", "media_type"]),
         Index(value = ["sync_status"])
     ]
 )

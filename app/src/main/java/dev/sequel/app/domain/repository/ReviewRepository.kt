@@ -11,6 +11,7 @@ interface ReviewRepository {
     /** Submit or update a review. Saves to Room and triggers sync. */
     suspend fun submitReview(
         mediaId: Int,
+        mediaType: String,
         seasonNum: Int? = null,
         episodeNum: Int? = null,
         reviewText: String?,
@@ -19,16 +20,16 @@ interface ReviewRepository {
     )
 
     /** Observe the review for a specific media (movie or show). */
-    fun observeReviewForMedia(mediaId: Int): Flow<ReviewEntity?>
+    fun observeReviewForMedia(mediaId: Int, mediaType: String): Flow<ReviewEntity?>
 
     /** Observe the review for a specific episode. */
-    fun observeReviewForEpisode(mediaId: Int, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?>
+    fun observeReviewForEpisode(mediaId: Int, mediaType: String, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?>
 
     /** Observe all user reviews. */
     fun observeAllReviews(): Flow<List<ReviewEntity>>
 
     /** Delete a review. */
-    suspend fun deleteReview(mediaId: Int, seasonNum: Int? = null, episodeNum: Int? = null)
+    suspend fun deleteReview(mediaId: Int, mediaType: String, seasonNum: Int? = null, episodeNum: Int? = null)
 
     /** Fetch community reviews from Supabase. */
     suspend fun getCommunityReviews(mediaId: Int, seasonNum: Int? = null, episodeNum: Int? = null): List<dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto>

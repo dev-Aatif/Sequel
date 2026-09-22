@@ -34,7 +34,7 @@ class GetNextEpisodeUseCase @Inject constructor(
         }
 
         // 2. If no local next episode, fallback to TMDB to see if there's a next season we haven't cached
-        val watchedList = watchedEpisodeDao.observeWatchedByShow(showId).firstOrNull() ?: emptyList()
+        val watchedList = watchedEpisodeDao.observeWatchedByShow(showId, "tv").firstOrNull() ?: emptyList()
         val detail = tmdbApiService.getTvShowDetail(showId)
 
         if (watchedList.isEmpty()) {
