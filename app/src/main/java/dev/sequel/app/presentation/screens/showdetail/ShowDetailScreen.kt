@@ -423,11 +423,12 @@ private fun ShowDetailContent(
                             state.isMovieWatched
                         } else {
                             if (review.seasonNum != null && review.episodeNum != null) {
-                                state.seasons.find { it.seasonNumber == review.seasonNum }
-                                    ?.episodes?.find { it.episodeNumber == review.episodeNum }
-                                    ?.isWatched == true
+                                state.watchedEpisodeKeys.contains("S${review.seasonNum}E${review.episodeNum}")
                             } else if (review.seasonNum != null) {
-                                state.seasons.find { it.seasonNumber == review.seasonNum }?.episodes?.all { it.isWatched } == true
+                                val season = state.seasons.find { it.seasonNumber == review.seasonNum }
+                                if (season != null && season.episodeCount > 0) {
+                                    season.watchedCount >= season.episodeCount
+                                } else false
                             } else {
                                 // Default to false for show-level reviews to prevent finale spoilers
                                 false
@@ -461,7 +462,7 @@ private fun ShowDetailContent(
 
 @Composable
 private fun SeasonHeader(season: SeasonUi, onClick: () -> Unit) {
-    val watchedCount = season.episodes.count { it.isWatched }
+    val watchedCount = season.watchedCount
     val totalCount = season.episodeCount
     val progress = if (totalCount > 0) watchedCount.toFloat() / totalCount else 0f
 
