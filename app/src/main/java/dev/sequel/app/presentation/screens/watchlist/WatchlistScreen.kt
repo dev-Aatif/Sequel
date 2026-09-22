@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,7 +60,7 @@ fun WatchlistScreen(
     val watchedMovieItems by viewModel.watchedMovieItems.collectAsState()
     
     val activeTab by viewModel.currentTab.collectAsState()
-    var watchedSubTab by remember { mutableStateOf("Shows") } // "Shows" or "Movies"
+    var watchedSubTab by rememberSaveable { mutableStateOf("Shows") } // "Shows" or "Movies"
     
     val bottomSheetState by viewModel.bottomSheetState.collectAsState()
     val isProcessingAction by viewModel.isProcessingAction.collectAsState()
@@ -123,7 +124,7 @@ fun WatchlistScreen(
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(upNextItems, key = { "${it.showId}_${it.nextEpisodeId}" }) { item ->
+                            items(upNextItems, key = { it.showId }) { item ->
                                 UpNextGlassmorphicRow(
                                     item = item,
                                     onClick = { onShowClick(item.showId, item.mediaType) },

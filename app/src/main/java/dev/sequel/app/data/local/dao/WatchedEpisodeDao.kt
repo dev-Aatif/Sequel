@@ -28,7 +28,7 @@ interface WatchedEpisodeDao {
     @Query("UPDATE watched_episodes SET sync_status = :status WHERE id = :id")
     suspend fun updateSyncStatus(id: Long, status: SyncStatus)
 
-    @Query("UPDATE watched_episodes SET sync_status = :status, supabase_id = :supabaseId WHERE id = :id")
+    @Query("UPDATE watched_episodes SET sync_status = :status, supabase_id = :supabaseId WHERE id = :id AND sync_status = 'PENDING'")
     suspend fun markAsSynced(id: Long, status: SyncStatus = SyncStatus.SYNCED, supabaseId: String)
 
     @Query("""
