@@ -100,6 +100,9 @@ interface WatchedEpisodeDao {
     @Query("UPDATE watched_episodes SET sync_status = 'DELETED' WHERE episode_id = :episodeId")
     suspend fun unwatchEpisode(episodeId: Int)
 
+    @Query("UPDATE watched_episodes SET sync_status = 'DELETED' WHERE show_id = :showId AND season_number = :seasonNumber")
+    suspend fun unwatchSeason(showId: Int, seasonNumber: Int)
+
     @Query("UPDATE watched_episodes SET sync_status = 'DELETED' WHERE show_id = :showId")
     suspend fun unwatchAllForShow(showId: Int)
 

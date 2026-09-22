@@ -58,8 +58,12 @@ fun SeasonDetailScreen(
                         val season = (uiState as SeasonDetailUiState.Success).season
                         val allWatched = season.episodes.all { it.isWatched }
                         IconButton(onClick = {
-                            val unwatched = season.episodes.filter { !it.isWatched }
-                            viewModel.markSeasonWatched(unwatched)
+                            if (allWatched) {
+                                viewModel.unwatchSeason(season.seasonNumber)
+                            } else {
+                                val unwatched = season.episodes.filter { !it.isWatched }
+                                viewModel.markSeasonWatched(unwatched)
+                            }
                         }) {
                             Icon(
                                 imageVector = if (allWatched) Icons.Default.DoneAll else Icons.Default.Check,

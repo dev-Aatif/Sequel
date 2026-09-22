@@ -146,4 +146,11 @@ class SeasonDetailViewModel @Inject constructor(
             syncManager.syncWatchedEpisodesNow()
         }
     }
+
+    fun unwatchSeason(seasonNumber: Int) {
+        viewModelScope.launch {
+            watchedEpisodeDao.unwatchSeason(showId, seasonNumber)
+            syncManager.syncWatchedEpisodesNow()
+        }
+    }
 }

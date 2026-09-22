@@ -144,7 +144,7 @@ private fun ShowDetailContent(
             Box(Modifier.fillMaxWidth()) {
                 // Blurred backdrop for atmosphere
                 AsyncImage(
-                    model = TmdbImageUtil.backdropUrl(show.backdropPath ?: show.posterPath),
+                    model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current).data(TmdbImageUtil.backdropUrl(show.backdropPath ?: show.posterPath)).crossfade(true).build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop, 
                     modifier = Modifier.matchParentSize().background(Color(0xFF0F1115))
@@ -160,7 +160,7 @@ private fun ShowDetailContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     AsyncImage(
-                        model = TmdbImageUtil.posterUrl(show.posterPath),
+                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current).data(TmdbImageUtil.posterUrl(show.posterPath)).crossfade(true).build(),
                         contentDescription = "${show.title} poster",
                         contentScale = ContentScale.Fit, 
                         modifier = Modifier
@@ -336,12 +336,7 @@ private fun ShowDetailContent(
             }
             state.seasons.forEach { season ->
                 item(key = "season_${season.seasonNumber}") {
-                    SeasonHeader(season = season, onExpand = { onFetchSeason(season.seasonNumber) }, onToggleWatched = { ep ->
-                        onToggleWatched(ep)
-                        if (!ep.isWatched && state.userRating == null) {
-                            showRatingDialog = true
-                        }
-                    })
+                    SeasonHeader(season = season, onClick = { onSeasonClick(show.id, season.seasonNumber) })
                 }
             }
         }
@@ -354,7 +349,7 @@ private fun ShowDetailContent(
                 LazyRow(contentPadding = PaddingValues(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(state.recommendations, key = { it.id }) { rec ->
                         Column(Modifier.width(120.dp).hapticClickable { onRecommendationClick(rec.id, rec.mediaType) }) {
-                            AsyncImage(model = TmdbImageUtil.posterUrl(rec.posterPath), contentDescription = rec.title,
+                            AsyncImage(model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current).data(TmdbImageUtil.posterUrl(rec.posterPath)).crossfade(true).build(), contentDescription = rec.title,
                                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(12.dp)))
                             Spacer(Modifier.height(8.dp))
                             Text(rec.title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -465,16 +460,14 @@ private fun ShowDetailContent(
 
 
 @Composable
-private fun SeasonHeader(season: SeasonUi, onExpand: () -> Unit, onToggleWatched: (EpisodeUi) -> Unit) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+private fun SeasonHeader(season: SeasonUi, onClick: () -> Unit) {
     val watchedCount = season.episodes.count { it.isWatched }
     val totalCount = season.episodeCount
     val progress = if (totalCount > 0) watchedCount.toFloat() / totalCount else 0f
 
     Column(Modifier.padding(24.dp, 8.dp)) {
         Box(Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(16.dp)).hapticClickable { 
-            expanded = !expanded
-            if (expanded) onExpand()
+            onClick()
         }) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(16.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -483,16 +476,11 @@ private fun SeasonHeader(season: SeasonUi, onExpand: () -> Unit, onToggleWatched
                         Spacer(Modifier.height(4.dp))
                         Text("$watchedCount / $totalCount watched", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
                     }
-                    Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (expanded) "Collapse" else "Expand", tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.Outlined.ArrowForward, "View Season", tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Box(Modifier.fillMaxWidth().height(3.dp).background(MaterialTheme.colorScheme.onSurface.copy(0.1f))) {
                     Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
                 }
-            }
-        }
-        AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
-            Column(Modifier.padding(top = 8.dp)) {
-                season.episodes.forEach { EpisodeRow(it, onToggleWatched) }
             }
         }
     }
