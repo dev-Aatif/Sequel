@@ -3,6 +3,7 @@ package dev.sequel.app.data.sync
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -39,7 +40,11 @@ class SyncManager @Inject constructor(
             )
             .build()
 
-        workManager.enqueue(request)
+        workManager.enqueueUniqueWork(
+            SyncWatchedEpisodesWorker.WORK_NAME + "_now",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
     }
 
     /** Trigger an immediate sync of reviews. */
@@ -52,7 +57,11 @@ class SyncManager @Inject constructor(
             )
             .build()
 
-        workManager.enqueue(request)
+        workManager.enqueueUniqueWork(
+            SyncReviewsWorker.WORK_NAME + "_now",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
     }
 
     fun syncAllNow() {
@@ -71,7 +80,11 @@ class SyncManager @Inject constructor(
             )
             .build()
 
-        workManager.enqueue(request)
+        workManager.enqueueUniqueWork(
+            SyncWatchlistWorker.WORK_NAME + "_now",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
     }
 
     // ── Periodic sync ─────────────────────────────────────────────

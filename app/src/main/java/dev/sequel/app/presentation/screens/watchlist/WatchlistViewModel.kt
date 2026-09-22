@@ -339,10 +339,14 @@ class WatchlistViewModel @Inject constructor(
                         .find { it.episodeNumber == next.episodeNumber }
                     
                     if (ep == null) {
-                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                        episodeDao.insertEpisodes(episodeEntities)
-                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        try {
+                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                            episodeDao.insertEpisodes(episodeEntities)
+                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        } catch (e: Exception) {
+                            // Network failure or season doesn't exist yet
+                        }
                     }
                     
                     if (ep != null) {
@@ -376,7 +380,7 @@ class WatchlistViewModel @Inject constructor(
                             }
                         }
                     } else {
-                        onSuccess("Episode not found")
+                        onSuccess("Requires network connection to load S${next.seasonNumber}")
                     }
                 }
                 syncManager.syncWatchedEpisodesNow()
@@ -402,10 +406,14 @@ class WatchlistViewModel @Inject constructor(
                         .find { it.episodeNumber == next.episodeNumber }
                     
                     if (ep == null) {
-                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                        episodeDao.insertEpisodes(episodeEntities)
-                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        try {
+                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                            episodeDao.insertEpisodes(episodeEntities)
+                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        } catch (e: Exception) {
+                            // Network failure
+                        }
                     }
                     if (ep != null) {
                         watchedEpisodeDao.upsertWatchedEpisode(
@@ -419,7 +427,7 @@ class WatchlistViewModel @Inject constructor(
                         onSuccess("Skipped Episode")
                         openBottomSheet(show.id, show.mediaType)
                     } else {
-                        onSuccess("Episode not found")
+                        onSuccess("Requires network connection to load S${next.seasonNumber}")
                     }
                 }
                 syncManager.syncWatchedEpisodesNow()

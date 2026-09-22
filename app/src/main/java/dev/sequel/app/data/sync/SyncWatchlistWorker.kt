@@ -6,70 +6,60 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import dev.sequel.app.data.local.dao.ShowDao
+import dev.sequel.app.data.local.dao.WatchlistDao
+import dev.sequel.app.data.local.entity.SyncStatus
 import dev.sequel.app.data.remote.supabase.SupabaseAuthService
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.from
-import kotlinx.coroutines.flow.first
+import dev.sequel.app.data.remote.supabase.SupabaseSyncService
 
 @HiltWorker
 class SyncWatchlistWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val showDao: ShowDao,
-    private val supabaseClient: SupabaseClient,
-    private val authService: SupabaseAuthService
+    private val watchlistDao: WatchlistDao,
+    private val supabaseSyncService: SupabaseSyncService,
+    private val supabaseAuthService: SupabaseAuthService
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val client = supabaseClient
-        val userId = authService.currentUserId ?: return Result.failure()
+        val userId = supabaseAuthService.currentUserId ?: return Result.failure()
+        var hasFailures = false
 
-        return try {
-            val watchlistShows = showDao.observeWatchlist().first()
-            val watchlistShowIds = watchlistShows.map { it.id }
+        try {
+            val pendingWatchlist = watchlistDao.getPendingWatchlist()
+            if (pendingWatchlist.isNotEmpty()) {
+                val toUpsert = pendingWatchlist.filter { it.syncStatus != SyncStatus.DELETED }
+                val toDelete = pendingWatchlist.filter { it.syncStatus == SyncStatus.DELETED }
 
-            // Sync with Supabase (simplified for now to match the existing patterns)
-            // First fetch existing records for this user
-            val remoteRecords = client.from("watchlist")
-                .select { filter { eq("user_id", userId) } }
-                .decodeList<WatchlistRecord>()
-
-            val remoteShowIds = remoteRecords.map { it.tmdbId }.toSet()
-
-            // Calculate diffs
-            val toInsert = watchlistShowIds.filter { it !in remoteShowIds }
-            val toDelete = remoteShowIds.filter { it !in watchlistShowIds }
-
-            // Insert new records
-            if (toInsert.isNotEmpty()) {
-                val recordsToInsert = toInsert.map { WatchlistRecord(userId = userId, tmdbId = it) }
-                client.from("watchlist").insert(recordsToInsert)
-            }
-
-            // Delete removed records
-            if (toDelete.isNotEmpty()) {
-                client.from("watchlist").delete {
-                    filter {
-                        eq("user_id", userId)
-                        isIn("tmdb_id", toDelete)
+                if (toUpsert.isNotEmpty()) {
+                    val dtos = toUpsert.map { entity ->
+                        dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto(
+                            userId = userId,
+                            tmdbId = entity.tmdbId,
+                            mediaType = entity.mediaType.name.lowercase(),
+                            title = entity.title,
+                            posterPath = entity.posterPath,
+                            addedAt = entity.addedAt
+                        )
                     }
+                    supabaseSyncService.upsertWatchlist(dtos)
+                    watchlistDao.markWatchlistSynced(toUpsert.map { it.tmdbId })
+                }
+
+                for (deleted in toDelete) {
+                    supabaseSyncService.deleteFromWatchlist(userId, deleted.tmdbId)
+                    watchlistDao.deleteWatchlistById(deleted.tmdbId)
                 }
             }
-
-            Result.success()
         } catch (e: Exception) {
-            if (runAttemptCount < 3) Result.retry() else Result.failure()
+            if (runAttemptCount <= 3) {
+                hasFailures = true
+            }
         }
+
+        return if (hasFailures) Result.retry() else Result.success()
     }
 
     companion object {
         const val WORK_NAME = "sync_watchlist_work"
     }
 }
-
-@kotlinx.serialization.Serializable
-data class WatchlistRecord(
-    @kotlinx.serialization.SerialName("user_id") val userId: String,
-    @kotlinx.serialization.SerialName("tmdb_id") val tmdbId: Int
-)
