@@ -274,7 +274,7 @@ private fun ShowDetailContent(
         }
 
         // ── Your Rating Block ──
-        if (state.userRating != null || state.isMovieWatched || state.seasons.any { s -> s.episodes.any { it.isWatched } }) {
+        if (state.userRating != null || state.isMovieWatched || state.seasons.any { it.watchedCount > 0 }) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp),
