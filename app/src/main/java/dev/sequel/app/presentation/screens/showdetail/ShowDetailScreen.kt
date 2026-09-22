@@ -82,6 +82,7 @@ fun ShowDetailScreen(
                         onToggleWatched = { viewModel.toggleEpisodeWatched(it) },
                         onToggleMovieWatched = { viewModel.toggleMovieWatched(it) },
                         onToggleWatchlist = { viewModel.toggleWatchlist() },
+                        onFetchSeason = { viewModel.fetchSeasonEpisodes(it) },
                         onRecommendationClick = { id, type -> onShowClick?.invoke(id, type) },
                         onPostReview = { text, rating, isSpoiler -> reviewViewModel.postReview(text, rating, isSpoiler) },
                         onDeleteReview = { reviewId -> reviewViewModel.deleteReview(reviewId) },
@@ -124,6 +125,7 @@ private fun ShowDetailContent(
     onToggleWatched: (EpisodeUi) -> Unit,
     onToggleMovieWatched: (Boolean) -> Unit,
     onToggleWatchlist: () -> Unit,
+    onFetchSeason: (Int) -> Unit,
     onRecommendationClick: (Int, String) -> Unit,
     onPostReview: (String, Int?, Boolean) -> Unit,
     onDeleteReview: (String) -> Unit,
@@ -334,7 +336,7 @@ private fun ShowDetailContent(
             }
             state.seasons.forEach { season ->
                 item(key = "season_${season.seasonNumber}") {
-                    SeasonHeader(season = season, onToggleWatched = { ep ->
+                    SeasonHeader(season = season, onExpand = { onFetchSeason(season.seasonNumber) }, onToggleWatched = { ep ->
                         onToggleWatched(ep)
                         if (!ep.isWatched && state.userRating == null) {
                             showRatingDialog = true
@@ -432,7 +434,8 @@ private fun ShowDetailContent(
                             } else if (review.seasonNum != null) {
                                 state.seasons.find { it.seasonNumber == review.seasonNum }?.episodes?.all { it.isWatched } == true
                             } else {
-                                state.seasons.any { s -> s.episodes.any { it.isWatched } }
+                                // Default to false for show-level reviews to prevent finale spoilers
+                                false
                             }
                         }
                         ReviewCard(
@@ -462,14 +465,17 @@ private fun ShowDetailContent(
 
 
 @Composable
-private fun SeasonHeader(season: SeasonUi, onToggleWatched: (EpisodeUi) -> Unit) {
+private fun SeasonHeader(season: SeasonUi, onExpand: () -> Unit, onToggleWatched: (EpisodeUi) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val watchedCount = season.episodes.count { it.isWatched }
-    val totalCount = season.episodes.size
+    val totalCount = season.episodeCount
     val progress = if (totalCount > 0) watchedCount.toFloat() / totalCount else 0f
 
     Column(Modifier.padding(24.dp, 8.dp)) {
-        Box(Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(16.dp)).hapticClickable { expanded = !expanded }) {
+        Box(Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(16.dp)).hapticClickable { 
+            expanded = !expanded
+            if (expanded) onExpand()
+        }) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(16.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {

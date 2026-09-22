@@ -127,4 +127,23 @@ class SeasonDetailViewModel @Inject constructor(
             syncManager.syncWatchedEpisodesNow()
         }
     }
+
+    fun markSeasonWatched(episodes: List<EpisodeUi>) {
+        if (episodes.isEmpty()) return
+        
+        viewModelScope.launch {
+            val entities = episodes.map { episode ->
+                WatchedEpisodeEntity(
+                    mediaType = MediaType.TV,
+                    episodeId = episode.id,
+                    showId = showId,
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber,
+                    syncStatus = SyncStatus.PENDING
+                )
+            }
+            watchedEpisodeDao.insertWatchedEpisodes(entities)
+            syncManager.syncWatchedEpisodesNow()
+        }
+    }
 }

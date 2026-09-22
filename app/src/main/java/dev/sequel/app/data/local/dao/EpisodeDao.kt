@@ -19,6 +19,9 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE show_id = :showId AND season_number = :seasonNumber ORDER BY episode_number ASC")
     suspend fun getEpisodesBySeason(showId: Int, seasonNumber: Int): List<EpisodeEntity>
 
+    @Query("SELECT * FROM episodes WHERE show_id = :showId ORDER BY season_number ASC, episode_number ASC")
+    fun observeEpisodesByShow(showId: Int): Flow<List<EpisodeEntity>>
+
     @Query("SELECT * FROM episodes WHERE id = :episodeId")
     suspend fun getEpisodeById(episodeId: Int): EpisodeEntity?
 

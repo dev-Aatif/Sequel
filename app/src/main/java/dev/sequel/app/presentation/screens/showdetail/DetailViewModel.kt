@@ -17,6 +17,7 @@ import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.local.dao.WatchlistDao
 import dev.sequel.app.data.remote.tmdb.TmdbApiService
 import dev.sequel.app.data.remote.tmdb.dto.TmdbSeasonDetailDto
+import dev.sequel.app.data.remote.tmdb.dto.TmdbSeasonSummaryDto
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEpisodeEntities
 import dev.sequel.app.data.sync.SyncManager
@@ -56,7 +57,8 @@ data class EpisodeUi(
 data class SeasonUi(
     val seasonNumber: Int,
     val name: String,
-    val episodes: List<EpisodeUi>
+    val episodes: List<EpisodeUi>,
+    val episodeCount: Int
 )
 
 /**
@@ -124,8 +126,9 @@ class DetailViewModel @Inject constructor(
         _detailState,
         watchedFlow,
         isInWatchlistFlow,
-        myReviewFlow
-    ) { internal, watchedList, isInWatchlist, myReview ->
+        myReviewFlow,
+        episodeDao.observeEpisodesByShow(showId)
+    ) { internal, watchedList, isInWatchlist, myReview, episodesList ->
         when (internal) {
             is DetailInternalState.Loading -> DetailUiState.Loading
             is DetailInternalState.Error -> DetailUiState.Error(internal.error)
@@ -139,17 +142,20 @@ class DetailViewModel @Inject constructor(
                     userRating = myReview?.rating,
                     dropOffInsight = internal.dropOffInsight,
                     recommendations = internal.recommendations,
-                    seasons = internal.seasonDetails.map { seasonDetail ->
+                    seasons = internal.seasonDetails.map { seasonSummary ->
                         SeasonUi(
-                            seasonNumber = seasonDetail.seasonNumber,
-                            name = seasonDetail.name,
-                            episodes = seasonDetail.episodes.map { ep ->
+                            seasonNumber = seasonSummary.seasonNumber,
+                            name = seasonSummary.name,
+                            episodeCount = seasonSummary.episodeCount,
+                            episodes = episodesList
+                                .filter { it.seasonNumber == seasonSummary.seasonNumber }
+                                .map { ep ->
                                 EpisodeUi(
                                     id = ep.id,
                                     seasonNumber = ep.seasonNumber,
                                     episodeNumber = ep.episodeNumber,
                                     name = ep.name,
-                                    overview = ep.overview.ifBlank { null },
+                                    overview = ep.overview?.ifBlank { null },
                                     stillPath = ep.stillPath,
                                     airDate = ep.airDate,
                                     runtime = ep.runtime,
@@ -214,18 +220,10 @@ class DetailViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 3. Fetch each season's full episode list from TMDB
+                // 3. Fetch each season's summary list from TMDB
                 val showDetail = tmdbApiService.getTvShowDetail(showId)
                 val seasonDetails = showDetail.seasons
                     .filter { it.seasonNumber > 0 } // exclude "Specials" (season 0)
-                    .map { seasonSummary ->
-                        async {
-                            val detail = tmdbApiService.getSeasonDetail(showId, seasonSummary.seasonNumber)
-                            // Cache episodes to Room
-                            episodeDao.insertEpisodes(detail.toEpisodeEntities(showId))
-                            detail
-                        }
-                    }.awaitAll()
 
                 val dropOff = if (mediaType == "tv") calculateDropOff(showId) else null
 
@@ -237,6 +235,20 @@ class DetailViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _detailState.value = DetailInternalState.Error(e.toAppError())
+            }
+        }
+    }
+
+    fun fetchSeasonEpisodes(seasonNumber: Int) {
+        viewModelScope.launch {
+            try {
+                val localEpisodes = episodeDao.getEpisodesBySeason(showId, seasonNumber)
+                if (localEpisodes.isEmpty()) {
+                    val detail = tmdbApiService.getSeasonDetail(showId, seasonNumber)
+                    episodeDao.insertEpisodes(detail.toEpisodeEntities(showId))
+                }
+            } catch (e: Exception) {
+                // Ignore gracefully - user can retry by toggling the accordion
             }
         }
     }
@@ -368,7 +380,7 @@ private sealed interface DetailInternalState {
     data object Loading : DetailInternalState
     data class Loaded(
         val show: ShowEntity,
-        val seasonDetails: List<TmdbSeasonDetailDto>,
+        val seasonDetails: List<TmdbSeasonSummaryDto>,
         val dropOffInsight: String? = null,
         val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailInternalState
