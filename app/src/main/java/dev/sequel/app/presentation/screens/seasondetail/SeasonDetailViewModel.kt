@@ -46,7 +46,7 @@ class SeasonDetailViewModel @Inject constructor(
 
     val uiState: StateFlow<SeasonDetailUiState> = combine(
         episodeDao.observeEpisodesBySeason(showId, seasonNumber),
-        watchedEpisodeDao.observeWatchedByShow(showId),
+        watchedEpisodeDao.observeWatchedByShow(showId, "tv"),
         _loadingError
     ) { episodes, watchedList, error ->
         if (error != null) {
@@ -58,6 +58,8 @@ class SeasonDetailViewModel @Inject constructor(
             val seasonUi = SeasonUi(
                 seasonNumber = seasonNumber,
                 name = "Season $seasonNumber",
+                episodeCount = episodes.size,
+                watchedCount = episodes.count { watchedMap.containsKey(it.id) && watchedMap[it.id]?.isSkipped != true },
                 episodes = episodes.map { ep ->
                     EpisodeUi(
                         id = ep.id,

@@ -20,7 +20,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["show_id"])]
+    indices = [Index(value = ["show_id", "media_type"])]
 )
 data class SeasonEntity(
     @PrimaryKey

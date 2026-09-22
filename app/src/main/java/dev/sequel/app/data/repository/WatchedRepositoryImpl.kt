@@ -44,17 +44,14 @@ class WatchedRepositoryImpl @Inject constructor(
     override fun observeWatchedByShow(showId: Int, mediaType: String): Flow<List<WatchedEpisodeEntity>> =
         watchedEpisodeDao.observeWatchedByShow(showId, mediaType)
 
-    override fun observeWatchedBySeason(
-        showId: Int,
-        seasonNumber: Int
-    ): Flow<List<WatchedEpisodeEntity>> =
+    override fun observeWatchedBySeason(showId: Int, seasonNumber: Int): Flow<List<WatchedEpisodeEntity>> =
         watchedEpisodeDao.observeWatchedBySeason(showId, seasonNumber)
 
     override fun observeRecentlyWatched(limit: Int): Flow<List<WatchedEpisodeEntity>> =
         watchedEpisodeDao.observeRecentlyWatched(limit)
 
-    override suspend fun getWatchedCount(showId: Int): Int =
-        watchedEpisodeDao.getWatchedCountForShow(showId)
+    override suspend fun getWatchedCount(showId: Int, mediaType: String): Int =
+        watchedEpisodeDao.getWatchedCountForShow(showId, mediaType)
 
     override suspend fun getWatchedCountForSeason(showId: Int, seasonNumber: Int): Int =
         watchedEpisodeDao.getWatchedCountForSeason(showId, seasonNumber)

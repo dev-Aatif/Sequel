@@ -19,7 +19,7 @@ interface ReviewDao {
 
     @androidx.room.Transaction
     suspend fun upsertReview(newReview: ReviewEntity) {
-        val existing = getReviewForMediaAndEpisode(newReview.mediaId, newReview.mediaType.name, newReview.seasonNum, newReview.episodeNum)
+        val existing = getReviewForMediaAndEpisode(newReview.mediaId, newReview.mediaType, newReview.seasonNum, newReview.episodeNum)
         if (existing != null) {
             val merged = newReview.copy(
                 id = existing.id,

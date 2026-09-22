@@ -34,7 +34,7 @@ interface WatchedEpisodeDao {
     @Query("""
         INSERT INTO watched_episodes (media_type, show_id, episode_id, season_number, episode_number, watched_at, sync_status, is_skipped)
         VALUES (:mediaType, :showId, :episodeId, :seasonNumber, :episodeNumber, :watchedAt, 'PENDING', :isSkipped)
-        ON CONFLICT(show_id, episode_id) DO UPDATE SET
+        ON CONFLICT(show_id, media_type, episode_id) DO UPDATE SET
             sync_status = 'PENDING',
             watched_at = :watchedAt,
             is_skipped = :isSkipped

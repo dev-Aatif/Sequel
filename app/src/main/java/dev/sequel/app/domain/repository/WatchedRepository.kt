@@ -32,7 +32,7 @@ interface WatchedRepository {
     fun observeRecentlyWatched(limit: Int = 20): Flow<List<WatchedEpisodeEntity>>
 
     /** Get watched episode count for a show. */
-    suspend fun getWatchedCount(showId: Int): Int
+    suspend fun getWatchedCount(showId: Int, mediaType: String): Int
 
     /** Get watched episode count for a specific season. */
     suspend fun getWatchedCountForSeason(showId: Int, seasonNumber: Int): Int

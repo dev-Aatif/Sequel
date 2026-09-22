@@ -82,7 +82,7 @@ interface ShowDao {
             GROUP BY show_id
         )
         SELECT s.*, 
-               e.id AS ep_id, e.show_id AS ep_show_id, e.name AS ep_name, e.season_number AS ep_season_number, e.episode_number AS ep_episode_number, e.overview AS ep_overview, e.still_path AS ep_still_path, e.runtime AS ep_runtime, e.air_date AS ep_air_date,
+               e.id as ep_id, e.show_id as ep_show_id, e.media_type as ep_media_type, e.name as ep_name, e.season_number AS ep_season_number, e.episode_number AS ep_episode_number, e.overview AS ep_overview, e.still_path AS ep_still_path, e.runtime AS ep_runtime, e.air_date AS ep_air_date,
                COALESCE(wc.watched_count, 0) AS watchedCount
         FROM shows s
         LEFT JOIN WatchedCount wc ON s.id = wc.show_id

@@ -52,9 +52,10 @@ fun ShowDetailScreen(
     val communityState by reviewViewModel.communityState.collectAsState()
 
     val showId = (uiState as? DetailUiState.Success)?.show?.id
-    LaunchedEffect(showId) {
-        if (showId != null) {
-            reviewViewModel.loadReviews(showId, null, null)
+    val mediaType = (uiState as? DetailUiState.Success)?.show?.mediaType
+    LaunchedEffect(showId, mediaType) {
+        if (showId != null && mediaType != null) {
+            reviewViewModel.loadReviews(showId, mediaType, null, null)
         }
     }
 
@@ -83,10 +84,17 @@ fun ShowDetailScreen(
                         onToggleMovieWatched = { viewModel.toggleMovieWatched(it) },
                         onToggleWatchlist = { viewModel.toggleWatchlist() },
                         onFetchSeason = { viewModel.fetchSeasonEpisodes(it) },
+                        onSeasonClick = onSeasonClick,
                         onRecommendationClick = { id, type -> onShowClick?.invoke(id, type) },
                         onPostReview = { text, rating, isSpoiler -> reviewViewModel.postReview(text, rating, isSpoiler) },
                         onDeleteReview = { reviewId -> reviewViewModel.deleteReview(reviewId) },
-                        onRetryReviews = { showId?.let { reviewViewModel.loadReviews(it, null, null) } },
+                        onRetryReviews = { 
+                            showId?.let { sId -> 
+                                mediaType?.let { mType -> 
+                                    reviewViewModel.loadReviews(sId, mType, null, null) 
+                                } 
+                            } 
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -126,6 +134,7 @@ private fun ShowDetailContent(
     onToggleMovieWatched: (Boolean) -> Unit,
     onToggleWatchlist: () -> Unit,
     onFetchSeason: (Int) -> Unit,
+    onSeasonClick: (Int, Int) -> Unit,
     onRecommendationClick: (Int, String) -> Unit,
     onPostReview: (String, Int?, Boolean) -> Unit,
     onDeleteReview: (String) -> Unit,

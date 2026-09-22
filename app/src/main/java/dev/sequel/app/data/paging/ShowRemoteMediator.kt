@@ -95,6 +95,7 @@ class ShowRemoteMediator(
                 entities.forEach { entity ->
                     showDao.updateShowApiData(
                         id = entity.id,
+                        mediaType = entity.mediaType,
                         title = entity.title,
                         overview = entity.overview,
                         posterPath = entity.posterPath,
