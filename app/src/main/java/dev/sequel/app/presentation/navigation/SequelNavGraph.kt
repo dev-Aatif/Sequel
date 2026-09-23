@@ -17,7 +17,7 @@ import dev.sequel.app.presentation.screens.profile.ProfileScreen
 import dev.sequel.app.presentation.screens.search.SearchScreen
 import dev.sequel.app.presentation.screens.showdetail.ShowDetailScreen
 import dev.sequel.app.presentation.screens.seasondetail.SeasonDetailScreen
-import dev.sequel.app.presentation.screens.tvtimeimport.TvTimeImportScreen
+import dev.sequel.app.presentation.screens.mediaimport.MediaImportScreen
 import dev.sequel.app.presentation.screens.watchlist.WatchlistScreen
 
 /**
@@ -111,7 +111,7 @@ fun SequelNavGraph(
         composable(Screen.Profile.route) {
             ProfileScreen(
                 onImportClick = {
-                    navController.navigate(Screen.TvTimeImport.route)
+                    navController.navigate(Screen.MediaImport.route)
                 },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
@@ -151,8 +151,8 @@ fun SequelNavGraph(
         }
 
         // ── Import ────────────────────────────────────────────────
-        composable(Screen.TvTimeImport.route) {
-            TvTimeImportScreen(
+        composable(Screen.MediaImport.route) {
+            MediaImportScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
