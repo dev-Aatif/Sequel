@@ -93,51 +93,77 @@ class MediaImportWorker @AssistedInject constructor(
                 // Throttle to avoid TMDB 429 Rate Limit
                 delay(50)
 
-                val showId = resolveAndUpsertShow(showName)
-                if (showId != null) {
-                    val entities = mutableListOf<WatchedEpisodeEntity>()
-                    val episodesBySeason = episodes.groupBy { it.seasonNumber }
-
-                    for ((seasonNum, seasonEps) in episodesBySeason) {
-                        if (seasonNum == null) continue
-                        try {
-                            // Retry block for season details
-                            val seasonDetail = withRetry {
-                                tmdbApiService.getSeasonDetail(showId, seasonNum)
-                            }
-                            
-                            val episodeMap = seasonDetail.episodes.associateBy { it.episodeNumber }
-
-                            for (ep in seasonEps) {
-                                val tmdbEpisode = episodeMap[ep.episodeNumber]
-                                if (tmdbEpisode != null) {
-                                    entities.add(
-                                        WatchedEpisodeEntity(
-                                            mediaType = MediaType.TV,
-                                            showId = showId,
-                                            episodeId = tmdbEpisode.id,
-                                            seasonNumber = ep.seasonNumber,
-                                            episodeNumber = ep.episodeNumber,
-                                            syncStatus = SyncStatus.PENDING,
-                                            watchedAt = ep.watchedAt ?: System.currentTimeMillis()
-                                        )
-                                    )
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // Skip this season if network error or missing data
+                val isMovie = episodes.firstOrNull()?.mediaType == "movie"
+                if (isMovie) {
+                    val movieId = resolveAndUpsertMovie(showName)
+                    if (movieId != null) {
+                        val entities = episodes.map { ep ->
+                            WatchedEpisodeEntity(
+                                mediaType = MediaType.MOVIE,
+                                showId = movieId,
+                                episodeId = null,
+                                seasonNumber = null,
+                                episodeNumber = null,
+                                syncStatus = SyncStatus.PENDING,
+                                watchedAt = ep.watchedAt ?: System.currentTimeMillis()
+                            )
                         }
-                    }
-
-                    if (entities.isNotEmpty()) {
-                        // Batch insert in chunks of 200 to prevent SQLite variable limits
-                        entities.chunked(200).forEach { chunk ->
-                            watchedEpisodeDao.insertWatchedEpisodes(chunk)
+                        if (entities.isNotEmpty()) {
+                            entities.chunked(200).forEach { chunk ->
+                                watchedEpisodeDao.insertWatchedEpisodes(chunk)
+                            }
+                            totalImported += entities.size
                         }
-                        totalImported += entities.size
+                    } else {
+                        skippedShows.add(showName)
                     }
                 } else {
-                    skippedShows.add(showName)
+                    val showId = resolveAndUpsertShow(showName)
+                    if (showId != null) {
+                        val entities = mutableListOf<WatchedEpisodeEntity>()
+                        val episodesBySeason = episodes.groupBy { it.seasonNumber }
+
+                        for ((seasonNum, seasonEps) in episodesBySeason) {
+                            if (seasonNum == null) continue
+                            try {
+                                // Retry block for season details
+                                val seasonDetail = withRetry {
+                                    tmdbApiService.getSeasonDetail(showId, seasonNum)
+                                }
+                                
+                                val episodeMap = seasonDetail.episodes.associateBy { it.episodeNumber }
+
+                                for (ep in seasonEps) {
+                                    val tmdbEpisode = episodeMap[ep.episodeNumber]
+                                    if (tmdbEpisode != null) {
+                                        entities.add(
+                                            WatchedEpisodeEntity(
+                                                mediaType = MediaType.TV,
+                                                showId = showId,
+                                                episodeId = tmdbEpisode.id,
+                                                seasonNumber = ep.seasonNumber,
+                                                episodeNumber = ep.episodeNumber,
+                                                syncStatus = SyncStatus.PENDING,
+                                                watchedAt = ep.watchedAt ?: System.currentTimeMillis()
+                                            )
+                                        )
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                // Skip this season if network error or missing data
+                            }
+                        }
+
+                        if (entities.isNotEmpty()) {
+                            // Batch insert in chunks of 200 to prevent SQLite variable limits
+                            entities.chunked(200).forEach { chunk ->
+                                watchedEpisodeDao.insertWatchedEpisodes(chunk)
+                            }
+                            totalImported += entities.size
+                        }
+                    } else {
+                        skippedShows.add(showName)
+                    }
                 }
             } catch (e: Exception) {
                 skippedShows.add(showName)
@@ -173,6 +199,22 @@ class MediaImportWorker @AssistedInject constructor(
         }
         
         return showEntity.id
+    }
+
+    private suspend fun resolveAndUpsertMovie(movieName: String): Int? {
+        val searchResult = withRetry { tmdbApiService.searchMovie(movieName) }
+        val tmdbMovie = searchResult.results.firstOrNull() ?: return null
+        
+        // Convert to entity and upsert BEFORE inserting episodes to satisfy Foreign Key constraints
+        val movieEntity = tmdbMovie.toEntity(fallbackMediaType = "movie")
+        
+        // Check if we need to update or if it's missing
+        val existingMovie = showDao.getShowById(movieEntity.id, "movie")
+        if (existingMovie == null) {
+            showDao.insertShows(listOf(movieEntity))
+        }
+        
+        return movieEntity.id
     }
 
     /** Helper for exponential backoff on HTTP 429 Too Many Requests */

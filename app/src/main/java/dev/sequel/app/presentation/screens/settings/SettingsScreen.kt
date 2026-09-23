@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -25,7 +26,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToAuth: () -> Unit
+    onNavigateToAuth: () -> Unit,
+    onImportClick: () -> Unit
 ) {
     val isDeleting by viewModel.isDeleting.collectAsState()
     val context = LocalContext.current
@@ -42,6 +44,22 @@ fun SettingsScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        // Import Data Row
+        ListItem(
+            headlineContent = { Text("Import Data") },
+            supportingContent = { Text("Import from TV Time or Trakt") },
+            leadingContent = {
+                Icon(
+                    imageVector = Icons.Default.ImportExport,
+                    contentDescription = "Import Data",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            modifier = Modifier.clickable {
+                onImportClick()
+            }
         )
 
         // Privacy Policy Row

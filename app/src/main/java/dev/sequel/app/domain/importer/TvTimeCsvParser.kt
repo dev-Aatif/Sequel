@@ -18,7 +18,7 @@ class TvTimeCsvParser : MediaDataParser {
                 BufferedReader(InputStreamReader(inputStream)).use { reader ->
                     CSVReader(reader).use { csvReader ->
                         // Skip header
-                        csvReader.readNext() ?: throw AppError.Validation("Empty file")
+                        csvReader.readNext() ?: throw IllegalArgumentException("Empty file")
 
                         var line: Array<String>? = csvReader.readNext()
                         while (line != null) {
@@ -45,11 +45,11 @@ class TvTimeCsvParser : MediaDataParser {
                 }
             }
         } catch (e: Exception) {
-            throw AppError.Validation("Failed to parse TV Time CSV: ${e.message}")
+            throw IllegalArgumentException("Failed to parse TV Time CSV: ${e.message}")
         }
         
         if (rows.isEmpty()) {
-            throw AppError.Validation("No valid rows found in CSV")
+            throw IllegalArgumentException("No valid rows found in CSV")
         }
         
         rows

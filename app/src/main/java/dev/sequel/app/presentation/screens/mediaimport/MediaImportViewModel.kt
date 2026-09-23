@@ -27,6 +27,15 @@ class MediaImportViewModel @Inject constructor(
         .map { it.firstOrNull() }
 
     fun startImport(uri: Uri, source: String) {
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (e: SecurityException) {
+            // Ignore if URI does not support persistable permission
+        }
+
         val request = OneTimeWorkRequestBuilder<MediaImportWorker>()
             .setInputData(
                 workDataOf(

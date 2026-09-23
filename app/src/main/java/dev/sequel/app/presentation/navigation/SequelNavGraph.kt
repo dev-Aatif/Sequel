@@ -165,6 +165,9 @@ fun SequelNavGraph(
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onImportClick = {
+                    navController.navigate(Screen.MediaImport.route)
                 }
             )
         }

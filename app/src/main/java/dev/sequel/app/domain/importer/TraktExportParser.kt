@@ -18,7 +18,7 @@ class TraktExportParser : MediaDataParser {
                 BufferedReader(InputStreamReader(inputStream)).use { reader ->
                     CSVReader(reader).use { csvReader ->
                         // Read header
-                        val header = csvReader.readNext() ?: throw AppError.Validation("Empty file")
+                        val header = csvReader.readNext() ?: throw IllegalArgumentException("Empty file")
                         
                         val titleIdx = header.indexOfFirst { it.equals("Title", ignoreCase = true) }
                         val yearIdx = header.indexOfFirst { it.equals("Year", ignoreCase = true) }
@@ -27,7 +27,7 @@ class TraktExportParser : MediaDataParser {
                         val typeIdx = header.indexOfFirst { it.equals("Type", ignoreCase = true) }
 
                         if (titleIdx == -1) {
-                            throw AppError.Validation("Invalid Trakt CSV: Missing 'Title' column")
+                            throw IllegalArgumentException("Invalid Trakt CSV: Missing 'Title' column")
                         }
 
                         var line: Array<String>? = csvReader.readNext()
@@ -63,11 +63,11 @@ class TraktExportParser : MediaDataParser {
                 }
             }
         } catch (e: Exception) {
-            throw AppError.Validation("Failed to parse Trakt CSV: ${e.message}")
+            throw IllegalArgumentException("Failed to parse Trakt CSV: ${e.message}")
         }
 
         if (rows.isEmpty()) {
-            throw AppError.Validation("No valid rows found in CSV")
+            throw IllegalArgumentException("No valid rows found in CSV")
         }
 
         rows
