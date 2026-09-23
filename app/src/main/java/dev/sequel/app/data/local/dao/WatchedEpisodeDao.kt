@@ -111,16 +111,16 @@ interface WatchedEpisodeDao {
 
     // ── Stats Queries ─────────────────────────────────────────────
 
-    @Query("SELECT COUNT(*) FROM watched_episodes WHERE media_type = 'TV' AND sync_status != 'DELETED'")
+    @Query("SELECT COUNT(*) FROM watched_episodes WHERE media_type = 'tv' AND sync_status != 'DELETED'")
     fun observeTotalEpisodesWatched(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM watched_episodes WHERE media_type = 'MOVIE' AND sync_status != 'DELETED'")
+    @Query("SELECT COUNT(*) FROM watched_episodes WHERE media_type = 'movie' AND sync_status != 'DELETED'")
     fun observeTotalMoviesWatched(): Flow<Int>
 
     @Query("""
         SELECT 
-            (SELECT COALESCE(SUM(e.runtime), 0) FROM watched_episodes we JOIN episodes e ON we.episode_id = e.id WHERE we.media_type = 'TV' AND we.sync_status != 'DELETED') +
-            (SELECT COALESCE(SUM(s.runtime), 0) FROM watched_episodes we JOIN shows s ON we.show_id = s.id WHERE we.media_type = 'MOVIE' AND we.sync_status != 'DELETED')
+            (SELECT COALESCE(SUM(e.runtime), 0) FROM watched_episodes we JOIN episodes e ON we.episode_id = e.id WHERE we.media_type = 'tv' AND we.sync_status != 'DELETED') +
+            (SELECT COALESCE(SUM(s.runtime), 0) FROM watched_episodes we JOIN shows s ON we.show_id = s.id WHERE we.media_type = 'movie' AND we.sync_status != 'DELETED')
     """)
     fun observeTotalRuntimeMinutes(): Flow<Int>
 
@@ -129,14 +129,14 @@ interface WatchedEpisodeDao {
     /** Get all distinct show IDs that have at least one watched episode (TV only). */
     @Query("""
         SELECT DISTINCT we.show_id FROM watched_episodes we 
-        WHERE we.media_type = 'TV' AND we.sync_status != 'DELETED'
+        WHERE we.media_type = 'tv' AND we.sync_status != 'DELETED'
     """)
     fun observeWatchedTvShowIds(): Flow<List<Int>>
 
     /** Get all watched movies (show_id from watched_episodes where media_type = MOVIE). */
     @Query("""
         SELECT DISTINCT we.show_id FROM watched_episodes we 
-        WHERE we.media_type = 'MOVIE' AND we.sync_status != 'DELETED'
+        WHERE we.media_type = 'movie' AND we.sync_status != 'DELETED'
     """)
     fun observeWatchedMovieIds(): Flow<List<Int>>
 }

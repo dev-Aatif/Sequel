@@ -70,57 +70,66 @@ fun BeautifulErrorState(
                 .then(
                     if (isCard) {
                         Modifier
-                            .padding(16.dp)
-                            .clip(RoundedCornerShape(24.dp))
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f))
-                            .glassmorphicBackground(RoundedCornerShape(24.dp))
+                            .glassmorphicBackground(RoundedCornerShape(16.dp))
                     } else {
                         Modifier.fillMaxSize()
                     }
                 )
-                .padding(32.dp),
+                .padding(if (isCard) 16.dp else 32.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-                    modifier = Modifier.size(96.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = "Error Icon",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                if (!isCard) {
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                        modifier = Modifier.size(96.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = "Error Icon",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(24.dp))
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = "Error Icon",
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = if (isCard) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = error.message,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = if (isCard) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
                 if (onRetry != null) {
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(if (isCard) 16.dp else 32.dp))
                     Button(
                         onClick = onRetry,
                         colors = ButtonDefaults.buttonColors(
@@ -128,17 +137,17 @@ fun BeautifulErrorState(
                             contentColor = MaterialTheme.colorScheme.onError
                         ),
                         shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+                        contentPadding = if (isCard) PaddingValues(horizontal = 24.dp, vertical = 12.dp) else PaddingValues(horizontal = 32.dp, vertical = 16.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Retry",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(if (isCard) 16.dp else 20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Try Again",
-                            style = MaterialTheme.typography.labelLarge,
+                            style = if (isCard) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold
                         )
                     }

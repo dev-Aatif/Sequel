@@ -130,6 +130,25 @@ class SeasonDetailViewModel @Inject constructor(
         }
     }
 
+    fun skipEpisode(episode: EpisodeUi) {
+        viewModelScope.launch {
+            if (episode.isSkipped) {
+                // Unskip by removing the record
+                watchedEpisodeDao.unwatchEpisode(episode.id)
+            } else {
+                watchedEpisodeDao.upsertWatchedEpisode(
+                    mediaType = MediaType.TV,
+                    showId = showId,
+                    episodeId = episode.id,
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber,
+                    isSkipped = true
+                )
+            }
+            syncManager.syncWatchedEpisodesNow()
+        }
+    }
+
     fun markSeasonWatched(episodes: List<EpisodeUi>) {
         if (episodes.isEmpty()) return
         

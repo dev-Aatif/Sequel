@@ -556,7 +556,7 @@ fun ZeroHistoryOnboarding(
             ) {
                 Icon(Icons.Default.Search, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Discover Shows", fontWeight = FontWeight.Bold)
+                Text("Discover", fontWeight = FontWeight.Bold)
             }
         }
     }

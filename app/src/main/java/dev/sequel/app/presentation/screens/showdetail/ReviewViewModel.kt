@@ -56,8 +56,10 @@ class ReviewViewModel @Inject constructor(
                     seasonNum = seasonNum,
                     episodeNum = episodeNum
                 )
+                // Deduplicate by id (Supabase may return duplicates in edge cases)
+                val deduped = reviews.distinctBy { it.id ?: "${it.userId}_${it.mediaId}_${it.seasonNum}_${it.episodeNum}" }
                 // Sort by newest first
-                _communityState.value = CommunityState.Success(reviews.sortedByDescending { it.createdAt })
+                _communityState.value = CommunityState.Success(deduped.sortedByDescending { it.createdAt })
             } catch (e: Exception) {
                 // If Supabase fails (e.g. not logged in), show empty state instead of error
                 _communityState.value = CommunityState.Success(emptyList())

@@ -19,8 +19,8 @@ class Converters {
     // ── MediaType ↔ String ───────────────────────────────────────
 
     @TypeConverter
-    fun fromMediaType(type: dev.sequel.app.data.local.entity.MediaType): String = type.name
+    fun fromMediaType(type: dev.sequel.app.data.local.entity.MediaType): String = type.name.lowercase()
 
     @TypeConverter
-    fun toMediaType(value: String): dev.sequel.app.data.local.entity.MediaType = dev.sequel.app.data.local.entity.MediaType.valueOf(value)
+    fun toMediaType(value: String): dev.sequel.app.data.local.entity.MediaType = dev.sequel.app.data.local.entity.MediaType.valueOf(value.uppercase())
 }

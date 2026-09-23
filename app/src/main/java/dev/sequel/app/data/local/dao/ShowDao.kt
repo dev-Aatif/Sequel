@@ -101,7 +101,7 @@ interface ShowDao {
             LIMIT 1
         )
         WHERE s.id IN (
-            SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'TV' AND sync_status != 'DELETED'
+            SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'tv' AND sync_status != 'DELETED'
         )
         ORDER BY s.title ASC
     """)
@@ -159,7 +159,7 @@ interface ShowDao {
                    )
                ) AS hasUnwatchedEpisodes
         FROM shows s
-        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'TV' AND sync_status != 'DELETED')
+        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'tv' AND sync_status != 'DELETED')
         ORDER BY s.title ASC
     """)
     fun observeWatchedTvShows(): Flow<List<dev.sequel.app.data.local.entity.WatchedTvShowTuple>>
@@ -167,7 +167,7 @@ interface ShowDao {
     @Query("""
         SELECT s.*
         FROM shows s
-        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'MOVIE' AND sync_status != 'DELETED')
+        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'movie' AND sync_status != 'DELETED')
         ORDER BY s.title ASC
     """)
     fun observeWatchedMovies(): Flow<List<ShowEntity>>

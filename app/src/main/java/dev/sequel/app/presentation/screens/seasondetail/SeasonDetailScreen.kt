@@ -100,10 +100,11 @@ fun SeasonDetailScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(state.season.episodes, key = { it.id }) { episode ->
+                    items(state.season.episodes, key = { it.id }) { episode ->
                             EpisodeRow(
                                 episode = episode,
-                                onToggleWatched = { viewModel.toggleEpisodeWatched(episode) }
+                                onToggleWatched = { viewModel.toggleEpisodeWatched(episode) },
+                                onSkip = { viewModel.skipEpisode(episode) }
                             )
                         }
                     }

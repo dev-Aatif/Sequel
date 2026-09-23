@@ -114,7 +114,7 @@ fun WatchlistScreen(
             when (activeTab) {
                 "Up Next" -> {
                     if (upNextItems.isEmpty()) {
-                        EmptyTabState(Icons.Default.Tv, "Nothing up next", "Start tracking shows to see your next episodes here", "Explore Trending", Icons.Default.Explore) {
+                        EmptyTabState(Icons.Default.Tv, "Nothing up next", "Start tracking shows to see your next episodes here", "Discover", Icons.Default.Explore) {
                             onNavigateHome()
                         }
                     } else {
@@ -142,7 +142,7 @@ fun WatchlistScreen(
                 }
                 "Watchlist" -> {
                     if (planToWatchItems.isEmpty()) {
-                        EmptyTabState(Icons.Outlined.BookmarkAdd, "Your watchlist is empty", "Bookmark any show to add it here", "Search Shows", Icons.Default.Search) {
+                        EmptyTabState(Icons.Outlined.BookmarkAdd, "Your watchlist is empty", "Bookmark any show to add it here", "Discover", Icons.Default.Search) {
                             onNavigateSearch()
                         }
                     } else {
@@ -197,7 +197,7 @@ fun WatchlistScreen(
                                 icon = if (watchedSubTab == "Shows") Icons.Default.Tv else Icons.Default.Movie,
                                 title = "No ${watchedSubTab.lowercase()} watched yet",
                                 subtitle = "Mark episodes or movies as watched to see them here",
-                                ctaLabel = "Explore", ctaIcon = Icons.Default.Explore
+                                ctaLabel = "Discover", ctaIcon = Icons.Default.Explore
                             ) {
                                 onNavigateHome()
                             }

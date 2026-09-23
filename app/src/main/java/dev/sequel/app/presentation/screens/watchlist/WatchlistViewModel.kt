@@ -111,8 +111,8 @@ class WatchlistViewModel @Inject constructor(
             
             val statusTag = when {
                 isCompleted -> "Completed"
-                show.status in listOf("Ended", "Canceled") && tuple.hasUnwatchedEpisodes -> "In Progress"
-                show.status == "Returning Series" && !tuple.hasUnwatchedEpisodes -> "Up to Date"
+                !tuple.hasUnwatchedEpisodes && show.status in listOf("Ended", "Canceled") -> "Completed"
+                !tuple.hasUnwatchedEpisodes -> "Up to Date"
                 else -> "In Progress"
             }
             

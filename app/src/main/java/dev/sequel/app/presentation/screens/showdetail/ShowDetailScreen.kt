@@ -13,11 +13,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -486,7 +486,7 @@ private fun SeasonHeader(season: SeasonUi, onClick: () -> Unit) {
                         Spacer(Modifier.height(4.dp))
                         Text("$watchedCount / $totalCount watched", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
                     }
-                    Icon(Icons.Outlined.ArrowForward, "View Season", tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, "View Season", tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Box(Modifier.fillMaxWidth().height(3.dp).background(MaterialTheme.colorScheme.onSurface.copy(0.1f))) {
                     Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
@@ -497,7 +497,7 @@ private fun SeasonHeader(season: SeasonUi, onClick: () -> Unit) {
 }
 
 @Composable
-fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit) {
+fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit, onSkip: ((EpisodeUi) -> Unit)? = null) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onToggleWatched(episode) }.padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -511,20 +511,31 @@ fun EpisodeRow(episode: EpisodeUi, onToggleWatched: (EpisodeUi) -> Unit) {
             Text("E${episode.episodeNumber}  ${episode.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             episode.runtime?.let { Text("${it}m", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.6f)) }
         }
+        // Skip button
+        if (onSkip != null && !episode.isWatched) {
+            Box(Modifier.size(36.dp).hapticClickable { onSkip(episode) }, contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    if (episode.isSkipped) "Unskip" else "Skip",
+                    tint = if (episode.isSkipped) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(0.3f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        // Watch toggle
         Box(Modifier.size(48.dp).hapticClickable { onToggleWatched(episode) }, contentAlignment = Alignment.Center) {
             val icon = when {
                 episode.isWatched -> Icons.Filled.CheckCircle
-                episode.isSkipped -> Icons.Outlined.ArrowForward
+                episode.isSkipped -> Icons.Outlined.CheckCircleOutline
                 else -> Icons.Outlined.CheckCircleOutline
             }
             val tint = when {
                 episode.isWatched -> MaterialTheme.colorScheme.primary
-                episode.isSkipped -> MaterialTheme.colorScheme.onSurface.copy(0.7f)
                 else -> MaterialTheme.colorScheme.onSurface.copy(0.4f)
             }
             Icon(
                 icon,
-                if (episode.isWatched) "Unwatch" else if (episode.isSkipped) "Unskip" else "Watch",
+                if (episode.isWatched) "Unwatch" else "Watch",
                 tint = tint,
                 modifier = Modifier.size(28.dp)
             )
@@ -546,8 +557,8 @@ fun ReviewCard(
                     Icon(Icons.Filled.Person, "User", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Community Member", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Column(Modifier.weight(1f)) {
+                    Text(if (isMyReview) "You" else "Community Member", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         review.vibeEmoji?.toIntOrNull()?.let { rating ->
                             Icon(Icons.Filled.Star, "Rating", tint = Color(0xFFFFD700), modifier = Modifier.size(12.dp))
@@ -556,6 +567,11 @@ fun ReviewCard(
                             Spacer(Modifier.width(8.dp))
                         }
                         if (review.isSpoiler) Text("SPOILER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
+                }
+                if (isMyReview) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.Delete, "Delete review", tint = MaterialTheme.colorScheme.error.copy(0.7f), modifier = Modifier.size(18.dp))
                     }
                 }
             }

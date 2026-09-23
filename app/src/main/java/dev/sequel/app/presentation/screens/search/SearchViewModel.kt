@@ -124,9 +124,13 @@ class SearchViewModel @Inject constructor(
                             } else if (filter == "Movies") {
                                 tmdbApiService.searchMovie(query.trim()).results.map { it.copy(mediaType = "movie").toEntity("movie") }
                             } else {
-                                tmdbApiService.searchMulti(query.trim()).results
-                                    .filter { it.mediaType == "tv" || it.mediaType == "movie" }
-                                    .map { it.toEntity(fallbackMediaType = "movie") }
+                                coroutineScope {
+                                    val tvDef = async { tmdbApiService.searchTv(query.trim()) }
+                                    val movDef = async { tmdbApiService.searchMovie(query.trim()) }
+                                    val tvResults = tvDef.await().results.map { it.copy(mediaType = "tv").toEntity("tv") }
+                                    val movResults = movDef.await().results.map { it.copy(mediaType = "movie").toEntity("movie") }
+                                    tvResults.zip(movResults) { tv, movie -> listOf(tv, movie) }.flatten() + tvResults.drop(movResults.size) + movResults.drop(tvResults.size)
+                                }
                             }
                             emit(SearchUiState.Success(results))
                         }
