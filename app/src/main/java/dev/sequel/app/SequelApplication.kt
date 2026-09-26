@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 /**
  * Application entry point for Hilt dependency injection
@@ -15,6 +16,12 @@ class SequelApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var syncManager: dev.sequel.app.data.sync.SyncManager
+
+    @Inject
+    lateinit var authService: dev.sequel.app.data.remote.supabase.SupabaseAuthService
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -37,5 +44,16 @@ class SequelApplication : Application(), Configuration.Provider {
             androidx.work.ExistingPeriodicWorkPolicy.KEEP,
             airDateWorkRequest
         )
+
+        // Ensure background sync starts if logged in, cancels if logged out
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            authService.authStateFlow.collect { isLoggedIn ->
+                if (isLoggedIn) {
+                    syncManager.schedulePeriodicSync()
+                } else {
+                    syncManager.cancelPeriodicSync()
+                }
+            }
+        }
     }
 }

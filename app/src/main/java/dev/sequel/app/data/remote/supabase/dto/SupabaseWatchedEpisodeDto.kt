@@ -33,6 +33,9 @@ data class SupabaseWatchedEpisodeDto(
     @SerialName("watched_at")
     val watchedAt: Long,
 
+    @SerialName("is_skipped")
+    val isSkipped: Boolean = false,
+
     @SerialName("created_at")
     val createdAt: String? = null // ISO timestamp, auto-generated
 )

@@ -21,7 +21,7 @@ class SyncWatchlistWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val userId = supabaseAuthService.currentUserId ?: return Result.failure()
+        val userId = supabaseAuthService.awaitUserId() ?: return Result.failure()
         var hasFailures = false
 
         try {
@@ -31,29 +31,36 @@ class SyncWatchlistWorker @AssistedInject constructor(
                 val toDelete = pendingWatchlist.filter { it.syncStatus == SyncStatus.DELETED }
 
                 if (toUpsert.isNotEmpty()) {
-                    val dtos = toUpsert.map { entity ->
-                        dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto(
-                            userId = userId,
-                            tmdbId = entity.tmdbId,
-                            mediaType = entity.mediaType.name.lowercase(),
-                            title = entity.title,
-                            posterPath = entity.posterPath,
-                            addedAt = entity.addedAt
-                        )
+                    try {
+                        val dtos = toUpsert.map { entity ->
+                            dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto(
+                                userId = userId,
+                                tmdbId = entity.tmdbId,
+                                mediaType = entity.mediaType.name.lowercase(),
+                                title = entity.title,
+                                posterPath = entity.posterPath,
+                                addedAt = entity.addedAt
+                            )
+                        }
+                        supabaseSyncService.upsertWatchlist(dtos)
+                        val updates = toUpsert.map { Pair(it.tmdbId, it.mediaType.name.lowercase()) }
+                        watchlistDao.markWatchlistSyncedTransaction(updates)
+                    } catch (e: Exception) {
+                        hasFailures = true
                     }
-                    supabaseSyncService.upsertWatchlist(dtos)
-                    watchlistDao.markWatchlistSynced(toUpsert.map { it.tmdbId })
                 }
 
                 for (deleted in toDelete) {
-                    supabaseSyncService.deleteFromWatchlist(userId, deleted.tmdbId)
-                    watchlistDao.deleteWatchlistById(deleted.tmdbId, deleted.mediaType.name.lowercase())
+                    try {
+                        supabaseSyncService.deleteFromWatchlist(userId, deleted.tmdbId)
+                        watchlistDao.deleteWatchlistById(deleted.tmdbId, deleted.mediaType.name.lowercase())
+                    } catch (e: Exception) {
+                        hasFailures = true
+                    }
                 }
             }
         } catch (e: Exception) {
-            if (runAttemptCount <= 3) {
-                hasFailures = true
-            }
+            hasFailures = true
         }
 
         return if (hasFailures) Result.retry() else Result.success()

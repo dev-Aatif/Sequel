@@ -232,14 +232,22 @@ class DetailViewModel @Inject constructor(
                 val seasonDetails = seasonDao.getSeasonsByShow(showId)
                     .filter { it.seasonNumber > 0 } // exclude "Specials" (season 0)
 
-                val dropOff = if (mediaType == "tv") calculateDropOff(showId) else null
-
                 _detailState.value = DetailInternalState.Loaded(
                     show = show,
                     seasonDetails = seasonDetails,
-                    dropOffInsight = dropOff,
+                    dropOffInsight = null,
                     recommendations = recommendations
                 )
+                
+                if (mediaType == "tv") {
+                    viewModelScope.launch {
+                        val dropOff = calculateDropOff(showId)
+                        val currentState = _detailState.value
+                        if (dropOff != null && currentState is DetailInternalState.Loaded) {
+                            _detailState.value = currentState.copy(dropOffInsight = dropOff)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 // FALLBACK: Load from Room on network failure
                 val localShow = showDao.observeShowById(showId, mediaType).firstOrNull()
@@ -281,15 +289,12 @@ class DetailViewModel @Inject constructor(
             if (episode.isWatched) {
                 watchedEpisodeDao.unwatchEpisode(episode.id)
             } else {
-                watchedEpisodeDao.insertWatchedEpisode(
-                    WatchedEpisodeEntity(
-                        mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
-                        episodeId = episode.id,
-                        showId = showId,
-                        seasonNumber = episode.seasonNumber,
-                        episodeNumber = episode.episodeNumber,
-                        syncStatus = SyncStatus.PENDING
-                    )
+                watchedEpisodeDao.upsertWatchedEpisode(
+                    mediaType = MediaType.TV,
+                    showId = showId,
+                    episodeId = episode.id,
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber
                 )
             }
             // Trigger background sync to upload the change to Supabase
@@ -304,17 +309,15 @@ class DetailViewModel @Inject constructor(
     fun toggleMovieWatched(targetIsWatched: Boolean) {
         viewModelScope.launch {
             if (targetIsWatched) {
-                watchedEpisodeDao.insertWatchedEpisode(
-                    WatchedEpisodeEntity(
-                        mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
-                        showId = showId,
-                        episodeId = -1,
-                        seasonNumber = -1,
-                        episodeNumber = -1,
-                        syncStatus = SyncStatus.PENDING
-                    )
+                watchedEpisodeDao.upsertWatchedEpisode(
+                    mediaType = MediaType.MOVIE,
+                    showId = showId,
+                    episodeId = -1,
+                    seasonNumber = -1,
+                    episodeNumber = -1
                 )
                 watchlistDao.removeFromWatchlist(showId, mediaType)
+                syncManager.syncWatchlistNow()
             } else {
                 watchedEpisodeDao.unwatchAllForShow(showId, mediaType)
             }

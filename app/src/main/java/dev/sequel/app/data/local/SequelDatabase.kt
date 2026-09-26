@@ -38,7 +38,7 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         WatchlistEntity::class,
         dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -99,6 +99,39 @@ abstract class SequelDatabase : RoomDatabase() {
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE watched_episodes ADD COLUMN is_skipped INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `watchlist_new` (
+                        `tmdb_id` INTEGER NOT NULL,
+                        `media_type` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `poster_path` TEXT,
+                        `added_at` INTEGER NOT NULL,
+                        `sync_status` TEXT NOT NULL,
+                        PRIMARY KEY(`tmdb_id`, `media_type`)
+                    )
+                """.trimIndent())
+                
+                db.execSQL("""
+                    INSERT INTO `watchlist_new` (`tmdb_id`, `media_type`, `title`, `poster_path`, `added_at`, `sync_status`)
+                    SELECT `tmdb_id`, `media_type`, `title`, `poster_path`, `added_at`, `sync_status` FROM `watchlist`
+                """.trimIndent())
+                
+                db.execSQL("DROP TABLE `watchlist`")
+                db.execSQL("ALTER TABLE `watchlist_new` RENAME TO `watchlist`")
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Drop the old index
+                db.execSQL("DROP INDEX IF EXISTS `index_watched_episodes_show_id_media_type_episode_id`")
+                // Create the new index
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_watched_episodes_show_id_media_type_season_number_episode_number` ON `watched_episodes` (`show_id`, `media_type`, `season_number`, `episode_number`)")
             }
         }
     }

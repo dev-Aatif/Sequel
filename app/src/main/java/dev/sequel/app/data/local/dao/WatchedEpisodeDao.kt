@@ -31,10 +31,15 @@ interface WatchedEpisodeDao {
     @Query("UPDATE watched_episodes SET sync_status = :status, supabase_id = :supabaseId WHERE id = :id AND sync_status = 'PENDING'")
     suspend fun markAsSynced(id: Long, status: SyncStatus = SyncStatus.SYNCED, supabaseId: String)
 
+    @androidx.room.Transaction
+    suspend fun markAsSyncedTransaction(updates: List<Pair<Long, String>>) {
+        updates.forEach { markAsSynced(it.first, SyncStatus.SYNCED, it.second) }
+    }
+
     @Query("""
         INSERT INTO watched_episodes (media_type, show_id, episode_id, season_number, episode_number, watched_at, sync_status, is_skipped)
         VALUES (:mediaType, :showId, :episodeId, :seasonNumber, :episodeNumber, :watchedAt, 'PENDING', :isSkipped)
-        ON CONFLICT(show_id, media_type, episode_id) DO UPDATE SET
+        ON CONFLICT(show_id, media_type, season_number, episode_number) DO UPDATE SET
             sync_status = 'PENDING',
             watched_at = :watchedAt,
             is_skipped = :isSkipped
@@ -48,6 +53,42 @@ interface WatchedEpisodeDao {
         watchedAt: Long = System.currentTimeMillis(),
         isSkipped: Boolean = false
     )
+
+    @Query("""
+        INSERT INTO watched_episodes (media_type, show_id, episode_id, season_number, episode_number, watched_at, sync_status, supabase_id, is_skipped)
+        VALUES (:mediaType, :showId, :episodeId, :seasonNumber, :episodeNumber, :watchedAt, 'SYNCED', :supabaseId, :isSkipped)
+        ON CONFLICT(show_id, media_type, season_number, episode_number) DO UPDATE SET
+            sync_status = CASE WHEN sync_status = 'DELETED' THEN 'DELETED' WHEN sync_status = 'PENDING' AND watched_at >= :watchedAt THEN 'PENDING' ELSE 'SYNCED' END,
+            supabase_id = :supabaseId,
+            watched_at = CASE WHEN sync_status = 'DELETED' THEN watched_at WHEN sync_status = 'PENDING' AND watched_at >= :watchedAt THEN watched_at ELSE :watchedAt END,
+            is_skipped = CASE WHEN sync_status = 'DELETED' THEN is_skipped WHEN sync_status = 'PENDING' AND watched_at >= :watchedAt THEN is_skipped ELSE :isSkipped END
+    """)
+    suspend fun upsertWatchedEpisodePull(
+        mediaType: dev.sequel.app.data.local.entity.MediaType,
+        showId: Int,
+        episodeId: Int?,
+        seasonNumber: Int?,
+        episodeNumber: Int?,
+        watchedAt: Long,
+        supabaseId: String?,
+        isSkipped: Boolean = false
+    )
+
+    @androidx.room.Transaction
+    suspend fun upsertWatchedEpisodesPullTransaction(episodes: List<WatchedEpisodeEntity>) {
+        episodes.forEach {
+            upsertWatchedEpisodePull(
+                mediaType = it.mediaType,
+                showId = it.showId,
+                episodeId = it.episodeId,
+                seasonNumber = it.seasonNumber,
+                episodeNumber = it.episodeNumber,
+                watchedAt = it.watchedAt,
+                supabaseId = it.supabaseId,
+                isSkipped = it.isSkipped
+            )
+        }
+    }
 
     // ── Queries (reactive) ────────────────────────────────────────
 

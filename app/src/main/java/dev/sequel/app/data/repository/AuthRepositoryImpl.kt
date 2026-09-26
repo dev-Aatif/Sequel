@@ -1,5 +1,6 @@
 package dev.sequel.app.data.repository
 
+import dev.sequel.app.data.local.SequelDatabase
 import dev.sequel.app.data.remote.supabase.SupabaseAuthService
 import dev.sequel.app.data.sync.SyncManager
 import dev.sequel.app.domain.repository.AuthRepository
@@ -11,7 +12,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val supabaseAuthService: SupabaseAuthService,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val appDatabase: SequelDatabase
 ) : AuthRepository {
 
     override val isAuthenticated: Boolean
@@ -46,7 +48,8 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun signOut() {
-        syncManager.cancelPeriodicSync()
+        syncManager.cancelAllSync()
+        appDatabase.clearAllTables()
         supabaseAuthService.signOut()
     }
 }

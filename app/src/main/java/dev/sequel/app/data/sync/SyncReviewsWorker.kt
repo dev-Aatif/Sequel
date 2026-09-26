@@ -29,7 +29,7 @@ class SyncReviewsWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
-        val userId = supabaseAuthService.currentUserId
+        val userId = supabaseAuthService.awaitUserId()
             ?: return Result.failure()
 
         val unsynced = reviewDao.getUnsynced()
@@ -39,28 +39,33 @@ class SyncReviewsWorker @AssistedInject constructor(
 
         for (record in unsynced) {
             try {
-                val dto = SupabaseReviewDto(
-                    id = record.supabaseId,
-                    userId = userId,
-                    mediaId = record.mediaId,
-                    seasonNum = record.seasonNum,
-                    episodeNum = record.episodeNum,
-                    reviewText = record.reviewText,
-                    vibeEmoji = record.rating?.toString(),
-                    isSpoiler = record.isSpoiler
-                )
+                if (record.syncStatus == SyncStatus.DELETED) {
+                    if (record.supabaseId != null) {
+                        supabaseSyncService.deleteReview(record.supabaseId)
+                    }
+                    reviewDao.deleteReviewById(record.id)
+                } else {
+                    val dto = SupabaseReviewDto(
+                        id = record.supabaseId,
+                        userId = userId,
+                        mediaId = record.mediaId,
+                        mediaType = record.mediaType,
+                        seasonNum = record.seasonNum,
+                        episodeNum = record.episodeNum,
+                        reviewText = record.reviewText,
+                        vibeEmoji = record.rating?.toString(),
+                        isSpoiler = record.isSpoiler,
+                        updatedAt = record.updatedAt
+                    )
 
-                val supabaseId = supabaseSyncService.upsertReview(dto)
-                reviewDao.markAsSynced(
-                    id = record.id,
-                    supabaseId = supabaseId
-                )
+                    val supabaseId = supabaseSyncService.upsertReview(dto)
+                    reviewDao.markAsSynced(
+                        id = record.id,
+                        supabaseId = supabaseId
+                    )
+                }
             } catch (e: Exception) {
                 hasFailures = true
-                // Mark individual record as failed but continue processing others
-                reviewDao.updateReview(
-                    record.copy(syncStatus = SyncStatus.FAILED)
-                )
             }
         }
 

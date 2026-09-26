@@ -87,17 +87,37 @@ class SupabaseAuthService @Inject constructor(
      * We simulate it here by calling an RPC (which the user must create in their DB) and signing out.
      */
     suspend fun deleteUser() {
+        // Attempt to call a custom RPC for self-deletion if it exists
+        supabaseClient.postgrest.rpc("delete_user")
         try {
-            // Attempt to call a custom RPC for self-deletion if it exists
-            supabaseClient.postgrest.rpc("delete_user")
+            auth.signOut()
         } catch (e: Exception) {
-            // Ignore if RPC does not exist
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // Ignore network/401 errors since the user is already deleted on the server
         }
-        auth.signOut()
     }
 
     /** Retrieve the current session's access token (for API calls if needed). */
     suspend fun getAccessToken(): String? {
         return auth.currentAccessTokenOrNull()
+    }
+
+    /**
+     * Wait for auth session to be initialized from storage on app start,
+     * and return the current user ID (or null if not logged in).
+     */
+    suspend fun awaitUserId(): String? {
+        val status = kotlinx.coroutines.flow.first(
+            auth.sessionStatus.filter { 
+                it is io.github.jan.supabase.auth.status.SessionStatus.Authenticated || 
+                it is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated 
+            }
+        )
+        
+        return if (status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
+            status.session.user?.id
+        } else {
+            null
+        }
     }
 }

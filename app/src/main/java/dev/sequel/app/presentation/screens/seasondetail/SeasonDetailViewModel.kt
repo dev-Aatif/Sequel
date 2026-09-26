@@ -115,15 +115,12 @@ class SeasonDetailViewModel @Inject constructor(
             if (episode.isWatched) {
                 watchedEpisodeDao.unwatchEpisode(episode.id)
             } else {
-                watchedEpisodeDao.insertWatchedEpisode(
-                    WatchedEpisodeEntity(
-                        mediaType = MediaType.TV,
-                        episodeId = episode.id,
-                        showId = showId,
-                        seasonNumber = episode.seasonNumber,
-                        episodeNumber = episode.episodeNumber,
-                        syncStatus = SyncStatus.PENDING
-                    )
+                watchedEpisodeDao.upsertWatchedEpisode(
+                    mediaType = MediaType.TV,
+                    showId = showId,
+                    episodeId = episode.id,
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber
                 )
             }
             syncManager.syncWatchedEpisodesNow()
@@ -153,17 +150,15 @@ class SeasonDetailViewModel @Inject constructor(
         if (episodes.isEmpty()) return
         
         viewModelScope.launch {
-            val entities = episodes.map { episode ->
-                WatchedEpisodeEntity(
+            episodes.forEach { episode ->
+                watchedEpisodeDao.upsertWatchedEpisode(
                     mediaType = MediaType.TV,
-                    episodeId = episode.id,
                     showId = showId,
+                    episodeId = episode.id,
                     seasonNumber = episode.seasonNumber,
-                    episodeNumber = episode.episodeNumber,
-                    syncStatus = SyncStatus.PENDING
+                    episodeNumber = episode.episodeNumber
                 )
             }
-            watchedEpisodeDao.insertWatchedEpisodes(entities)
             syncManager.syncWatchedEpisodesNow()
         }
     }

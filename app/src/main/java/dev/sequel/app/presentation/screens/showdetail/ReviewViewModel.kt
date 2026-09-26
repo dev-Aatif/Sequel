@@ -39,7 +39,8 @@ class ReviewViewModel @Inject constructor(
     private var currentSeasonNum: Int? = null
     private var currentEpisodeNum: Int? = null
 
-    val currentUserId: String? = supabaseAuthService.currentUserId
+    val currentUserId: String?
+        get() = supabaseAuthService.currentUserId
 
     fun loadReviews(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?) {
         currentMediaId = mediaId
@@ -91,6 +92,7 @@ class ReviewViewModel @Inject constructor(
                     id = null,
                     userId = "you",
                     mediaId = currentMediaId,
+                    mediaType = currentMediaType,
                     seasonNum = currentSeasonNum,
                     episodeNum = currentEpisodeNum,
                     reviewText = text.ifBlank { null },

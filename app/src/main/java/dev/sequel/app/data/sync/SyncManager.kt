@@ -42,7 +42,7 @@ class SyncManager @Inject constructor(
 
         workManager.enqueueUniqueWork(
             SyncWatchedEpisodesWorker.WORK_NAME + "_now",
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
     }
@@ -59,15 +59,33 @@ class SyncManager @Inject constructor(
 
         workManager.enqueueUniqueWork(
             SyncReviewsWorker.WORK_NAME + "_now",
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
     }
 
     fun syncAllNow() {
+        syncPullNow()
         syncWatchedEpisodesNow()
         syncReviewsNow()
         syncWatchlistNow()
+    }
+
+    /** Trigger an immediate pull from Supabase to local DB. */
+    fun syncPullNow() {
+        val request = OneTimeWorkRequestBuilder<SyncPullWorker>()
+            .setConstraints(networkConstraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                30, TimeUnit.SECONDS
+            )
+            .build()
+
+        workManager.enqueueUniqueWork(
+            SyncPullWorker.WORK_NAME + "_now",
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            request
+        )
     }
 
     /** Trigger an immediate sync of watchlist. */
@@ -82,7 +100,7 @@ class SyncManager @Inject constructor(
 
         workManager.enqueueUniqueWork(
             SyncWatchlistWorker.WORK_NAME + "_now",
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
     }
@@ -145,12 +163,30 @@ class SyncManager @Inject constructor(
             ExistingPeriodicWorkPolicy.KEEP,
             watchlistWork
         )
+
+        // Pull Sync — every 30 minutes
+        val pullWork = PeriodicWorkRequestBuilder<SyncPullWorker>(
+            repeatInterval = 30, TimeUnit.MINUTES
+        )
+            .setConstraints(networkConstraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                1, TimeUnit.MINUTES
+            )
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            SyncPullWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            pullWork
+        )
     }
 
     fun cancelPeriodicSync() {
         workManager.cancelUniqueWork(SyncWatchedEpisodesWorker.WORK_NAME)
         workManager.cancelUniqueWork(SyncReviewsWorker.WORK_NAME)
         workManager.cancelUniqueWork(SyncWatchlistWorker.WORK_NAME)
+        workManager.cancelUniqueWork(SyncPullWorker.WORK_NAME)
     }
 
     /** Cancel all sync work (periodic + one-time). */

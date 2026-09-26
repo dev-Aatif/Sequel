@@ -198,6 +198,7 @@ class WatchlistViewModel @Inject constructor(
                 watchlistDao.removeFromWatchlist(item.showId, item.mediaType)
             }
             syncManager.syncWatchedEpisodesNow()
+            syncManager.syncWatchlistNow()
         }
     }
 
@@ -301,6 +302,7 @@ class WatchlistViewModel @Inject constructor(
                     _bottomSheetState.value = state.copy(inWatchlist = true)
                     onSuccess("Added to Watchlist")
                 }
+                syncManager.syncWatchlistNow()
             } finally {
                 _isProcessingAction.value = false
             }
@@ -357,33 +359,42 @@ class WatchlistViewModel @Inject constructor(
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
-                        watchlistDao.removeFromWatchlist(show.id, show.mediaType)
-                        onSuccess("Marked as Watched")
-                        
-                        openBottomSheet(show.id, show.mediaType)
+                    } else {
+                        // Offline gracefully degrade by saving what we know
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = MediaType.TV,
+                            showId = show.id,
+                            episodeId = null,
+                            seasonNumber = next.seasonNumber,
+                            episodeNumber = next.episodeNumber
+                        )
+                    }
 
-                        // Proactively fetch next season if necessary
-                        launch {
-                            val progression = getNextEpisodeUseCase(show.id)
-                            if (!progression.isCompleted && progression.nextEpisodeData != null) {
-                                val nextEp = progression.nextEpisodeData
-                                val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
-                                if (existing.isEmpty()) {
-                                    try {
-                                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
-                                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                                        episodeDao.insertEpisodes(episodeEntities)
-                                    } catch (e: Exception) {
-                                        // Silently fail
-                                    }
+                    watchlistDao.removeFromWatchlist(show.id, show.mediaType)
+                    onSuccess("Marked as Watched")
+                    
+                    openBottomSheet(show.id, show.mediaType)
+
+                    // Proactively fetch next season if necessary
+                    launch {
+                        val progression = getNextEpisodeUseCase(show.id)
+                        if (!progression.isCompleted && progression.nextEpisodeData != null) {
+                            val nextEp = progression.nextEpisodeData
+                            val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
+                            if (existing.isEmpty()) {
+                                try {
+                                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
+                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                                    episodeDao.insertEpisodes(episodeEntities)
+                                } catch (e: Exception) {
+                                    // Silently fail
                                 }
                             }
                         }
-                    } else {
-                        onSuccess("Requires network connection to load S${next.seasonNumber}")
                     }
                 }
                 syncManager.syncWatchedEpisodesNow()
+                syncManager.syncWatchlistNow()
             } catch (e: Exception) {
                 onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
@@ -424,11 +435,18 @@ class WatchlistViewModel @Inject constructor(
                             episodeNumber = next.episodeNumber,
                             isSkipped = true
                         )
-                        onSuccess("Skipped Episode")
-                        openBottomSheet(show.id, show.mediaType)
                     } else {
-                        onSuccess("Requires network connection to load S${next.seasonNumber}")
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = MediaType.TV,
+                            showId = show.id,
+                            episodeId = null,
+                            seasonNumber = next.seasonNumber,
+                            episodeNumber = next.episodeNumber,
+                            isSkipped = true
+                        )
                     }
+                    onSuccess("Skipped Episode")
+                    openBottomSheet(show.id, show.mediaType)
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {

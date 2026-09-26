@@ -231,7 +231,7 @@ class SearchViewModel @Inject constructor(
                     _bottomSheetState.value = state.copy(inWatchlist = true)
                     onSuccess("Added to Watchlist")
                 }
-                syncManager.syncWatchedEpisodesNow()
+                syncManager.syncWatchlistNow()
             } finally {
                 _isProcessingAction.value = false
             }
@@ -277,10 +277,14 @@ class SearchViewModel @Inject constructor(
                         .find { it.episodeNumber == next.episodeNumber }
                         
                     if (ep == null) {
-                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                        episodeDao.insertEpisodes(episodeEntities)
-                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        try {
+                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                            episodeDao.insertEpisodes(episodeEntities)
+                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        } catch (e: Exception) {
+                            // Network failure
+                        }
                     }
                     
                     if (ep != null) {
@@ -291,32 +295,39 @@ class SearchViewModel @Inject constructor(
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
+                    } else {
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
+                            showId = show.id,
+                            episodeId = null,
+                            seasonNumber = next.seasonNumber,
+                            episodeNumber = next.episodeNumber
+                        )
+                    }
                         
-                        onSuccess("Marked as Watched")
+                    onSuccess("Marked as Watched")
 
-                        // Proactively fetch next season if necessary
-                        val progression = getNextEpisodeUseCase(show.id)
-                        if (!progression.isCompleted && progression.nextEpisodeData != null) {
-                            val nextEp = progression.nextEpisodeData
-                            val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
-                            if (existing.isEmpty()) {
-                                try {
-                                    val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
-                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                                    episodeDao.insertEpisodes(episodeEntities)
-                                } catch (e: Exception) {
-                                    // Silently fail
-                                }
+                    // Proactively fetch next season if necessary
+                    val progression = getNextEpisodeUseCase(show.id)
+                    if (!progression.isCompleted && progression.nextEpisodeData != null) {
+                        val nextEp = progression.nextEpisodeData
+                        val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
+                        if (existing.isEmpty()) {
+                            try {
+                                val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
+                                val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                                episodeDao.insertEpisodes(episodeEntities)
+                            } catch (e: Exception) {
+                                // Silently fail
                             }
                         }
-
-                        // Refresh the bottom sheet state to show the *next* next episode
-                        openBottomSheet(show)
-                    } else {
-                        onSuccess("Episode not found")
                     }
+
+                    // Refresh the bottom sheet state to show the *next* next episode
+                    openBottomSheet(show)
                 }
                 syncManager.syncWatchedEpisodesNow()
+                syncManager.syncWatchlistNow()
             } catch (e: Exception) {
                 onSuccess("Action failed: ${e.toAppError().message}")
             } finally {
@@ -343,10 +354,14 @@ class SearchViewModel @Inject constructor(
                         .find { it.episodeNumber == next.episodeNumber }
                         
                     if (ep == null) {
-                        val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                        val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                        episodeDao.insertEpisodes(episodeEntities)
-                        ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        try {
+                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
+                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
+                            episodeDao.insertEpisodes(episodeEntities)
+                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                        } catch (e: Exception) {
+                            // Network failure
+                        }
                     }
                     
                     if (ep != null) {
@@ -358,11 +373,18 @@ class SearchViewModel @Inject constructor(
                             episodeNumber = next.episodeNumber,
                             isSkipped = true
                         )
-                        onSuccess("Skipped Episode")
-                        openBottomSheet(show)
                     } else {
-                        onSuccess("Episode not found")
+                        watchedEpisodeDao.upsertWatchedEpisode(
+                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
+                            showId = show.id,
+                            episodeId = null,
+                            seasonNumber = next.seasonNumber,
+                            episodeNumber = next.episodeNumber,
+                            isSkipped = true
+                        )
                     }
+                    onSuccess("Skipped Episode")
+                    openBottomSheet(show)
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {

@@ -41,6 +41,32 @@ interface WatchlistDao {
     @Query("SELECT * FROM watchlist WHERE sync_status IN ('PENDING', 'DELETED')")
     suspend fun getPendingWatchlist(): List<WatchlistEntity>
 
-    @Query("UPDATE watchlist SET sync_status = 'SYNCED' WHERE tmdb_id IN (:tmdbIds)")
-    suspend fun markWatchlistSynced(tmdbIds: List<Int>)
+    @Query("SELECT * FROM watchlist WHERE sync_status = :status")
+    suspend fun getByStatus(status: dev.sequel.app.data.local.entity.SyncStatus): List<WatchlistEntity>
+
+    @Query("UPDATE watchlist SET sync_status = 'SYNCED' WHERE tmdb_id = :tmdbId AND media_type = :mediaType AND sync_status = 'PENDING'")
+    suspend fun markWatchlistSynced(tmdbId: Int, mediaType: String)
+
+    @androidx.room.Transaction
+    suspend fun markWatchlistSyncedTransaction(items: List<Pair<Int, String>>) {
+        items.forEach { markWatchlistSynced(it.first, it.second) }
+    }
+
+    @Query("""
+        INSERT INTO watchlist (tmdb_id, media_type, title, poster_path, added_at, sync_status)
+        VALUES (:tmdbId, :mediaType, :title, :posterPath, :addedAt, 'SYNCED')
+        ON CONFLICT(tmdb_id, media_type) DO UPDATE SET
+            title = :title,
+            poster_path = :posterPath,
+            sync_status = CASE WHEN sync_status = 'DELETED' THEN 'DELETED' WHEN sync_status = 'PENDING' AND added_at >= :addedAt THEN 'PENDING' ELSE 'SYNCED' END,
+            added_at = CASE WHEN sync_status = 'DELETED' THEN added_at WHEN sync_status = 'PENDING' AND added_at >= :addedAt THEN added_at ELSE :addedAt END
+    """)
+    suspend fun upsertWatchlistPull(tmdbId: Int, mediaType: String, title: String, posterPath: String?, addedAt: Long)
+
+    @androidx.room.Transaction
+    suspend fun upsertWatchlistPullTransaction(items: List<WatchlistEntity>) {
+        items.forEach {
+            upsertWatchlistPull(it.tmdbId, it.mediaType.name.lowercase(), it.title, it.posterPath, it.addedAt)
+        }
+    }
 }

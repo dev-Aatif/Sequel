@@ -38,7 +38,7 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
-        val userId = supabaseAuthService.currentUserId
+        val userId = supabaseAuthService.awaitUserId()
             ?: return Result.failure() // Not authenticated
 
         var hasFailures = false
@@ -72,7 +72,8 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                         tmdbEpisodeId = record.episodeId,
                         seasonNumber = record.seasonNumber,
                         episodeNumber = record.episodeNumber,
-                        watchedAt = record.watchedAt
+                        watchedAt = record.watchedAt,
+                        isSkipped = record.isSkipped
                     )
                 }
 
@@ -81,7 +82,7 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                 for (chunk in chunkedDtos) {
                     val results = supabaseSyncService.upsertWatchedEpisodes(chunk)
                     
-                    // Map results back to local entities to update supabaseId
+                    val updates = mutableListOf<Pair<Long, String>>()
                     for (result in results) {
                         val supabaseId = result.id ?: continue
                         val localMatch = toUpsert.find { 
@@ -91,18 +92,16 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                             it.episodeNumber == result.episodeNumber
                         }
                         if (localMatch != null) {
-                            watchedEpisodeDao.markAsSynced(
-                                id = localMatch.id,
-                                supabaseId = supabaseId
-                            )
+                            updates.add(Pair(localMatch.id, supabaseId))
                         }
+                    }
+                    if (updates.isNotEmpty()) {
+                        watchedEpisodeDao.markAsSyncedTransaction(updates)
                     }
                 }
             }
         } catch (e: Exception) {
-            if (runAttemptCount <= 3) {
-                hasFailures = true
-            }
+            hasFailures = true
         }
 
         return if (hasFailures) Result.retry() else Result.success()

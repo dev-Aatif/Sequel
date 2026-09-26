@@ -62,13 +62,20 @@ class SupabaseSyncService @Inject constructor(
      * Fetch all watched episodes for the current user from Supabase.
      */
     suspend fun fetchAllWatchedEpisodes(userId: String): List<SupabaseWatchedEpisodeDto> {
-        return supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
-            .select {
-                filter {
-                    eq("user_id", userId)
-                }
-            }
-            .decodeList()
+        val results = mutableListOf<SupabaseWatchedEpisodeDto>()
+        var offset = 0L
+        val limit = 1000L
+        while (true) {
+            val chunk = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
+                .select {
+                    filter { eq("user_id", userId) }
+                    range(offset, offset + limit - 1)
+                }.decodeList<SupabaseWatchedEpisodeDto>()
+            results.addAll(chunk)
+            if (chunk.size < limit) break
+            offset += limit
+        }
+        return results
     }
 
     /**
@@ -76,13 +83,20 @@ class SupabaseSyncService @Inject constructor(
      * In a production app with millions of rows, this would be an RPC call.
      */
     suspend fun fetchCommunityWatchHistoryForShow(showId: Int): List<SupabaseWatchedEpisodeDto> {
-        return supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
-            .select {
-                filter {
-                    eq("tmdb_show_id", showId)
-                }
-            }
-            .decodeList()
+        val results = mutableListOf<SupabaseWatchedEpisodeDto>()
+        var offset = 0L
+        val limit = 1000L
+        while (true) {
+            val chunk = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
+                .select {
+                    filter { eq("tmdb_show_id", showId) }
+                    range(offset, offset + limit - 1)
+                }.decodeList<SupabaseWatchedEpisodeDto>()
+            results.addAll(chunk)
+            if (chunk.size < limit) break
+            offset += limit
+        }
+        return results
     }
 
     // ── Reviews ───────────────────────────────────────────────────
@@ -116,12 +130,20 @@ class SupabaseSyncService @Inject constructor(
      * Fetch all reviews for the current user from Supabase.
      */
     suspend fun fetchAllReviews(userId: String): List<SupabaseReviewDto> {
-        return supabaseClient.postgrest[TABLE_REVIEWS]
-            .select {
-                filter {
-                    eq("user_id", userId)
-                }
-            }.decodeList()
+        val results = mutableListOf<SupabaseReviewDto>()
+        var offset = 0L
+        val limit = 1000L
+        while (true) {
+            val chunk = supabaseClient.postgrest[TABLE_REVIEWS]
+                .select {
+                    filter { eq("user_id", userId) }
+                    range(offset, offset + limit - 1)
+                }.decodeList<SupabaseReviewDto>()
+            results.addAll(chunk)
+            if (chunk.size < limit) break
+            offset += limit
+        }
+        return results
     }
 
     /**
@@ -132,22 +154,32 @@ class SupabaseSyncService @Inject constructor(
         seasonNum: Int? = null,
         episodeNum: Int? = null
     ): List<SupabaseReviewDto> {
-        return supabaseClient.postgrest[TABLE_REVIEWS]
-            .select {
-                filter {
-                    eq("media_id", mediaId)
-                    if (seasonNum != null) {
-                        eq("season_num", seasonNum)
-                    } else {
-                        filter("season_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+        val results = mutableListOf<SupabaseReviewDto>()
+        var offset = 0L
+        val limit = 1000L
+        while (true) {
+            val chunk = supabaseClient.postgrest[TABLE_REVIEWS]
+                .select {
+                    filter {
+                        eq("media_id", mediaId)
+                        if (seasonNum != null) {
+                            eq("season_num", seasonNum)
+                        } else {
+                            filter("season_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+                        }
+                        if (episodeNum != null) {
+                            eq("episode_num", episodeNum)
+                        } else {
+                            filter("episode_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+                        }
                     }
-                    if (episodeNum != null) {
-                        eq("episode_num", episodeNum)
-                    } else {
-                        filter("episode_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
-                    }
-                }
-            }.decodeList()
+                    range(offset, offset + limit - 1)
+                }.decodeList<SupabaseReviewDto>()
+            results.addAll(chunk)
+            if (chunk.size < limit) break
+            offset += limit
+        }
+        return results
     }
 
     // ── Watchlist ─────────────────────────────────────────────────
@@ -170,5 +202,22 @@ class SupabaseSyncService @Inject constructor(
                 eq("tmdb_id", tmdbId)
             }
         }
+    }
+
+    suspend fun fetchAllWatchlist(userId: String): List<dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto> {
+        val results = mutableListOf<dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto>()
+        var offset = 0L
+        val limit = 1000L
+        while (true) {
+            val chunk = supabaseClient.postgrest[TABLE_WATCHLIST]
+                .select {
+                    filter { eq("user_id", userId) }
+                    range(offset, offset + limit - 1)
+                }.decodeList<dev.sequel.app.data.remote.supabase.dto.SupabaseWatchlistDto>()
+            results.addAll(chunk)
+            if (chunk.size < limit) break
+            offset += limit
+        }
+        return results
     }
 }

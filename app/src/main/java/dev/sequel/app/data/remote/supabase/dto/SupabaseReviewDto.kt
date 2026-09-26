@@ -17,6 +17,9 @@ data class SupabaseReviewDto(
     @SerialName("media_id")
     val mediaId: Int,
 
+    @SerialName("media_type")
+    val mediaType: String? = null,
+
     @SerialName("season_num")
     val seasonNum: Int? = null,
 
@@ -33,5 +36,8 @@ data class SupabaseReviewDto(
     val isSpoiler: Boolean = false,
 
     @SerialName("created_at")
-    val createdAt: String? = null // ISO timestamp
+    val createdAt: String? = null, // ISO timestamp
+    
+    @SerialName("updated_at")
+    val updatedAt: Long? = null
 )

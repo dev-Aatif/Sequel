@@ -28,6 +28,8 @@ class MediaImportWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val tmdbApiService: TmdbApiService,
     private val showDao: ShowDao,
+    private val seasonDao: dev.sequel.app.data.local.dao.SeasonDao,
+    private val episodeDao: dev.sequel.app.data.local.dao.EpisodeDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val syncManager: SyncManager
 ) : CoroutineWorker(appContext, workerParams) {
@@ -66,20 +68,37 @@ class MediaImportWorker @AssistedInject constructor(
         val items: List<ImportedMediaItem>
         try {
             items = parser.parse(appContext, uri)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
+            if (uri.scheme == "file" && uri.path != null) {
+                val file = java.io.File(uri.path!!)
+                if (file.exists()) {
+                    file.delete()
+                }
+            }
             return Result.failure(workDataOf(KEY_MESSAGE to (e.message ?: "Failed to parse file")))
         }
 
-        val groupedByShow = items.groupBy { it.title }
-        val totalShows = groupedByShow.size
-        var currentShowIndex = 0
+        val groupedByShow = items.groupBy { Pair(it.title, it.mediaType) }
+        val groupedList = groupedByShow.toList()
+        val totalShows = groupedList.size
+        
+        val prefs = appContext.getSharedPreferences("media_import_prefs", Context.MODE_PRIVATE)
+        val prefsKey = "last_index_$uriString"
+        val startIndex = prefs.getInt(prefsKey, 0)
+        
+        var currentShowIndex = startIndex
         var totalImported = 0
         
         // Keep track of shows we couldn't resolve
         val skippedShows = mutableListOf<String>()
 
-        for ((showName, episodes) in groupedByShow) {
-            currentShowIndex++
+        for (i in startIndex until groupedList.size) {
+            val (groupKey, episodes) = groupedList[i]
+            val showName = groupKey.first
+            val mediaType = groupKey.second
+            currentShowIndex = i + 1
             setProgress(
                 workDataOf(
                     KEY_PROGRESS_STATE to STATE_IMPORTING,
@@ -93,7 +112,7 @@ class MediaImportWorker @AssistedInject constructor(
                 // Throttle to avoid TMDB 429 Rate Limit
                 delay(50)
 
-                val isMovie = episodes.firstOrNull()?.mediaType == "movie"
+                val isMovie = mediaType == "movie"
                 if (isMovie) {
                     val movieId = resolveAndUpsertMovie(showName)
                     if (movieId != null) {
@@ -101,9 +120,9 @@ class MediaImportWorker @AssistedInject constructor(
                             WatchedEpisodeEntity(
                                 mediaType = MediaType.MOVIE,
                                 showId = movieId,
-                                episodeId = null,
-                                seasonNumber = null,
-                                episodeNumber = null,
+                                episodeId = -1,
+                                seasonNumber = -1,
+                                episodeNumber = -1,
                                 syncStatus = SyncStatus.PENDING,
                                 watchedAt = ep.watchedAt ?: System.currentTimeMillis()
                             )
@@ -131,6 +150,12 @@ class MediaImportWorker @AssistedInject constructor(
                                     tmdbApiService.getSeasonDetail(showId, seasonNum)
                                 }
                                 
+                                val seasonEntity = with(dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper) { seasonDetail.toSeasonEntity(showId) }
+                                seasonDao.insertSeasons(listOf(seasonEntity))
+
+                                val episodeEntities = with(dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper) { seasonDetail.toEpisodeEntities(showId) }
+                                episodeDao.insertEpisodes(episodeEntities)
+
                                 val episodeMap = seasonDetail.episodes.associateBy { it.episodeNumber }
 
                                 for (ep in seasonEps) {
@@ -149,6 +174,8 @@ class MediaImportWorker @AssistedInject constructor(
                                         )
                                     }
                                 }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 // Skip this season if network error or missing data
                             }
@@ -165,8 +192,12 @@ class MediaImportWorker @AssistedInject constructor(
                         skippedShows.add(showName)
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 skippedShows.add(showName)
+            } finally {
+                prefs.edit().putInt(prefsKey, currentShowIndex).apply()
             }
         }
 
@@ -174,6 +205,15 @@ class MediaImportWorker @AssistedInject constructor(
         if (totalImported > 0) {
             syncManager.syncWatchedEpisodesNow()
         }
+
+        if (uri.scheme == "file" && uri.path != null) {
+            val file = java.io.File(uri.path!!)
+            if (file.exists()) {
+                file.delete()
+            }
+        }
+
+        prefs.edit().remove(prefsKey).apply()
 
         return Result.success(
             workDataOf(

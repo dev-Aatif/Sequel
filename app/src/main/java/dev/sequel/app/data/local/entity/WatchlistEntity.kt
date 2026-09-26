@@ -4,9 +4,8 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "watchlist")
+@Entity(tableName = "watchlist", primaryKeys = ["tmdb_id", "media_type"])
 data class WatchlistEntity(
-    @PrimaryKey
     @ColumnInfo(name = "tmdb_id")
     val tmdbId: Int,
 
