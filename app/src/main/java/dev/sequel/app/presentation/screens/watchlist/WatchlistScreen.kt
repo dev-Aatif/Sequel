@@ -26,6 +26,10 @@ import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +98,10 @@ fun WatchlistScreen(
                             .weight(1f)
                             .clip(RoundedCornerShape(28.dp))
                             .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .semantics { 
+                                role = Role.Tab
+                                selected = isSelected
+                            }
                             .hapticClickable { viewModel.setTab(tab) }
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center

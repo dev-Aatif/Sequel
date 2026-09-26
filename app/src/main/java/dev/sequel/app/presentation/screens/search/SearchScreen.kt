@@ -83,7 +83,6 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
-                .padding(bottom = 100.dp)
         ) {
             // Glassmorphic Search Bar
             Box(
@@ -159,7 +158,12 @@ fun SearchScreen(
                             LazyVerticalGrid(
                                 state = gridState,
                                 columns = GridCells.Adaptive(minSize = 100.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp
+                                ),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxSize()
@@ -175,14 +179,17 @@ fun SearchScreen(
         }
 
         // Contextual Filters – appear when search input is focused or query is not empty
+        val keyboardHeight = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val filterBottomPadding = if (keyboardHeight > 0.dp) keyboardHeight + 16.dp else navBarHeight + 112.dp
+
         AnimatedVisibility(
             visible = isSearchFocused || query.isNotEmpty(),
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp)
-                .imePadding()
+                .padding(bottom = filterBottomPadding)
         ) {
             Row(
                 modifier = Modifier.glassmorphicBackground(RoundedCornerShape(24.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -231,7 +238,12 @@ fun ZeroStateDiscovery(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp
+        ),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
@@ -305,7 +317,12 @@ fun SearchResultsShimmer() {
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 100.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 8.dp,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),

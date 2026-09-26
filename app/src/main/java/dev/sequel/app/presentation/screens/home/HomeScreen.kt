@@ -359,13 +359,17 @@ fun HomeScreen(
         }
 
         // ── Floating Filter Pill (thumb zone — directly above bottom nav) ──
+        val keyboardHeight = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val filterBottomPadding = if (keyboardHeight > 0.dp) keyboardHeight + 16.dp else navBarHeight + 112.dp
+        
         AnimatedVisibility(
             visible = isScrollingUp,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 110.dp) // Directly above the floating bottom nav bar
+                .padding(bottom = filterBottomPadding) // Directly above the floating bottom nav bar or keyboard
         ) {
             Row(
                 modifier = Modifier

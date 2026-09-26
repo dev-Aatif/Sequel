@@ -17,6 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -68,7 +72,11 @@ fun MainScaffold(viewModel: MainViewModel = hiltViewModel()) {
                     exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200)),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 32.dp, start = 32.dp, end = 32.dp)
+                        .padding(
+                            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 32.dp, 
+                            start = 32.dp, 
+                            end = 32.dp
+                        )
                 ) {
                     SequelBottomBar(
                         navController = navController,
@@ -110,6 +118,10 @@ private fun SequelBottomBar(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
+                        .semantics {
+                            role = Role.Tab
+                            selected = isSelected
+                        }
                         .hapticClickable(
                             indication = null, // No ripple for clean glassmorphic look
                         ) {

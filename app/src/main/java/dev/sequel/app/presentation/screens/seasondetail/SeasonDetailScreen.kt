@@ -81,7 +81,6 @@ fun SeasonDetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
         ) {
             when (val state = uiState) {
                 is SeasonDetailUiState.Loading -> {
@@ -98,7 +97,8 @@ fun SeasonDetailScreen(
                 }
                 is SeasonDetailUiState.Success -> {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = innerPadding
                     ) {
                     items(state.season.episodes, key = { it.id }) { episode ->
                             EpisodeRow(
