@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -107,12 +108,10 @@ class SupabaseAuthService @Inject constructor(
      * and return the current user ID (or null if not logged in).
      */
     suspend fun awaitUserId(): String? {
-        val status = kotlinx.coroutines.flow.first(
-            auth.sessionStatus.filter { 
-                it is io.github.jan.supabase.auth.status.SessionStatus.Authenticated || 
-                it is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated 
-            }
-        )
+        val status = auth.sessionStatus.filter { 
+            it is io.github.jan.supabase.auth.status.SessionStatus.Authenticated || 
+            it is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated 
+        }.first()
         
         return if (status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
             status.session.user?.id
