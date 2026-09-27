@@ -69,31 +69,7 @@ class WatchlistViewModel @Inject constructor(
     private val savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
-    init {
-        // Proactively fetch missing episodes for Up Next items
-        viewModelScope.launch {
-            upNextTvFlow.collect { items ->
-                items.filter { it.nextEpisodeName == null }.forEach { item ->
-                    launch {
-                        try {
-                            val progression = getNextEpisodeUseCase(item.showId)
-                            if (!progression.isCompleted && progression.nextEpisodeData != null) {
-                                val next = progression.nextEpisodeData
-                                val existing = episodeDao.getEpisodesBySeason(item.showId, next.seasonNumber)
-                                if (existing.isEmpty()) {
-                                    val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, next.seasonNumber)
-                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(item.showId) }
-                                    episodeDao.insertEpisodes(episodeEntities)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // Silently fail, it will retry next time
-                        }
-                    }
-                }
-            }
-        }
-    }
+
 
     // ── Up Next ────────────────────────────────────────────────────
 
@@ -177,6 +153,32 @@ class WatchlistViewModel @Inject constructor(
     val watchedMovieItems: StateFlow<List<WatchedItem>> = watchedMoviesFlow.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
+
+    init {
+        // Proactively fetch missing episodes for Up Next items
+        viewModelScope.launch {
+            upNextTvFlow.collect { items ->
+                items.filter { it.nextEpisodeName == null }.forEach { item ->
+                    launch {
+                        try {
+                            val progression = getNextEpisodeUseCase(item.showId)
+                            if (!progression.isCompleted && progression.nextEpisodeData != null) {
+                                val next = progression.nextEpisodeData
+                                val existing = episodeDao.getEpisodesBySeason(item.showId, next.seasonNumber)
+                                if (existing.isEmpty()) {
+                                    val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, next.seasonNumber)
+                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(item.showId) }
+                                    episodeDao.insertEpisodes(episodeEntities)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Silently fail, it will retry next time
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // ── Actions ────────────────────────────────────────────────────
 

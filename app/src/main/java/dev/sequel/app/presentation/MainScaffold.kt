@@ -32,9 +32,11 @@ import dev.sequel.app.presentation.navigation.Screen
 import dev.sequel.app.presentation.navigation.SequelNavGraph
 
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.annotation.SuppressLint
 import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.background
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScaffold(viewModel: MainViewModel = hiltViewModel()) {
     val startDestination by viewModel.startDestination.collectAsState()

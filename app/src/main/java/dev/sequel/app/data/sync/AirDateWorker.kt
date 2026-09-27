@@ -83,6 +83,7 @@ class AirDateWorker @AssistedInject constructor(
         }
     }
 
+    @android.annotation.SuppressLint("NotificationPermission")
     private fun showNotification(showName: String, episodeInfo: String) {
         val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -102,6 +103,16 @@ class AirDateWorker @AssistedInject constructor(
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    appContext,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+        }
 
         notificationManager.notify(showName.hashCode(), notification)
     }

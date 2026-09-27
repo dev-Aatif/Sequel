@@ -23,11 +23,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.local.entity.RecentActivityItem
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
 
+import android.annotation.SuppressLint
+
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -48,25 +52,24 @@ fun ProfileScreen(
             contentPadding = PaddingValues(
                 start = 16.dp, 
                 end = 16.dp, 
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 24.dp, 
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp, 
                 bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp
-            )
+            ),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item {
                 ProfileHeader(
                     email = uiState.email,
                     onSettingsClick = onNavigateToSettings
                 )
-                Spacer(modifier = Modifier.height(32.dp))
             }
             
             item {
-                ProfileStatsRow(
+                ProfileStatsGrid(
                     watchTime = uiState.watchTimeFormatted,
                     episodes = uiState.totalEpisodesWatched,
                     movies = uiState.totalMoviesWatched
                 )
-                Spacer(modifier = Modifier.height(32.dp))
             }
 
             item {
@@ -76,7 +79,6 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             if (uiState.recentActivity.isEmpty()) {
@@ -94,7 +96,6 @@ fun ProfileScreen(
                             onMediaClick(activity.showId, activity.mediaType.name)
                         }
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
@@ -116,16 +117,21 @@ fun ProfileHeader(
         // Monogram Badge
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .size(64.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(MaterialTheme.colorScheme.primary)
+                .border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = monogram,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
 
@@ -134,15 +140,16 @@ fun ProfileHeader(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = displayName,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = email ?: "Loading...",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -151,49 +158,88 @@ fun ProfileHeader(
         
         Spacer(modifier = Modifier.width(16.dp))
 
-        IconButton(
-            onClick = onSettingsClick,
-            colors = IconButtonDefaults.iconButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
+        FilledTonalIconButton(
+            onClick = onSettingsClick
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                contentDescription = "Settings"
             )
         }
     }
 }
 
 @Composable
-fun ProfileStatsRow(
+fun ProfileStatsGrid(
     watchTime: String,
     episodes: Int,
     movies: Int
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        StatCard(
-            label = "Watch Time",
-            value = watchTime,
-            icon = Icons.Default.Schedule,
-            modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            label = "Episodes",
-            value = episodes.toString(),
-            icon = Icons.Default.Tv,
-            modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            label = "Movies",
-            value = movies.toString(),
-            icon = Icons.Default.Movie,
-            modifier = Modifier.weight(1f)
-        )
+        // Row 1 (Hero Stat - Full Width)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(20.dp)
+        ) {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "TOTAL TIME TRACKED",
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = watchTime,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // Row 2 (Split Stat - 50/50)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                label = "EPISODES",
+                value = episodes.toString(),
+                icon = Icons.Default.Tv,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "MOVIES",
+                value = movies.toString(),
+                icon = Icons.Default.Movie,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
@@ -206,31 +252,32 @@ fun StatCard(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(16.dp)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(20.dp)
             )
-            .padding(12.dp)
+            .padding(16.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.Start
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = label.uppercase(),
+                    text = label,
                     style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -239,8 +286,8 @@ fun StatCard(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -270,12 +317,20 @@ fun ZeroWatchHistoryCard(
             horizontalAlignment = Alignment.CenterHorizontally, 
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = Icons.Default.CloudDownload,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudDownload,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Welcome to Sequel!",
@@ -309,7 +364,7 @@ fun ZeroWatchHistoryCard(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp)
             ) {
-                Icon(Icons.Default.ImportExport, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Import from TV Time", fontWeight = FontWeight.Bold)
             }
@@ -331,13 +386,17 @@ fun RecentActivityCard(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent,
-        shape = RoundedCornerShape(8.dp)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -345,16 +404,16 @@ fun RecentActivityCard(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .width(60.dp)
-                    .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(8.dp))
+                    .width(52.dp)
+                    .height(76.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.showTitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
@@ -374,21 +433,21 @@ fun RecentActivityCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(percent = 50))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = badgeText,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.primary
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
 
                     Text(
                         text = relativeTime,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

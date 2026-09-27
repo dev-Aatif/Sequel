@@ -39,6 +39,9 @@ import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
 import dev.sequel.app.presentation.components.spoilerShield
 
+import android.annotation.SuppressLint
+
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShowDetailScreen(
@@ -721,45 +724,134 @@ fun ReviewInputBar(
 fun RatingDialog(currentRating: Int?, onDismiss: () -> Unit, onSubmit: (Int) -> Unit) {
     var selectedRating by remember { mutableIntStateOf(currentRating ?: 0) }
 
-    AlertDialog(
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rate this Title") },
-        text = {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                    (1..5).forEach { rating ->
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape)
-                                .background(if (selectedRating == rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.08f))
-                                .hapticClickable { selectedRating = rating },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("$rating", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (selectedRating == rating) Color.White else MaterialTheme.colorScheme.onSurface)
-                        }
-                    }
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .glassmorphicBackground(
+                    RoundedCornerShape(32.dp), 
+                    surfaceTint = Color(0xCC1A1D24), 
+                    borderColor = Color.White.copy(0.1f)
+                )
+                .padding(32.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Emoji Feedback
+                val ratingEmoji = when(selectedRating) {
+                    0 -> "🤔"
+                    in 1..2 -> "🗑️"
+                    in 3..4 -> "🥱"
+                    in 5..6 -> "😐"
+                    in 7..8 -> "🤩"
+                    in 9..10 -> "🤯"
+                    else -> "🤔"
                 }
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                    (6..10).forEach { rating ->
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape)
-                                .background(if (selectedRating == rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(0.08f))
-                                .hapticClickable { selectedRating = rating },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("$rating", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (selectedRating == rating) Color.White else MaterialTheme.colorScheme.onSurface)
-                        }
+                
+                Text(
+                    text = ratingEmoji,
+                    style = MaterialTheme.typography.displayMedium
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Dynamic Large Number
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = if (selectedRating > 0) "$selectedRating" else "-",
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Black,
+                        color = if (selectedRating > 0) MaterialTheme.colorScheme.primary else Color.White.copy(0.3f)
+                    )
+                    Text(
+                        text = " / 10",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(0.3f),
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                }
+
+                val ratingText = when(selectedRating) {
+                    0 -> "Unrated"
+                    in 1..2 -> "Terrible"
+                    in 3..4 -> "Poor"
+                    in 5..6 -> "Average"
+                    in 7..8 -> "Great"
+                    in 9..10 -> "Masterpiece"
+                    else -> ""
+                }
+                
+                Text(
+                    text = ratingText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // The Slider
+                Slider(
+                    value = selectedRating.toFloat(),
+                    onValueChange = { selectedRating = it.toInt() },
+                    valueRange = 0f..10f,
+                    steps = 9,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = Color.White.copy(0.1f),
+                        activeTickColor = Color.Transparent,
+                        inactiveTickColor = Color.Transparent
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.2f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Button(
+                        onClick = { if (selectedRating > 0) onSubmit(selectedRating) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        enabled = selectedRating > 0
+                    ) {
+                        Text("Submit", fontWeight = FontWeight.Bold)
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = { if (selectedRating > 0) onSubmit(selectedRating) }) {
-                Text("Submit")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
-    )
+    }
 }
