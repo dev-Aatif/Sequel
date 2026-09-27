@@ -110,18 +110,21 @@ fun SequelNavGraph(
 
         composable(Screen.Profile.route) {
             ProfileScreen(
-                onImportClick = {
+                onNavigateToImport = {
                     navController.navigate(Screen.MediaImport.route)
                 },
-                onDiscoverClick = {
+                onNavigateToSearch = {
                     navController.navigate(Screen.Search.route) {
                         popUpTo(Screen.Home.route) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
                 },
-                onSettingsClick = {
+                onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
+                },
+                onMediaClick = { showId, mediaType ->
+                    navController.navigate(Screen.ShowDetail.createRoute(showId, mediaType))
                 }
             )
         }
