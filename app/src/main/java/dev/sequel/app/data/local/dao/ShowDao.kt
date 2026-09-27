@@ -19,6 +19,15 @@ interface ShowDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertShows(shows: List<ShowEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSeasonsInternal(seasons: List<dev.sequel.app.data.local.entity.SeasonEntity>)
+
+    @androidx.room.Transaction
+    suspend fun insertShowWithSeasons(show: ShowEntity, seasons: List<dev.sequel.app.data.local.entity.SeasonEntity>) {
+        insertShow(show)
+        insertSeasonsInternal(seasons)
+    }
+
     // ── Updates ───────────────────────────────────────────────────
 
     @Update

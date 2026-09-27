@@ -32,4 +32,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSyncRepository(impl: dev.sequel.app.data.repository.SyncRepositoryImpl): dev.sequel.app.domain.repository.SyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchlistRepository(impl: dev.sequel.app.data.repository.WatchlistRepositoryImpl): dev.sequel.app.domain.repository.WatchlistRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchedEpisodeRepository(impl: dev.sequel.app.data.repository.WatchedEpisodeRepositoryImpl): dev.sequel.app.domain.repository.WatchedEpisodeRepository
 }

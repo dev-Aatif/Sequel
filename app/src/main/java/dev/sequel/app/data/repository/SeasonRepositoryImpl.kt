@@ -25,13 +25,10 @@ class SeasonRepositoryImpl @Inject constructor(
     ): Result<List<EpisodeEntity>> = runCatching {
         val detail = tmdbApiService.getSeasonDetail(showId, seasonNumber)
 
-        // Cache season
+        // Cache season and episodes atomically
         val seasonEntity = detail.toSeasonEntity(showId)
-        seasonDao.insertSeasons(listOf(seasonEntity))
-
-        // Cache episodes
         val episodeEntities = detail.toEpisodeEntities(showId)
-        episodeDao.insertEpisodes(episodeEntities)
+        seasonDao.insertSeasonWithEpisodes(seasonEntity, episodeEntities)
 
         episodeEntities
     }
@@ -44,4 +41,13 @@ class SeasonRepositoryImpl @Inject constructor(
 
     override suspend fun getEpisodeCount(showId: Int): Int =
         episodeDao.getEpisodeCountForShow(showId)
+
+    override fun observeCanonicalNextEpisode(showId: Int): Flow<EpisodeEntity?> =
+        episodeDao.observeCanonicalNextEpisode(showId)
+
+    override suspend fun getEpisodesBySeason(showId: Int, seasonNumber: Int): List<EpisodeEntity> =
+        episodeDao.getEpisodesBySeason(showId, seasonNumber)
+
+    override suspend fun insertEpisodes(episodes: List<EpisodeEntity>) =
+        episodeDao.insertEpisodes(episodes)
 }

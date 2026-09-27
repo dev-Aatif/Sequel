@@ -43,11 +43,20 @@ interface ShowRepository {
     /** Search local cache. */
     fun searchLocal(query: String): Flow<List<ShowEntity>>
 
+    /** Observe started TV shows. */
+    fun observeStartedTvShows(): Flow<List<ShowEntity>>
+
     // ── Local mutations ───────────────────────────────────────────
+
+    /** Insert a single show. */
+    suspend fun insertShow(show: ShowEntity)
 
     /** Toggle favorite status for a show. */
     suspend fun toggleFavorite(showId: Int, mediaType: String, isFavorite: Boolean)
 
     /** Toggle watchlist status for a show. */
     suspend fun toggleWatchlist(showId: Int, mediaType: String, isInWatchlist: Boolean)
+
+    /** Update watchlist status (identical to toggleWatchlist, added for explicit matching). */
+    suspend fun updateWatchlistStatus(showId: Int, mediaType: String, isInWatchlist: Boolean)
 }

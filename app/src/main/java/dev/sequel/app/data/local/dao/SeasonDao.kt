@@ -13,6 +13,15 @@ interface SeasonDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSeasons(seasons: List<SeasonEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEpisodesInternal(episodes: List<dev.sequel.app.data.local.entity.EpisodeEntity>)
+
+    @androidx.room.Transaction
+    suspend fun insertSeasonWithEpisodes(season: SeasonEntity, episodes: List<dev.sequel.app.data.local.entity.EpisodeEntity>) {
+        insertSeasons(listOf(season))
+        insertEpisodesInternal(episodes)
+    }
+
     @Query("SELECT * FROM seasons WHERE show_id = :showId ORDER BY season_number ASC")
     fun observeSeasonsByShow(showId: Int): Flow<List<SeasonEntity>>
 

@@ -58,12 +58,9 @@ class ShowRepositoryImpl @Inject constructor(
         val detail = tmdbApiService.getTvShowDetail(showId)
         val showEntity = detail.toEntity()
 
-        // Cache show
-        showDao.insertShow(showEntity)
-
-        // Cache season summaries
+        // Cache show and season summaries atomically
         val seasonEntities = detail.seasons.map { it.toEntity(showId) }
-        seasonDao.insertSeasons(seasonEntities)
+        showDao.insertShowWithSeasons(showEntity, seasonEntities)
 
         showEntity
     }
@@ -92,13 +89,24 @@ class ShowRepositoryImpl @Inject constructor(
     override fun searchLocal(query: String): Flow<List<ShowEntity>> =
         showDao.searchShows(query)
 
+    override fun observeStartedTvShows(): Flow<List<ShowEntity>> =
+        showDao.observeStartedTvShows()
+
     // ── Local mutations ───────────────────────────────────────────
+
+    override suspend fun insertShow(show: ShowEntity) {
+        showDao.insertShow(show)
+    }
 
     override suspend fun toggleFavorite(showId: Int, mediaType: String, isFavorite: Boolean) {
         showDao.updateFavoriteStatus(showId, mediaType, isFavorite)
     }
 
     override suspend fun toggleWatchlist(showId: Int, mediaType: String, isInWatchlist: Boolean) {
+        showDao.updateWatchlistStatus(showId, mediaType, isInWatchlist)
+    }
+
+    override suspend fun updateWatchlistStatus(showId: Int, mediaType: String, isInWatchlist: Boolean) {
         showDao.updateWatchlistStatus(showId, mediaType, isInWatchlist)
     }
 }

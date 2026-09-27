@@ -20,4 +20,13 @@ interface SeasonRepository {
 
     /** Get episode count for a show. */
     suspend fun getEpisodeCount(showId: Int): Int
+
+    /** Observe canonical next episode for a show. */
+    fun observeCanonicalNextEpisode(showId: Int): Flow<EpisodeEntity?>
+
+    /** Get episodes for a season. */
+    suspend fun getEpisodesBySeason(showId: Int, seasonNumber: Int): List<EpisodeEntity>
+
+    /** Insert episodes manually. */
+    suspend fun insertEpisodes(episodes: List<EpisodeEntity>)
 }
