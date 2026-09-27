@@ -38,7 +38,7 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         WatchlistEntity::class,
         dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -132,6 +132,28 @@ abstract class SequelDatabase : RoomDatabase() {
                 db.execSQL("DROP INDEX IF EXISTS `index_watched_episodes_show_id_media_type_episode_id`")
                 // Create the new index
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_watched_episodes_show_id_media_type_season_number_episode_number` ON `watched_episodes` (`show_id`, `media_type`, `season_number`, `episode_number`)")
+            }
+        }
+
+        /**
+         * Migration 14→15: Reviews schema overhaul.
+         * - Drop unique index on (media_id, media_type, season_num, episode_num) to allow multiple reviews per show.
+         * - Add `is_rating_only` column to distinguish rating rows from text review rows.
+         * - Create non-unique index on (media_id, media_type).
+         */
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Drop the old unique index
+                db.execSQL("DROP INDEX IF EXISTS `index_reviews_media_id_media_type_season_num_episode_num`")
+                
+                // 2. Add is_rating_only column (defaulting existing rows to 0 = false)
+                db.execSQL("ALTER TABLE reviews ADD COLUMN is_rating_only INTEGER NOT NULL DEFAULT 0")
+                
+                // 3. Mark existing rating-only rows (has rating, no review text)
+                db.execSQL("UPDATE reviews SET is_rating_only = 1 WHERE review_text IS NULL AND rating IS NOT NULL")
+                
+                // 4. Create new non-unique index
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_media_id_media_type` ON `reviews` (`media_id`, `media_type`)")
             }
         }
     }

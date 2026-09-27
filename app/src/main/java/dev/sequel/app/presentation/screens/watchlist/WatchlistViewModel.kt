@@ -69,24 +69,52 @@ class WatchlistViewModel @Inject constructor(
     private val savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
+    init {
+        // Proactively fetch missing episodes for Up Next items
+        viewModelScope.launch {
+            upNextTvFlow.collect { items ->
+                items.filter { it.nextEpisodeName == null }.forEach { item ->
+                    launch {
+                        try {
+                            val progression = getNextEpisodeUseCase(item.showId)
+                            if (!progression.isCompleted && progression.nextEpisodeData != null) {
+                                val next = progression.nextEpisodeData
+                                val existing = episodeDao.getEpisodesBySeason(item.showId, next.seasonNumber)
+                                if (existing.isEmpty()) {
+                                    val seasonDetail = tmdbApiService.getSeasonDetail(item.showId, next.seasonNumber)
+                                    val episodeEntities = seasonDetail.episodes.map { it.toEntity(item.showId) }
+                                    episodeDao.insertEpisodes(episodeEntities)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Silently fail, it will retry next time
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ── Up Next ────────────────────────────────────────────────────
 
     private val upNextTvFlow = showDao.observeUpNextShows().map { tuples ->
-        tuples.mapNotNull { tuple ->
-            if (tuple.nextEpisode != null) {
-                UpNextItem(
-                    showId = tuple.show.id,
-                    mediaType = tuple.show.mediaType,
-                    title = tuple.show.title,
-                    posterPath = tuple.show.posterPath,
-                    nextEpisodeName = "S${tuple.nextEpisode.seasonNumber}E${tuple.nextEpisode.episodeNumber}: ${tuple.nextEpisode.name}",
-                    nextEpisodeId = tuple.nextEpisode.id,
-                    seasonNumber = tuple.nextEpisode.seasonNumber,
-                    episodeNumber = tuple.nextEpisode.episodeNumber,
-                    watchedEpisodeCount = tuple.watchedCount,
-                    totalEpisodes = tuple.show.numberOfEpisodes ?: 0
-                )
-            } else null
+        tuples.map { tuple ->
+            UpNextItem(
+                showId = tuple.show.id,
+                mediaType = tuple.show.mediaType,
+                title = tuple.show.title,
+                posterPath = tuple.show.posterPath,
+                nextEpisodeName = if (tuple.nextEpisode != null) {
+                    "S${tuple.nextEpisode.seasonNumber}E${tuple.nextEpisode.episodeNumber}: ${tuple.nextEpisode.name}"
+                } else {
+                    null
+                },
+                nextEpisodeId = tuple.nextEpisode?.id,
+                seasonNumber = tuple.nextEpisode?.seasonNumber,
+                episodeNumber = tuple.nextEpisode?.episodeNumber,
+                watchedEpisodeCount = tuple.watchedCount,
+                totalEpisodes = tuple.show.numberOfEpisodes ?: 0
+            )
         }
     }
 

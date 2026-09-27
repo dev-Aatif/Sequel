@@ -120,8 +120,8 @@ class DetailViewModel @Inject constructor(
     /** Whether this show is in the user's watchlist, observed reactively. */
     private val isInWatchlistFlow = watchlistDao.observeIsInWatchlist(showId, mediaType)
 
-    /** User's own review/rating for this show */
-    private val myReviewFlow = reviewDao.observeReviewForMedia(showId, mediaType)
+    /** User's own rating for this show (rating-only row) */
+    private val myRatingFlow = reviewDao.observeRatingForMedia(showId, mediaType)
 
     /**
      * Combines the fetched show+season data with the reactive watched-episode flow
@@ -131,9 +131,9 @@ class DetailViewModel @Inject constructor(
         _detailState,
         watchedFlow,
         isInWatchlistFlow,
-        myReviewFlow,
+        myRatingFlow,
         episodeDao.observeEpisodesByShow(showId)
-    ) { internal, watchedList, isInWatchlist, myReview, episodesList ->
+    ) { internal, watchedList, isInWatchlist, myRating, episodesList ->
         when (internal) {
             is DetailInternalState.Loading -> DetailUiState.Loading
             is DetailInternalState.Error -> DetailUiState.Error(internal.error)
@@ -145,7 +145,7 @@ class DetailViewModel @Inject constructor(
                     show = internal.show,
                     isMovieWatched = isMovieWatched,
                     isInWatchlist = isInWatchlist,
-                    userRating = myReview?.rating,
+                    userRating = myRating?.rating,
                     dropOffInsight = internal.dropOffInsight,
                     recommendations = internal.recommendations,
                     watchedEpisodeKeys = watchedEpisodeKeys,

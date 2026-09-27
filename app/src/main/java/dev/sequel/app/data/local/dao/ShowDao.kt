@@ -94,7 +94,8 @@ interface ShowDao {
                 SELECT episode_id FROM watched_episodes we WHERE we.show_id = s.id AND we.episode_id IS NOT NULL AND we.sync_status != 'DELETED'
             )
             AND (
-                e2.season_number > lw.season_number 
+                lw.season_number IS NULL
+                OR e2.season_number > lw.season_number 
                 OR (e2.season_number = lw.season_number AND e2.episode_number > lw.episode_number)
             )
             ORDER BY e2.season_number ASC, e2.episode_number ASC
@@ -102,6 +103,11 @@ interface ShowDao {
         )
         WHERE s.id IN (
             SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'tv' AND sync_status != 'DELETED'
+        )
+        AND NOT (
+            s.number_of_episodes IS NOT NULL 
+            AND s.number_of_episodes > 0 
+            AND COALESCE(wc.watched_count, 0) >= s.number_of_episodes
         )
         ORDER BY s.title ASC
     """)

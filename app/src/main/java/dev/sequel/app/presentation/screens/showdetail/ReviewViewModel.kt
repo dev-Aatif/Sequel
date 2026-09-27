@@ -57,8 +57,10 @@ class ReviewViewModel @Inject constructor(
                     seasonNum = seasonNum,
                     episodeNum = episodeNum
                 )
-                // Deduplicate by id (Supabase may return duplicates in edge cases)
-                val deduped = reviews.distinctBy { it.id ?: "${it.userId}_${it.mediaId}_${it.seasonNum}_${it.episodeNum}" }
+                // Filter to only text reviews (exclude rating-only entries)
+                val textReviews = reviews.filter { !it.reviewText.isNullOrBlank() }
+                // Deduplicate by id
+                val deduped = textReviews.distinctBy { it.id ?: "${it.userId}_${it.mediaId}_${it.createdAt}" }
                 // Sort by newest first
                 _communityState.value = CommunityState.Success(deduped.sortedByDescending { it.createdAt })
             } catch (e: Exception) {
@@ -68,8 +70,33 @@ class ReviewViewModel @Inject constructor(
         }
     }
 
-    fun postReview(text: String, rating: Int?, isSpoiler: Boolean) {
-        if (text.isBlank() && rating == null) return
+    /**
+     * Submit a rating (1-10) for the current media. This is completely separate from reviews.
+     * Rating is stored as a rating-only row in the reviews table.
+     */
+    fun submitRating(rating: Int) {
+        viewModelScope.launch {
+            reviewDao.upsertRating(currentMediaId, currentMediaType, rating)
+            syncManager.syncReviewsNow()
+        }
+    }
+
+    /**
+     * Delete the user's rating for the current media.
+     */
+    fun deleteRating() {
+        viewModelScope.launch {
+            reviewDao.deleteRating(currentMediaId, currentMediaType)
+            syncManager.syncReviewsNow()
+        }
+    }
+
+    /**
+     * Post a new text review. Multiple reviews per show are allowed.
+     * This does NOT affect the rating.
+     */
+    fun postReview(text: String, isSpoiler: Boolean) {
+        if (text.isBlank()) return
         
         viewModelScope.launch {
             val entity = ReviewEntity(
@@ -77,13 +104,14 @@ class ReviewViewModel @Inject constructor(
                 mediaType = currentMediaType,
                 seasonNum = currentSeasonNum,
                 episodeNum = currentEpisodeNum,
-                reviewText = text.ifBlank { null },
-                rating = rating,
+                reviewText = text,
+                rating = null,
+                isRatingOnly = false,
                 isSpoiler = isSpoiler,
                 syncStatus = SyncStatus.PENDING
             )
-            reviewDao.upsertReview(entity)
-            syncManager.syncReviewsNow() // Use syncReviewsNow for reviews
+            reviewDao.insertReview(entity)
+            syncManager.syncReviewsNow()
             
             // Optimistically add review to the list so user sees it immediately
             val currentState = _communityState.value
@@ -95,13 +123,37 @@ class ReviewViewModel @Inject constructor(
                     mediaType = currentMediaType,
                     seasonNum = currentSeasonNum,
                     episodeNum = currentEpisodeNum,
-                    reviewText = text.ifBlank { null },
-                    vibeEmoji = rating?.toString(),
+                    reviewText = text,
+                    vibeEmoji = null,
                     isSpoiler = isSpoiler,
                     createdAt = System.currentTimeMillis().toString()
                 )
                 _communityState.value = CommunityState.Success(
-                    listOf(optimisticReview) + currentState.reviews.filter { it.userId != "you" && it.userId != currentUserId }
+                    listOf(optimisticReview) + currentState.reviews
+                )
+            }
+        }
+    }
+
+    /**
+     * Edit an existing review's text.
+     */
+    fun editReview(reviewId: String, newText: String, isSpoiler: Boolean) {
+        viewModelScope.launch {
+            // Try local first (by supabase_id)
+            val local = reviewDao.getReviewBySupabaseId(reviewId)
+            if (local != null) {
+                reviewDao.updateReviewText(local.id, newText, isSpoiler)
+                syncManager.syncReviewsNow()
+            }
+            
+            // Optimistically update UI
+            val currentState = _communityState.value
+            if (currentState is CommunityState.Success) {
+                _communityState.value = CommunityState.Success(
+                    currentState.reviews.map {
+                        if (it.id == reviewId) it.copy(reviewText = newText, isSpoiler = isSpoiler) else it
+                    }
                 )
             }
         }
@@ -114,8 +166,8 @@ class ReviewViewModel @Inject constructor(
                 supabaseSyncService.deleteReview(reviewId)
             } catch (e: Exception) {
             }
-            // Delete local cache
-            val localReview = reviewDao.getReviewForMediaAndEpisode(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            // Delete local cache by supabase ID
+            val localReview = reviewDao.getReviewBySupabaseId(reviewId)
             localReview?.let { reviewDao.markReviewDeleted(it.id) }
             syncManager.syncReviewsNow()
 

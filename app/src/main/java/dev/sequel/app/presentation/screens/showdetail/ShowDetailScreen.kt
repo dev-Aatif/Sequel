@@ -86,7 +86,9 @@ fun ShowDetailScreen(
                         onFetchSeason = { viewModel.fetchSeasonEpisodes(it) },
                         onSeasonClick = onSeasonClick,
                         onRecommendationClick = { id, type -> onShowClick?.invoke(id, type) },
-                        onPostReview = { text, rating, isSpoiler -> reviewViewModel.postReview(text, rating, isSpoiler) },
+                        onPostReview = { text, isSpoiler -> reviewViewModel.postReview(text, isSpoiler) },
+                        onEditReview = { reviewId, text, isSpoiler -> reviewViewModel.editReview(reviewId, text, isSpoiler) },
+                        onSubmitRating = { rating -> reviewViewModel.submitRating(rating) },
                         onDeleteReview = { reviewId -> reviewViewModel.deleteReview(reviewId) },
                         onRetryReviews = { 
                             showId?.let { sId -> 
@@ -136,14 +138,32 @@ private fun ShowDetailContent(
     onFetchSeason: (Int) -> Unit,
     onSeasonClick: (Int, Int) -> Unit,
     onRecommendationClick: (Int, String) -> Unit,
-    onPostReview: (String, Int?, Boolean) -> Unit,
+    onPostReview: (String, Boolean) -> Unit,
+    onEditReview: (String, String, Boolean) -> Unit,
+    onSubmitRating: (Int) -> Unit,
     onDeleteReview: (String) -> Unit,
     onRetryReviews: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val show = state.show
     var showReviewInput by remember { mutableStateOf(false) }
+    var editingReviewId by remember { mutableStateOf<String?>(null) }
+    var editingReviewText by remember { mutableStateOf("") }
+    var editingReviewSpoiler by remember { mutableStateOf(false) }
+
     var showRatingDialog by remember { mutableStateOf(false) }
+    var showNotWatchedDialog by remember { mutableStateOf(false) }
+
+    val isFullyWatched = remember(show.mediaType, state.isMovieWatched, state.seasons, state.watchedEpisodeKeys) {
+        if (show.mediaType == "movie") {
+            state.isMovieWatched
+        } else {
+            // For TV, consider it fully watched if all aired episodes in the last season are watched, or just > 0 watched
+            // The instruction says "mark the movie or show as watched". Let's check if they have watched anything.
+            val totalWatched = state.seasons.sumOf { it.watchedCount }
+            totalWatched > 0
+        }
+    }
 
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(
         bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 120.dp
@@ -283,26 +303,40 @@ private fun ShowDetailContent(
         }
 
         // ── Your Rating Block ──
-        if (state.userRating != null || state.isMovieWatched || state.seasons.any { it.watchedCount > 0 }) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Your Rating", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Box(
-                        modifier = Modifier
-                            .glassmorphicBackground(RoundedCornerShape(16.dp))
-                            .hapticClickable { showRatingDialog = true }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (state.userRating != null) Icons.Filled.Star else Icons.Outlined.Star, "Rate", tint = Color(0xFFFFD700), modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (state.userRating != null) "${state.userRating}/10" else "Rate", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
+        item {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Your Rating", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .glassmorphicBackground(
+                            RoundedCornerShape(20.dp),
+                            surfaceTint = if (state.userRating != null) MaterialTheme.colorScheme.primary.copy(0.2f) else Color(0xCC1A1D24),
+                            borderColor = if (state.userRating != null) MaterialTheme.colorScheme.primary.copy(0.5f) else Color.White.copy(0.1f)
+                        )
+                        .hapticClickable { 
+                            if (!isFullyWatched) {
+                                showNotWatchedDialog = true
+                            } else {
+                                showRatingDialog = true 
+                            }
                         }
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (state.userRating != null) Icons.Filled.Star else Icons.Outlined.Star, "Rate", tint = Color(0xFFFFD700), modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (state.userRating != null) "${state.userRating}/10" else "Rate", 
+                            style = MaterialTheme.typography.labelLarge, 
+                            fontWeight = FontWeight.Black, 
+                            color = if (state.userRating != null) MaterialTheme.colorScheme.primary else Color.White
+                        )
                     }
                 }
             }
@@ -379,26 +413,49 @@ private fun ShowDetailContent(
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Reviews", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Button(
-                    onClick = { showReviewInput = !showReviewInput },
+                    onClick = { 
+                        if (!isFullyWatched) {
+                            showNotWatchedDialog = true
+                        } else {
+                            if (showReviewInput) {
+                                showReviewInput = false
+                                editingReviewId = null
+                            } else {
+                                showReviewInput = true
+                                editingReviewText = ""
+                                editingReviewSpoiler = false
+                                editingReviewId = null
+                            }
+                        }
+                    },
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                 ) {
-                    Icon(Icons.Filled.Edit, null, Modifier.size(16.dp))
+                    Icon(if (showReviewInput) Icons.Filled.Close else Icons.Filled.Edit, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(if (showReviewInput) "Cancel" else "Add Review", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        // Inline Review Input (toggled by "Add Review" button)
+        // Inline Review Input (toggled by "Add Review" button or Edit)
         if (showReviewInput) {
             item {
                 Box(Modifier.padding(24.dp, 12.dp)) {
-                    ReviewInputBar(onPostReview = { text, rating, isSpoiler ->
-                        onPostReview(text, rating, isSpoiler)
-                        showReviewInput = false
-                    })
+                    ReviewInputBar(
+                        initialText = editingReviewText,
+                        initialSpoiler = editingReviewSpoiler,
+                        onPostReview = { text, isSpoiler ->
+                            if (editingReviewId != null) {
+                                onEditReview(editingReviewId!!, text, isSpoiler)
+                            } else {
+                                onPostReview(text, isSpoiler)
+                            }
+                            showReviewInput = false
+                            editingReviewId = null
+                        }
+                    )
                 }
             }
         }
@@ -447,6 +504,13 @@ private fun ShowDetailContent(
                             review = review,
                             isWatched = isFullyWatched,
                             isMyReview = review.userId == currentUserId || review.userId == "you",
+                            currentUserRating = if (review.userId == currentUserId || review.userId == "you") state.userRating else null,
+                            onEdit = {
+                                editingReviewId = review.id
+                                editingReviewText = review.reviewText ?: ""
+                                editingReviewSpoiler = review.isSpoiler
+                                showReviewInput = true
+                            },
                             onDelete = { review.id?.let { onDeleteReview(it) } }
                         )
                     }
@@ -455,12 +519,25 @@ private fun ShowDetailContent(
         }
     }
 
+    if (showNotWatchedDialog) {
+        AlertDialog(
+            onDismissRequest = { showNotWatchedDialog = false },
+            title = { Text("Action Required") },
+            text = { Text("Please mark the ${if (show.mediaType == "movie") "movie" else "show"} as watched before you can review or rate it.") },
+            confirmButton = {
+                Button(onClick = { showNotWatchedDialog = false }) {
+                    Text("Continue")
+                }
+            }
+        )
+    }
+
     if (showRatingDialog) {
         RatingDialog(
             currentRating = state.userRating,
             onDismiss = { showRatingDialog = false },
             onSubmit = { rating ->
-                onPostReview("", rating, false)
+                onSubmitRating(rating)
                 showRatingDialog = false
             }
         )
@@ -548,6 +625,8 @@ fun ReviewCard(
     review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto, 
     isWatched: Boolean,
     isMyReview: Boolean,
+    currentUserRating: Int?,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Box(Modifier.fillMaxWidth().padding(24.dp, 6.dp).glassmorphicBackground(RoundedCornerShape(16.dp))) {
@@ -560,18 +639,23 @@ fun ReviewCard(
                 Column(Modifier.weight(1f)) {
                     Text(if (isMyReview) "You" else "Community Member", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        review.vibeEmoji?.toIntOrNull()?.let { rating ->
+                        if (isMyReview && currentUserRating != null) {
                             Icon(Icons.Filled.Star, "Rating", tint = Color(0xFFFFD700), modifier = Modifier.size(12.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("$rating/10", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(0.8f), fontWeight = FontWeight.Bold)
+                            Text("$currentUserRating/10", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(0.8f), fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(8.dp))
                         }
                         if (review.isSpoiler) Text("SPOILER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     }
                 }
-                if (isMyReview) {
-                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Filled.Delete, "Delete review", tint = MaterialTheme.colorScheme.error.copy(0.7f), modifier = Modifier.size(18.dp))
+                if (isMyReview && review.id != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Filled.Edit, "Edit review", tint = MaterialTheme.colorScheme.onSurface.copy(0.7f), modifier = Modifier.size(18.dp))
+                        }
+                        IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Filled.Delete, "Delete review", tint = MaterialTheme.colorScheme.error.copy(0.7f), modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
@@ -586,9 +670,13 @@ fun ReviewCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReviewInputBar(onPostReview: (String, Int?, Boolean) -> Unit) {
-    var text by remember { mutableStateOf("") }
-    var isSpoiler by remember { mutableStateOf(false) }
+fun ReviewInputBar(
+    initialText: String = "",
+    initialSpoiler: Boolean = false,
+    onPostReview: (String, Boolean) -> Unit
+) {
+    var text by remember(initialText) { mutableStateOf(initialText) }
+    var isSpoiler by remember(initialSpoiler) { mutableStateOf(initialSpoiler) }
 
     Box(Modifier.fillMaxWidth().glassmorphicBackground(RoundedCornerShape(20.dp)).padding(16.dp)) {
         Column(Modifier.fillMaxWidth()) {
@@ -617,7 +705,7 @@ fun ReviewInputBar(onPostReview: (String, Int?, Boolean) -> Unit) {
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
                         .hapticClickable {
-                            onPostReview(text, null, isSpoiler)
+                            onPostReview(text, isSpoiler)
                             text = ""; isSpoiler = false
                         },
                     contentAlignment = Alignment.Center

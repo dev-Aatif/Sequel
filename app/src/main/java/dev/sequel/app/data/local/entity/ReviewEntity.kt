@@ -7,8 +7,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * User review for a show — rating (1-10) and optional text.
- * One review per show per user (enforced by unique index on show_id).
+ * User review or rating for a show.
+ *
+ * Two types of rows:
+ * - **Rating row**: `is_rating_only = true`, `rating != null`, `reviewText = null`.
+ *   One per show per user (enforced in DAO code, not DB constraint).
+ * - **Review row**: `is_rating_only = false`, `reviewText != null`.
+ *   Multiple allowed per user per show.
  */
 @Entity(
     tableName = "reviews",
@@ -21,7 +26,7 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index(value = ["media_id", "media_type", "season_num", "episode_num"], unique = true),
+        Index(value = ["media_id", "media_type"]),
         Index(value = ["sync_status"])
     ]
 )
@@ -50,6 +55,10 @@ data class ReviewEntity(
 
     @ColumnInfo(name = "is_spoiler")
     val isSpoiler: Boolean = false,
+
+    /** True if this row is a rating-only entry (no review text). */
+    @ColumnInfo(name = "is_rating_only")
+    val isRatingOnly: Boolean = false,
 
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),

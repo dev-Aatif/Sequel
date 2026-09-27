@@ -71,6 +71,7 @@ class SyncPullWorker @AssistedInject constructor(
                     episodeNum = dto.episodeNum,
                     reviewText = dto.reviewText,
                     rating = dto.vibeEmoji?.toIntOrNull(),
+                    isRatingOnly = dto.reviewText.isNullOrBlank() && dto.vibeEmoji != null,
                     isSpoiler = dto.isSpoiler ?: false,
                     updatedAt = dto.updatedAt ?: 0L,
                     syncStatus = SyncStatus.SYNCED
