@@ -21,16 +21,24 @@ data class ProfileUiState(
 ) {
     val watchTimeFormatted: String
         get() {
-            if (totalRuntimeMinutes == 0) return "0h"
+            if (totalRuntimeMinutes == 0) return "0m"
             val totalHours = totalRuntimeMinutes / 60
+            val minutes = totalRuntimeMinutes % 60
             val months = totalHours / (24 * 30)
             val days = (totalHours % (24 * 30)) / 24
             val hours = totalHours % 24
 
             return buildString {
-                if (months > 0) append("${months}mo ")
-                if (days > 0) append("${days}d ")
-                if (hours > 0 || (months == 0 && days == 0)) append("${hours}h")
+                if (months > 0) {
+                    append("${months}mo ")
+                    if (days > 0) append("${days}d")
+                } else if (days > 0) {
+                    append("${days}d ")
+                    if (hours > 0) append("${hours}h")
+                } else {
+                    if (hours > 0) append("${hours}h ")
+                    if (minutes > 0 || hours == 0) append("${minutes}m")
+                }
             }.trim()
         }
 }

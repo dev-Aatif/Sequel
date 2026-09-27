@@ -113,6 +113,13 @@ fun SequelNavGraph(
                 onImportClick = {
                     navController.navigate(Screen.MediaImport.route)
                 },
+                onDiscoverClick = {
+                    navController.navigate(Screen.Search.route) {
+                        popUpTo(Screen.Home.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
                 }
