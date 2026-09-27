@@ -28,9 +28,9 @@ fun SharedActionBottomSheet(
     bottomSheetState: BottomSheetUiState,
     isProcessingAction: Boolean,
     onDismissRequest: () -> Unit,
-    onToggleWatchlist: ((String) -> Unit) -> Unit,
-    onToggleWatched: ((String) -> Unit) -> Unit,
-    onSkip: ((String) -> Unit) -> Unit = {},
+    onToggleWatchlist: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onSkip: () -> Unit = {},
     onShowDetailClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -79,10 +79,8 @@ fun SharedActionBottomSheet(
             } else {
                 Button(
                     onClick = {
-                        onToggleWatchlist { msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            dismissWithAnimation()
-                        }
+                        onToggleWatchlist()
+                        dismissWithAnimation()
                     },
                     Modifier.fillMaxWidth(),
                     enabled = !isProcessingAction
@@ -107,16 +105,14 @@ fun SharedActionBottomSheet(
                 } else {
                     Button(
                         onClick = {
-                            onToggleWatched { msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                dismissWithAnimation()
-                            }
+                            onToggleWatched()
+                            dismissWithAnimation()
                         },
                         Modifier.fillMaxWidth(),
                         enabled = !isProcessingAction
                     ) {
                         val icon = if (bottomSheetState.isWatched) Icons.Filled.CheckCircle else Icons.Filled.Add
-                        val text = if (show.mediaType == "movie") {
+                        val text = if (show.mediaType == dev.sequel.app.data.local.entity.MediaType.MOVIE.name.lowercase()) {
                             if (bottomSheetState.isWatched) "Remove from Watched" else "Mark as Watched"
                         } else {
                             bottomSheetState.nextEpisodeString ?: "Mark as Watched"
@@ -126,14 +122,12 @@ fun SharedActionBottomSheet(
                         Text(text)
                     }
 
-                    if (show.mediaType == "tv") {
+                    if (show.mediaType == dev.sequel.app.data.local.entity.MediaType.TV.name.lowercase()) {
                         val skipText = bottomSheetState.nextEpisodeString?.replace("Mark ", "Skip ")?.replace(" as Watched", "") ?: "Skip Episode"
                         OutlinedButton(
                             onClick = {
-                                onSkip { msg ->
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    dismissWithAnimation()
-                                }
+                                onSkip()
+                                dismissWithAnimation()
                             },
                             Modifier.fillMaxWidth(),
                             enabled = !isProcessingAction

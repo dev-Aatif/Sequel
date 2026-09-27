@@ -1,8 +1,9 @@
 package dev.sequel.app.domain.usecase
 
-import dev.sequel.app.data.local.dao.WatchedEpisodeDao
-import dev.sequel.app.data.remote.tmdb.TmdbApiService
 import dev.sequel.app.data.remote.tmdb.dto.TmdbNextEpisodeDto
+import dev.sequel.app.domain.repository.SeasonRepository
+import dev.sequel.app.domain.repository.ShowRepository
+import dev.sequel.app.domain.repository.WatchedEpisodeRepository
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
@@ -13,13 +14,13 @@ data class EpisodeProgressionState(
 )
 
 class GetNextEpisodeUseCase @Inject constructor(
-    private val watchedEpisodeDao: WatchedEpisodeDao,
-    private val episodeDao: dev.sequel.app.data.local.dao.EpisodeDao,
-    private val tmdbApiService: TmdbApiService
+    private val watchedEpisodeRepository: WatchedEpisodeRepository,
+    private val seasonRepository: SeasonRepository,
+    private val showRepository: ShowRepository
 ) {
     suspend operator fun invoke(showId: Int): EpisodeProgressionState {
         // 1. Try local Canonical Next Episode
-        val localNext = episodeDao.observeCanonicalNextEpisode(showId).firstOrNull()
+        val localNext = seasonRepository.observeCanonicalNextEpisode(showId).firstOrNull()
         if (localNext != null) {
             return EpisodeProgressionState(
                 nextEpisodeString = "Mark S${localNext.seasonNumber}E${localNext.episodeNumber} as Watched",
@@ -34,8 +35,13 @@ class GetNextEpisodeUseCase @Inject constructor(
         }
 
         // 2. If no local next episode, fallback to TMDB to see if there's a next season we haven't cached
-        val watchedList = watchedEpisodeDao.observeWatchedByShow(showId, "tv").firstOrNull() ?: emptyList()
-        val detail = tmdbApiService.getTvShowDetail(showId)
+        val watchedList = watchedEpisodeRepository.observeWatchedByShow(showId, dev.sequel.app.data.local.entity.MediaType.TV.name.lowercase()).firstOrNull() ?: emptyList()
+        
+        // Fetch show details from network to ensure we have the latest seasons cached
+        showRepository.fetchShowDetail(showId)
+        
+        // Retrieve the locally cached seasons
+        val seasons = seasonRepository.observeSeasons(showId).firstOrNull() ?: emptyList()
 
         if (watchedList.isEmpty()) {
             // No watched episodes and no local next? Must be S1E1.
@@ -50,7 +56,7 @@ class GetNextEpisodeUseCase @Inject constructor(
         val hSeason = highest?.seasonNumber ?: 1
         val hEpisode = highest?.episodeNumber ?: 1
 
-        val seasonSummary = detail.seasons.find { it.seasonNumber == hSeason }
+        val seasonSummary = seasons.find { it.seasonNumber == hSeason }
         if (seasonSummary != null) {
             if (hEpisode < seasonSummary.episodeCount) {
                 // There is a next episode in this season on TMDB that we didn't cache locally!
@@ -66,7 +72,7 @@ class GetNextEpisodeUseCase @Inject constructor(
                 )
             } else {
                 // Next season
-                val nextSeasonSummary = detail.seasons.find { it.seasonNumber == hSeason + 1 }
+                val nextSeasonSummary = seasons.find { it.seasonNumber == hSeason + 1 }
                 if (nextSeasonSummary != null && nextSeasonSummary.episodeCount > 0) {
                     return EpisodeProgressionState(
                         nextEpisodeString = "Mark S${hSeason + 1}E1 as Watched",

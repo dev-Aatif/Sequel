@@ -8,6 +8,10 @@ import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.domain.repository.ShowRepository
+import dev.sequel.app.domain.repository.SeasonRepository
+import dev.sequel.app.domain.repository.WatchedEpisodeRepository
+import dev.sequel.app.domain.repository.WatchlistRepository
+import dev.sequel.app.domain.repository.SyncRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,33 +21,38 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import dev.sequel.app.data.local.entity.MediaType
-import dev.sequel.app.data.local.entity.SyncStatus
-import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
 import javax.inject.Inject
 import dev.sequel.app.domain.error.toAppError
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
+
+sealed interface HomeUiEvent {
+    data class ShowToast(val message: String) : HomeUiEvent
+    data class ShowSnackbar(val message: String) : HomeUiEvent
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
-    private val tmdbApiService: dev.sequel.app.data.remote.tmdb.TmdbApiService,
     private val showRepository: ShowRepository,
-    private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
-    private val watchedEpisodeDao: dev.sequel.app.data.local.dao.WatchedEpisodeDao,
-    private val showDao: dev.sequel.app.data.local.dao.ShowDao,
-    private val episodeDao: dev.sequel.app.data.local.dao.EpisodeDao,
-    private val syncManager: dev.sequel.app.data.sync.SyncManager,
+    private val seasonRepository: SeasonRepository,
+    private val watchlistRepository: WatchlistRepository,
+    private val watchedEpisodeRepository: WatchedEpisodeRepository,
+    private val syncRepository: SyncRepository,
     private val getNextEpisodeUseCase: GetNextEpisodeUseCase
 ) : ViewModel() {
 
-    private val _mediaType = MutableStateFlow(savedStateHandle.get<String>("mediaType") ?: "tv")
+    private val _uiEvent = Channel<HomeUiEvent>()
+    val uiEvent = _uiEvent.receiveAsFlow()
+
+    private val _mediaType = MutableStateFlow(savedStateHandle.get<String>("mediaType") ?: MediaType.TV.name.lowercase())
     val mediaType: StateFlow<String> = _mediaType.asStateFlow()
 
     val pagedShows: Flow<PagingData<ShowEntity>> = _mediaType
@@ -57,13 +66,13 @@ class HomeViewModel @Inject constructor(
         _mediaType.value = type
     }
     
-    val continueWatchingTvShows: StateFlow<List<ShowEntity>> = showDao.observeStartedTvShows()
+    val continueWatchingTvShows: StateFlow<List<ShowEntity>> = showRepository.observeStartedTvShows()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val hasAnyTrackingHistory: StateFlow<Boolean?> = combine(
-        watchlistDao.observeWatchlist(),
-        showDao.observeStartedTvShows(),
-        watchedEpisodeDao.observeTotalMoviesWatched()
+        watchlistRepository.observeWatchlist(),
+        showRepository.observeStartedTvShows(),
+        watchedEpisodeRepository.observeTotalMoviesWatched()
     ) { watchlist, startedTv, moviesWatched ->
         watchlist.isNotEmpty() || startedTv.isNotEmpty() || moviesWatched > 0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -79,15 +88,18 @@ class HomeViewModel @Inject constructor(
         _isProcessingAction.value = true
         viewModelScope.launch {
             try {
-                watchlistDao.insertToWatchlist(
-                    dev.sequel.app.data.local.entity.WatchlistEntity(
+                watchlistRepository.insertToWatchlist(
+                    WatchlistEntity(
                         tmdbId = show.id,
-                        mediaType = if (show.mediaType == "movie") dev.sequel.app.data.local.entity.MediaType.MOVIE else dev.sequel.app.data.local.entity.MediaType.TV,
+                        mediaType = if (show.mediaType == MediaType.MOVIE.name.lowercase()) MediaType.MOVIE else MediaType.TV,
                         title = show.title,
                         posterPath = show.posterPath
                     )
                 )
-                showDao.updateWatchlistStatus(show.id, show.mediaType, true)
+                showRepository.updateWatchlistStatus(show.id, show.mediaType, true)
+                _uiEvent.send(HomeUiEvent.ShowToast("Added to Watchlist"))
+            } catch (e: Exception) {
+                _uiEvent.send(HomeUiEvent.ShowToast("Action failed: ${e.toAppError().message}"))
             } finally {
                 _isProcessingAction.value = false
             }
@@ -98,11 +110,11 @@ class HomeViewModel @Inject constructor(
         _bottomSheetState.value = BottomSheetUiState(show = show, isLoading = true)
         viewModelScope.launch {
             try {
-                showDao.insertShow(show)
-                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
+                showRepository.insertShow(show)
+                val inWatchlist = watchlistRepository.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
-                if (show.mediaType == "movie") {
-                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
+                if (show.mediaType == MediaType.MOVIE.name.lowercase()) {
+                    val watchedList = watchedEpisodeRepository.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
                     val isMovieWatched = watchedList.isNotEmpty()
                     
                     _bottomSheetState.value = BottomSheetUiState(
@@ -130,7 +142,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun toggleWatchlist(onSuccess: (String) -> Unit = {}) {
+    fun toggleWatchlist() {
         if (_isProcessingAction.value) return
         
         val state = _bottomSheetState.value
@@ -140,31 +152,33 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (state.inWatchlist) {
-                    watchlistDao.removeFromWatchlist(show.id, show.mediaType)
-                    showDao.updateWatchlistStatus(show.id, show.mediaType, false)
+                    watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
+                    showRepository.updateWatchlistStatus(show.id, show.mediaType, false)
                     _bottomSheetState.value = state.copy(inWatchlist = false)
-                    onSuccess("Removed from Watchlist")
+                    _uiEvent.send(HomeUiEvent.ShowToast("Removed from Watchlist"))
                 } else {
-                    watchlistDao.insertToWatchlist(
+                    watchlistRepository.insertToWatchlist(
                         WatchlistEntity(
                             tmdbId = show.id,
-                            mediaType = if (show.mediaType == "movie") MediaType.MOVIE else MediaType.TV,
+                            mediaType = if (show.mediaType == MediaType.MOVIE.name.lowercase()) MediaType.MOVIE else MediaType.TV,
                             title = show.title,
                             posterPath = show.posterPath
                         )
                     )
-                    showDao.updateWatchlistStatus(show.id, show.mediaType, true)
+                    showRepository.updateWatchlistStatus(show.id, show.mediaType, true)
                     _bottomSheetState.value = state.copy(inWatchlist = true)
-                    onSuccess("Added to Watchlist")
+                    _uiEvent.send(HomeUiEvent.ShowToast("Added to Watchlist"))
                 }
-                syncManager.syncWatchlistNow()
+                syncRepository.syncWatchlistNow()
+            } catch (e: Exception) {
+                _uiEvent.send(HomeUiEvent.ShowToast("Action failed: ${e.toAppError().message}"))
             } finally {
                 _isProcessingAction.value = false
             }
         }
     }
 
-    fun toggleWatched(onSuccess: (String) -> Unit = {}) {
+    fun toggleWatched() {
         if (_isProcessingAction.value) return
         
         val state = _bottomSheetState.value
@@ -173,42 +187,40 @@ class HomeViewModel @Inject constructor(
         _isProcessingAction.value = true
         viewModelScope.launch {
             try {
-                if (show.mediaType == "movie") {
+                if (show.mediaType == MediaType.MOVIE.name.lowercase()) {
                     if (state.isWatched) {
-                        watchedEpisodeDao.unwatchAllForShow(show.id, show.mediaType)
+                        watchedEpisodeRepository.unwatchAllForShow(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = false)
-                        onSuccess("Removed from Watched")
+                        _uiEvent.send(HomeUiEvent.ShowToast("Removed from Watched"))
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = MediaType.MOVIE,
                             showId = show.id,
                             episodeId = -1,
                             seasonNumber = -1,
                             episodeNumber = -1
                         )
-                        watchlistDao.removeFromWatchlist(show.id, show.mediaType)
-                        showDao.updateWatchlistStatus(show.id, show.mediaType, false)
+                        watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
+                        showRepository.updateWatchlistStatus(show.id, show.mediaType, false)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
-                        onSuccess("Marked as Watched")
+                        _uiEvent.send(HomeUiEvent.ShowToast("Marked as Watched"))
                     }
                 } else {
                     val next = state.nextEpisodeData ?: return@launch
-                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                    var ep = seasonRepository.getEpisodesBySeason(show.id, next.seasonNumber)
                         .find { it.episodeNumber == next.episodeNumber }
                     
                     if (ep == null) {
                         try {
-                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                            episodeDao.insertEpisodes(episodeEntities)
-                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                            val episodeEntities = seasonRepository.fetchSeasonDetail(show.id, next.seasonNumber).getOrNull()
+                            ep = episodeEntities?.find { it.episodeNumber == next.episodeNumber }
                         } catch (e: Exception) {
                             // Offline, ignore
                         }
                     }
                     
                     if (ep != null) {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = MediaType.TV,
                             showId = show.id,
                             episodeId = ep.id,
@@ -216,7 +228,7 @@ class HomeViewModel @Inject constructor(
                             episodeNumber = next.episodeNumber
                         )
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = MediaType.TV,
                             showId = show.id,
                             episodeId = null,
@@ -224,20 +236,20 @@ class HomeViewModel @Inject constructor(
                             episodeNumber = next.episodeNumber
                         )
                     }
-                    onSuccess("Marked as Watched")
+                    _uiEvent.send(HomeUiEvent.ShowToast("Marked as Watched"))
                     openBottomSheet(show)
                 }
-                syncManager.syncWatchedEpisodesNow()
-                syncManager.syncWatchlistNow()
+                syncRepository.syncWatchedEpisodesNow()
+                syncRepository.syncWatchlistNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toAppError().message}")
+                _uiEvent.send(HomeUiEvent.ShowToast("Action failed: ${e.toAppError().message}"))
             } finally {
                 _isProcessingAction.value = false
             }
         }
     }
 
-    fun skipEpisodeAction(onSuccess: (String) -> Unit = {}) {
+    fun skipEpisodeAction() {
         if (_isProcessingAction.value) return
         val state = _bottomSheetState.value
         val show = state.show ?: return
@@ -246,22 +258,20 @@ class HomeViewModel @Inject constructor(
         _isProcessingAction.value = true
         viewModelScope.launch {
             try {
-                if (show.mediaType == "tv") {
-                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                if (show.mediaType == MediaType.TV.name.lowercase()) {
+                    var ep = seasonRepository.getEpisodesBySeason(show.id, next.seasonNumber)
                         .find { it.episodeNumber == next.episodeNumber }
                         
                     if (ep == null) {
                         try {
-                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                            episodeDao.insertEpisodes(episodeEntities)
-                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                            val episodeEntities = seasonRepository.fetchSeasonDetail(show.id, next.seasonNumber).getOrNull()
+                            ep = episodeEntities?.find { it.episodeNumber == next.episodeNumber }
                         } catch (e: Exception) {
                             // Offline
                         }
                     }
                     if (ep != null) {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = MediaType.TV,
                             showId = show.id,
                             episodeId = ep.id,
@@ -270,7 +280,7 @@ class HomeViewModel @Inject constructor(
                             isSkipped = true
                         )
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = MediaType.TV,
                             showId = show.id,
                             episodeId = null,
@@ -279,15 +289,16 @@ class HomeViewModel @Inject constructor(
                             isSkipped = true
                         )
                     }
-                    onSuccess("Skipped Episode")
+                    _uiEvent.send(HomeUiEvent.ShowToast("Skipped Episode"))
                     openBottomSheet(show)
                 }
-                syncManager.syncWatchedEpisodesNow()
+                syncRepository.syncWatchedEpisodesNow()
             } catch (e: Exception) {
-                onSuccess("Action failed: ${e.toAppError().message}")
+                _uiEvent.send(HomeUiEvent.ShowToast("Action failed: ${e.toAppError().message}"))
             } finally {
                 _isProcessingAction.value = false
             }
         }
     }
 }
+

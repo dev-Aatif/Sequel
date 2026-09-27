@@ -1,5 +1,6 @@
 package dev.sequel.app.presentation.screens.home
 
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -403,20 +404,38 @@ fun HomeScreen(
         }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    LaunchedEffect(viewModel.uiEvent, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            viewModel.uiEvent.collect { event ->
+                when (event) {
+                    is HomeUiEvent.ShowToast -> {
+                        android.widget.Toast.makeText(context, event.message, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    is HomeUiEvent.ShowSnackbar -> {
+                        android.widget.Toast.makeText(context, event.message, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
     if (selectedItemForAction != null) {
         SharedActionBottomSheet(
             sheetState = sheetState,
             bottomSheetState = bottomSheetState,
             isProcessingAction = isProcessingAction,
             onDismissRequest = { selectedItemForAction = null },
-            onToggleWatchlist = { onSuccess ->
-                viewModel.toggleWatchlist(onSuccess)
+            onToggleWatchlist = {
+                viewModel.toggleWatchlist()
             },
-            onToggleWatched = { onSuccess ->
-                viewModel.toggleWatched(onSuccess)
+            onToggleWatched = {
+                viewModel.toggleWatched()
             },
-            onSkip = { onSuccess ->
-                viewModel.skipEpisodeAction(onSuccess)
+            onSkip = {
+                viewModel.skipEpisodeAction()
             },
             onShowDetailClick = {
                 onShowClick(selectedItemForAction!!.id, selectedItemForAction!!.mediaType)

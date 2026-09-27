@@ -242,9 +242,9 @@ fun WatchlistScreen(
             bottomSheetState = bottomSheetState,
             isProcessingAction = isProcessingAction,
             onDismissRequest = { showBottomSheet = false },
-            onToggleWatchlist = { viewModel.toggleWatchlist(it) },
-            onToggleWatched = { viewModel.toggleWatched(it) },
-            onSkip = { viewModel.skipEpisodeAction(it) },
+            onToggleWatchlist = { viewModel.toggleWatchlist { android.widget.Toast.makeText(view.context, it, android.widget.Toast.LENGTH_SHORT).show() } },
+            onToggleWatched = { viewModel.toggleWatched { android.widget.Toast.makeText(view.context, it, android.widget.Toast.LENGTH_SHORT).show() } },
+            onSkip = { viewModel.skipEpisodeAction { android.widget.Toast.makeText(view.context, it, android.widget.Toast.LENGTH_SHORT).show() } },
             onShowDetailClick = {
                 val show = bottomSheetState.show
                 if (show != null) {

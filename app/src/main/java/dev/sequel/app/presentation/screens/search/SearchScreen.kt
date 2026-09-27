@@ -215,14 +215,14 @@ fun SearchScreen(
             bottomSheetState = bottomSheetState,
             isProcessingAction = isProcessingAction,
             onDismissRequest = { selectedItemForAction = null },
-            onToggleWatchlist = { onSuccess ->
-                viewModel.toggleWatchlist(onSuccess)
+            onToggleWatchlist = {
+                viewModel.toggleWatchlist { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
             },
-            onToggleWatched = { onSuccess ->
-                viewModel.toggleWatched(onSuccess)
+            onToggleWatched = {
+                viewModel.toggleWatched { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
             },
-            onSkip = { onSuccess ->
-                viewModel.skipEpisodeAction(onSuccess)
+            onSkip = {
+                viewModel.skipEpisodeAction { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
             },
             onShowDetailClick = {
                 onShowClick(selectedItemForAction!!.id, selectedItemForAction!!.mediaType)
