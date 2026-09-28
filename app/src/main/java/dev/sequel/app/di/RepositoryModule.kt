@@ -10,6 +10,8 @@ import dev.sequel.app.data.repository.ShowRepositoryImpl
 import dev.sequel.app.domain.repository.AuthRepository
 import dev.sequel.app.domain.repository.SeasonRepository
 import dev.sequel.app.domain.repository.ShowRepository
+import dev.sequel.app.data.repository.SearchRepositoryImpl
+import dev.sequel.app.domain.repository.SearchRepository
 import javax.inject.Singleton
 
 /**
@@ -24,6 +26,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindShowRepository(impl: ShowRepositoryImpl): ShowRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSearchRepository(impl: SearchRepositoryImpl): SearchRepository
 
     @Binds
     @Singleton

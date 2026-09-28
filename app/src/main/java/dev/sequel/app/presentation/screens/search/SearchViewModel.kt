@@ -3,25 +3,23 @@ package dev.sequel.app.presentation.screens.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.sequel.app.data.local.dao.ShowDao
-import dev.sequel.app.data.local.dao.EpisodeDao
-import dev.sequel.app.data.local.dao.WatchedEpisodeDao
-import dev.sequel.app.data.local.dao.WatchlistDao
 import dev.sequel.app.data.local.entity.MediaType
 import dev.sequel.app.data.local.entity.ShowEntity
-import dev.sequel.app.data.local.entity.SyncStatus
-import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
-import dev.sequel.app.data.remote.tmdb.TmdbApiService
-import dev.sequel.app.data.remote.tmdb.dto.TmdbNextEpisodeDto
-import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.data.sync.SyncManager
+import dev.sequel.app.domain.error.AppError
+import dev.sequel.app.domain.error.toAppError
+import dev.sequel.app.domain.repository.SearchRepository
+import dev.sequel.app.domain.repository.SeasonRepository
+import dev.sequel.app.domain.repository.ShowRepository
+import dev.sequel.app.domain.repository.WatchedEpisodeRepository
+import dev.sequel.app.domain.repository.WatchlistRepository
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
+import dev.sequel.app.presentation.state.BottomSheetEpisodeInfo
+import dev.sequel.app.presentation.state.BottomSheetShowInfo
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,8 +33,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import dev.sequel.app.domain.error.AppError
-import dev.sequel.app.domain.error.toAppError
 
 sealed interface SearchUiState {
     data object Idle : SearchUiState
@@ -45,14 +41,21 @@ sealed interface SearchUiState {
     data class Error(val error: AppError) : SearchUiState
 }
 
+private data class SearchParameters(
+    val query: String,
+    val filter: String,
+    val genreId: Int?,
+    val retryCount: Int
+)
+
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val tmdbApiService: TmdbApiService,
-    private val watchlistDao: WatchlistDao,
-    private val watchedEpisodeDao: WatchedEpisodeDao,
-    private val showDao: ShowDao,
-    private val episodeDao: EpisodeDao,
+    private val searchRepository: SearchRepository,
+    private val watchlistRepository: WatchlistRepository,
+    private val watchedEpisodeRepository: WatchedEpisodeRepository,
+    private val showRepository: ShowRepository,
+    private val seasonRepository: SeasonRepository,
     private val syncManager: SyncManager,
     private val getNextEpisodeUseCase: GetNextEpisodeUseCase
 ) : ViewModel() {
@@ -78,62 +81,25 @@ class SearchViewModel @Inject constructor(
         _activeGenreId,
         _retryTrigger
     ) { query, filter, genreId, retryCount ->
-        arrayOf(query, filter, genreId, retryCount)
+        SearchParameters(query, filter, genreId, retryCount)
     }
         .debounce { params ->
-            val query = params[0] as String
-            val genreId = params[2] as Int?
-            if (query.isBlank() && genreId == null) 0L else 500L
+            if (params.query.isBlank() && params.genreId == null) 0L else 500L
         }
-        .distinctUntilChanged { old, new -> old.contentEquals(new) }
+        .distinctUntilChanged()
         .flatMapLatest { params ->
-            val query = params[0] as String
-            val filter = params[1] as String
-            val genreId = params[2] as Int?
-            
-            if (query.isBlank()) {
+            if (params.query.isBlank() && params.genreId == null) {
                 flow { emit(SearchUiState.Idle) }
             } else {
                 flow {
                     emit(SearchUiState.Loading)
                     try {
-                        if (genreId != null) {
-                            coroutineScope {
-                                val combined = if (filter == "TV Shows") {
-                                    val tvDef1 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 1) }
-                                    val tvDef2 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 2) }
-                                    (tvDef1.await().results + tvDef2.await().results).map { it.copy(mediaType = "tv").toEntity("tv") }
-                                } else if (filter == "Movies") {
-                                    val movDef1 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 1) }
-                                    val movDef2 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 2) }
-                                    (movDef1.await().results + movDef2.await().results).map { it.copy(mediaType = "movie").toEntity("movie") }
-                                } else {
-                                    val tvDef1 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 1) }
-                                    val tvDef2 = async { tmdbApiService.discoverTv(withGenres = genreId.toString(), page = 2) }
-                                    val movDef1 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 1) }
-                                    val movDef2 = async { tmdbApiService.discoverMovies(withGenres = genreId.toString(), page = 2) }
-                                    val tvResults = (tvDef1.await().results + tvDef2.await().results).map { it.copy(mediaType = "tv").toEntity("tv") }
-                                    val movResults = (movDef1.await().results + movDef2.await().results).map { it.copy(mediaType = "movie").toEntity("movie") }
-                                    tvResults.zip(movResults) { tv, movie -> listOf(tv, movie) }.flatten() + tvResults.drop(movResults.size) + movResults.drop(tvResults.size)
-                                }
-                                emit(SearchUiState.Success(combined))
-                            }
+                        val results = if (params.genreId != null) {
+                            searchRepository.discover(params.genreId, params.filter)
                         } else {
-                            val results = if (filter == "TV Shows") {
-                                tmdbApiService.searchTv(query.trim()).results.map { it.copy(mediaType = "tv").toEntity("tv") }
-                            } else if (filter == "Movies") {
-                                tmdbApiService.searchMovie(query.trim()).results.map { it.copy(mediaType = "movie").toEntity("movie") }
-                            } else {
-                                coroutineScope {
-                                    val tvDef = async { tmdbApiService.searchTv(query.trim()) }
-                                    val movDef = async { tmdbApiService.searchMovie(query.trim()) }
-                                    val tvResults = tvDef.await().results.map { it.copy(mediaType = "tv").toEntity("tv") }
-                                    val movResults = movDef.await().results.map { it.copy(mediaType = "movie").toEntity("movie") }
-                                    tvResults.zip(movResults) { tv, movie -> listOf(tv, movie) }.flatten() + tvResults.drop(movResults.size) + movResults.drop(tvResults.size)
-                                }
-                            }
-                            emit(SearchUiState.Success(results))
+                            searchRepository.search(params.query, params.filter)
                         }
+                        emit(SearchUiState.Success(results))
                     } catch (e: Exception) {
                         emit(SearchUiState.Error(e.toAppError()))
                     }
@@ -154,7 +120,7 @@ class SearchViewModel @Inject constructor(
         _activeGenreId.value = genreId
         _searchQuery.value = name
     }
-    
+
     fun retrySearch() {
         _retryTrigger.value += 1
     }
@@ -164,41 +130,60 @@ class SearchViewModel @Inject constructor(
     }
 
     fun openBottomSheet(show: ShowEntity) {
-        _bottomSheetState.value = BottomSheetUiState(show = show, isLoading = true)
+        val showInfo = BottomSheetShowInfo(
+            id = show.id,
+            title = show.title,
+            overview = show.overview,
+            posterPath = show.posterPath,
+            backdropPath = show.backdropPath,
+            mediaType = show.mediaType,
+            rating = show.voteAverage,
+            genreIds = show.genreIds
+        )
+        _bottomSheetState.value = BottomSheetUiState(show = showInfo, isLoading = true)
         viewModelScope.launch {
             try {
                 // Ensure foreign key constraints won't fail for watched episodes
-                showDao.insertShow(show)
+                showRepository.insertShow(show)
                 
-                val inWatchlist = watchlistDao.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
+                val inWatchlist = watchlistRepository.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == "movie") {
-                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
+                    val watchedList = watchedEpisodeRepository.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
                     val isMovieWatched = watchedList.isNotEmpty()
                     
                     _bottomSheetState.value = BottomSheetUiState(
-                        show = show,
+                        show = showInfo,
                         inWatchlist = inWatchlist,
                         isWatched = isMovieWatched,
                         isLoading = false
                     )
                 } else {
                     val progression = getNextEpisodeUseCase(show.id)
+                    val episodeInfo = progression.nextEpisodeData?.let {
+                        BottomSheetEpisodeInfo(
+                            title = it.name,
+                            episodeNumber = it.episodeNumber,
+                            seasonNumber = it.seasonNumber,
+                            overview = "",
+                            stillPath = null
+                        )
+                    }
                     
                     _bottomSheetState.value = BottomSheetUiState(
-                        show = show,
+                        show = showInfo,
                         inWatchlist = inWatchlist,
                         isWatched = false,
                         isCompleted = progression.isCompleted,
                         nextEpisodeString = progression.nextEpisodeString,
-                        nextEpisodeData = progression.nextEpisodeData,
+                        nextEpisodeData = episodeInfo,
                         isLoading = false
                     )
                 }
             } catch (e: Exception) {
                 // If it fails, degrade gracefully
                 _bottomSheetState.value = BottomSheetUiState(
-                    show = show,
+                    show = showInfo,
                     isLoading = false,
                     hasError = true
                 )
@@ -216,11 +201,11 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (state.inWatchlist) {
-                    watchlistDao.removeFromWatchlist(show.id, show.mediaType)
+                    watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
                     _bottomSheetState.value = state.copy(inWatchlist = false)
                     onSuccess("Removed from Watchlist")
                 } else {
-                    watchlistDao.insertToWatchlist(
+                    watchlistRepository.insertToWatchlist(
                         WatchlistEntity(
                             tmdbId = show.id,
                             mediaType = if (show.mediaType == "movie") MediaType.MOVIE else MediaType.TV,
@@ -249,18 +234,18 @@ class SearchViewModel @Inject constructor(
             try {
                 if (show.mediaType == "movie") {
                     if (state.isWatched) {
-                        watchedEpisodeDao.unwatchAllForShow(show.id, show.mediaType)
+                        watchedEpisodeRepository.unwatchAllForShow(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = false)
                         onSuccess("Removed from Watched")
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
                             showId = show.id,
-                            episodeId = -1,
-                            seasonNumber = -1,
-                            episodeNumber = -1
+                            episodeId = null,
+                            seasonNumber = null,
+                            episodeNumber = null
                         )
-                        watchlistDao.removeFromWatchlist(show.id, show.mediaType)
+                        watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
                         onSuccess("Marked as Watched")
                     }
@@ -273,22 +258,20 @@ class SearchViewModel @Inject constructor(
                         onSuccess("No unwatched episodes available")
                         return@launch
                     }
-                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                    var ep = seasonRepository.getEpisodesBySeason(show.id, next.seasonNumber)
                         .find { it.episodeNumber == next.episodeNumber }
                         
                     if (ep == null) {
                         try {
-                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                            episodeDao.insertEpisodes(episodeEntities)
-                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                            val seasonDetail = seasonRepository.fetchSeasonDetail(show.id, next.seasonNumber).getOrNull()
+                            ep = seasonDetail?.find { it.episodeNumber == next.episodeNumber }
                         } catch (e: Exception) {
                             // Network failure
                         }
                     }
                     
                     if (ep != null) {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                             showId = show.id,
                             episodeId = ep.id,
@@ -296,7 +279,7 @@ class SearchViewModel @Inject constructor(
                             episodeNumber = next.episodeNumber
                         )
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                             showId = show.id,
                             episodeId = null,
@@ -311,12 +294,10 @@ class SearchViewModel @Inject constructor(
                     val progression = getNextEpisodeUseCase(show.id)
                     if (!progression.isCompleted && progression.nextEpisodeData != null) {
                         val nextEp = progression.nextEpisodeData
-                        val existing = episodeDao.getEpisodesBySeason(show.id, nextEp.seasonNumber)
+                        val existing = seasonRepository.getEpisodesBySeason(show.id, nextEp.seasonNumber)
                         if (existing.isEmpty()) {
                             try {
-                                val seasonDetail = tmdbApiService.getSeasonDetail(show.id, nextEp.seasonNumber)
-                                val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                                episodeDao.insertEpisodes(episodeEntities)
+                                seasonRepository.fetchSeasonDetail(show.id, nextEp.seasonNumber)
                             } catch (e: Exception) {
                                 // Silently fail
                             }
@@ -324,7 +305,12 @@ class SearchViewModel @Inject constructor(
                     }
 
                     // Refresh the bottom sheet state to show the *next* next episode
-                    openBottomSheet(show)
+                    // Note: need to re-fetch ShowEntity since openBottomSheet requires it.
+                    // Actually, we can fetch from showRepository.
+                    val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()
+                    if (updatedShow != null) {
+                        openBottomSheet(updatedShow)
+                    }
                 }
                 syncManager.syncWatchedEpisodesNow()
                 syncManager.syncWatchlistNow()
@@ -350,22 +336,20 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (show.mediaType == "tv") {
-                    var ep = episodeDao.getEpisodesBySeason(show.id, next.seasonNumber)
+                    var ep = seasonRepository.getEpisodesBySeason(show.id, next.seasonNumber)
                         .find { it.episodeNumber == next.episodeNumber }
                         
                     if (ep == null) {
                         try {
-                            val seasonDetail = tmdbApiService.getSeasonDetail(show.id, next.seasonNumber)
-                            val episodeEntities = seasonDetail.episodes.map { it.toEntity(show.id) }
-                            episodeDao.insertEpisodes(episodeEntities)
-                            ep = seasonDetail.episodes.find { it.episodeNumber == next.episodeNumber }?.toEntity(show.id)
+                            val seasonDetail = seasonRepository.fetchSeasonDetail(show.id, next.seasonNumber).getOrNull()
+                            ep = seasonDetail?.find { it.episodeNumber == next.episodeNumber }
                         } catch (e: Exception) {
                             // Network failure
                         }
                     }
                     
                     if (ep != null) {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                             showId = show.id,
                             episodeId = ep.id,
@@ -374,7 +358,7 @@ class SearchViewModel @Inject constructor(
                             isSkipped = true
                         )
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
+                        watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                             showId = show.id,
                             episodeId = null,
@@ -384,7 +368,10 @@ class SearchViewModel @Inject constructor(
                         )
                     }
                     onSuccess("Skipped Episode")
-                    openBottomSheet(show)
+                    val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()
+                    if (updatedShow != null) {
+                        openBottomSheet(updatedShow)
+                    }
                 }
                 syncManager.syncWatchedEpisodesNow()
             } catch (e: Exception) {

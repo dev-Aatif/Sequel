@@ -1,15 +1,22 @@
 package dev.sequel.app.domain.usecase
 
-import dev.sequel.app.data.remote.tmdb.dto.TmdbNextEpisodeDto
+// Removed DTO import
 import dev.sequel.app.domain.repository.SeasonRepository
 import dev.sequel.app.domain.repository.ShowRepository
 import dev.sequel.app.domain.repository.WatchedEpisodeRepository
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
+data class NextEpisodeProgressionData(
+    val id: Int,
+    val name: String,
+    val seasonNumber: Int,
+    val episodeNumber: Int
+)
+
 data class EpisodeProgressionState(
     val nextEpisodeString: String,
-    val nextEpisodeData: TmdbNextEpisodeDto?,
+    val nextEpisodeData: NextEpisodeProgressionData?,
     val isCompleted: Boolean
 )
 
@@ -24,7 +31,7 @@ class GetNextEpisodeUseCase @Inject constructor(
         if (localNext != null) {
             return EpisodeProgressionState(
                 nextEpisodeString = "Mark S${localNext.seasonNumber}E${localNext.episodeNumber} as Watched",
-                nextEpisodeData = TmdbNextEpisodeDto(
+                nextEpisodeData = NextEpisodeProgressionData(
                     id = localNext.id,
                     name = localNext.name,
                     seasonNumber = localNext.seasonNumber,
@@ -47,7 +54,7 @@ class GetNextEpisodeUseCase @Inject constructor(
             // No watched episodes and no local next? Must be S1E1.
             return EpisodeProgressionState(
                 nextEpisodeString = "Mark S1E1 as Watched",
-                nextEpisodeData = TmdbNextEpisodeDto(id = 0, name = "", seasonNumber = 1, episodeNumber = 1),
+                nextEpisodeData = NextEpisodeProgressionData(id = 0, name = "", seasonNumber = 1, episodeNumber = 1),
                 isCompleted = false
             )
         }
@@ -62,7 +69,7 @@ class GetNextEpisodeUseCase @Inject constructor(
                 // There is a next episode in this season on TMDB that we didn't cache locally!
                 return EpisodeProgressionState(
                     nextEpisodeString = "Mark S${hSeason}E${hEpisode + 1} as Watched",
-                    nextEpisodeData = TmdbNextEpisodeDto(
+                    nextEpisodeData = NextEpisodeProgressionData(
                         id = 0,
                         name = "",
                         seasonNumber = hSeason,
@@ -76,7 +83,7 @@ class GetNextEpisodeUseCase @Inject constructor(
                 if (nextSeasonSummary != null && nextSeasonSummary.episodeCount > 0) {
                     return EpisodeProgressionState(
                         nextEpisodeString = "Mark S${hSeason + 1}E1 as Watched",
-                        nextEpisodeData = TmdbNextEpisodeDto(
+                        nextEpisodeData = NextEpisodeProgressionData(
                             id = 0,
                             name = "",
                             seasonNumber = hSeason + 1,

@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
+import dev.sequel.app.presentation.state.BottomSheetEpisodeInfo
+import dev.sequel.app.presentation.state.BottomSheetShowInfo
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
@@ -107,7 +109,17 @@ class HomeViewModel @Inject constructor(
     }
 
     fun openBottomSheet(show: ShowEntity) {
-        _bottomSheetState.value = BottomSheetUiState(show = show, isLoading = true)
+        val showInfo = BottomSheetShowInfo(
+            id = show.id,
+            title = show.title,
+            overview = show.overview,
+            posterPath = show.posterPath,
+            backdropPath = show.backdropPath,
+            mediaType = show.mediaType,
+            rating = show.voteAverage,
+            genreIds = show.genreIds
+        )
+        _bottomSheetState.value = BottomSheetUiState(show = showInfo, isLoading = true)
         viewModelScope.launch {
             try {
                 showRepository.insertShow(show)
@@ -118,26 +130,35 @@ class HomeViewModel @Inject constructor(
                     val isMovieWatched = watchedList.isNotEmpty()
                     
                     _bottomSheetState.value = BottomSheetUiState(
-                        show = show,
+                        show = showInfo,
                         inWatchlist = inWatchlist,
                         isWatched = isMovieWatched,
                         isLoading = false
                     )
                 } else {
                     val progression = getNextEpisodeUseCase(show.id)
+                    val episodeInfo = progression.nextEpisodeData?.let {
+                        BottomSheetEpisodeInfo(
+                            title = it.name,
+                            episodeNumber = it.episodeNumber,
+                            seasonNumber = it.seasonNumber,
+                            overview = "",
+                            stillPath = null
+                        )
+                    }
                     
                     _bottomSheetState.value = BottomSheetUiState(
-                        show = show,
+                        show = showInfo,
                         inWatchlist = inWatchlist,
                         isWatched = false,
                         isCompleted = progression.isCompleted,
                         nextEpisodeString = progression.nextEpisodeString,
-                        nextEpisodeData = progression.nextEpisodeData,
+                        nextEpisodeData = episodeInfo,
                         isLoading = false
                     )
                 }
             } catch (e: Exception) {
-                _bottomSheetState.value = BottomSheetUiState(show = show, isLoading = false)
+                _bottomSheetState.value = BottomSheetUiState(show = showInfo, isLoading = false)
             }
         }
     }
@@ -196,9 +217,9 @@ class HomeViewModel @Inject constructor(
                         watchedEpisodeRepository.upsertWatchedEpisode(
                             mediaType = MediaType.MOVIE,
                             showId = show.id,
-                            episodeId = -1,
-                            seasonNumber = -1,
-                            episodeNumber = -1
+                            episodeId = null,
+                            seasonNumber = null,
+                            episodeNumber = null
                         )
                         watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
                         showRepository.updateWatchlistStatus(show.id, show.mediaType, false)
@@ -237,7 +258,11 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     _uiEvent.send(HomeUiEvent.ShowToast("Marked as Watched"))
-                    openBottomSheet(show)
+                    
+                    val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()
+                    if (updatedShow != null) {
+                        openBottomSheet(updatedShow)
+                    }
                 }
                 syncRepository.syncWatchedEpisodesNow()
                 syncRepository.syncWatchlistNow()
@@ -290,7 +315,11 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     _uiEvent.send(HomeUiEvent.ShowToast("Skipped Episode"))
-                    openBottomSheet(show)
+                    
+                    val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()
+                    if (updatedShow != null) {
+                        openBottomSheet(updatedShow)
+                    }
                 }
                 syncRepository.syncWatchedEpisodesNow()
             } catch (e: Exception) {

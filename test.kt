@@ -1,2 +1,1 @@
-package test
-val String.myExt: Int get() = 1
+import io.github.jan.supabase.auth.session.SessionManager

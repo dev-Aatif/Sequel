@@ -1,8 +1,10 @@
 package dev.sequel.app.di
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.sequel.app.BuildConfig
 import io.github.jan.supabase.SupabaseClient
@@ -18,15 +20,17 @@ object SupabaseModule {
 
     @Provides
     @Singleton
-    fun provideSupabaseClient(): SupabaseClient {
+    fun provideSupabaseClient(@ApplicationContext context: Context): SupabaseClient {
         return createSupabaseClient(
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
             install(Auth) {
-                alwaysAutoRefresh = true  // auto-refresh expired tokens
-                autoLoadFromStorage = true  // restore session from disk on startup
-                autoSaveToStorage = true  // persist session changes to disk
+                // Ensure auth state is automatically restored from device storage
+                // By default on Android, it uses EncryptedSharedPreferences if available
+                alwaysAutoRefresh = true
+                autoLoadFromStorage = true
+                autoSaveToStorage = true
             }
             install(Postgrest)
             install(Realtime)

@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import dev.sequel.app.data.remote.tmdb.mapper.TmdbMapper.toEntity
 import dev.sequel.app.domain.usecase.GetNextEpisodeUseCase
+import dev.sequel.app.presentation.state.BottomSheetEpisodeInfo
+import dev.sequel.app.presentation.state.BottomSheetShowInfo
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import dev.sequel.app.data.local.entity.WatchlistEntity
 import dev.sequel.app.domain.error.AppError
@@ -221,9 +223,9 @@ class WatchlistViewModel @Inject constructor(
                 watchedEpisodeDao.upsertWatchedEpisode(
                     mediaType = MediaType.MOVIE,
                     showId = item.showId,
-                    episodeId = -1,
-                    seasonNumber = -1,
-                    episodeNumber = -1
+                    episodeId = null,
+                    seasonNumber = null,
+                    episodeNumber = null
                 )
                 watchlistDao.removeFromWatchlist(item.showId, item.mediaType)
             }
@@ -276,6 +278,16 @@ class WatchlistViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val show = showDao.getShowById(showId, mediaType) ?: return@launch
+                val showInfo = BottomSheetShowInfo(
+                    id = show.id,
+                    title = show.title,
+                    overview = show.overview,
+                    posterPath = show.posterPath,
+                    backdropPath = show.backdropPath,
+                    mediaType = show.mediaType,
+                    rating = show.voteAverage,
+                    genreIds = show.genreIds
+                )
                 val inWatchlist = watchlistDao.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == "movie") {
@@ -283,21 +295,30 @@ class WatchlistViewModel @Inject constructor(
                     val isMovieWatched = watchedList.isNotEmpty()
                     
                     _bottomSheetState.value = BottomSheetUiState(
-                        show = show,
+                        show = showInfo,
                         inWatchlist = inWatchlist,
                         isWatched = isMovieWatched,
                         isLoading = false
                     )
                 } else {
                     val progression = getNextEpisodeUseCase(show.id)
+                    val episodeInfo = progression.nextEpisodeData?.let {
+                        BottomSheetEpisodeInfo(
+                            title = it.name,
+                            episodeNumber = it.episodeNumber,
+                            seasonNumber = it.seasonNumber,
+                            overview = "",
+                            stillPath = null
+                        )
+                    }
                     
                     _bottomSheetState.value = BottomSheetUiState(
-                        show = show,
+                        show = showInfo,
                         inWatchlist = inWatchlist,
                         isWatched = false,
                         isCompleted = progression.isCompleted,
                         nextEpisodeString = progression.nextEpisodeString,
-                        nextEpisodeData = progression.nextEpisodeData,
+                        nextEpisodeData = episodeInfo,
                         isLoading = false
                     )
                 }
@@ -357,9 +378,9 @@ class WatchlistViewModel @Inject constructor(
                         watchedEpisodeDao.upsertWatchedEpisode(
                             mediaType = MediaType.MOVIE,
                             showId = show.id,
-                            episodeId = -1,
-                            seasonNumber = -1,
-                            episodeNumber = -1
+                            episodeId = null,
+                            seasonNumber = null,
+                            episodeNumber = null
                         )
                         watchlistDao.removeFromWatchlist(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
