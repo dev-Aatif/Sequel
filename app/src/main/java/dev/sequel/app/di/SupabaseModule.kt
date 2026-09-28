@@ -9,6 +9,8 @@ import dagger.hilt.components.SingletonComponent
 import dev.sequel.app.BuildConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.SettingsSessionManager
+import com.russhwolf.settings.SharedPreferencesSettings
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
@@ -31,6 +33,10 @@ object SupabaseModule {
                 alwaysAutoRefresh = true
                 autoLoadFromStorage = true
                 autoSaveToStorage = true
+
+                // Provide a concrete storage engine on Android
+                val prefs = context.getSharedPreferences("supabase_session", Context.MODE_PRIVATE)
+                sessionManager = SettingsSessionManager(SharedPreferencesSettings(prefs))
             }
             install(Postgrest)
             install(Realtime)
