@@ -11,6 +11,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// ── Release Signing ──────────────────────────────────────────────────────
+// Load keystore credentials from keystore.properties (never committed to VCS).
+// Falls back to debug signing when the file is absent (CI / fresh clone).
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+val hasKeystoreProps = keystorePropertiesFile.exists()
+if (hasKeystoreProps) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+} else {
+    logger.warn("⚠️  keystore.properties not found – release builds will use debug signing.")
+}
+
 android {
     namespace = "dev.sequel.app"
     compileSdk = 35
@@ -43,9 +55,24 @@ android {
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
+    signingConfigs {
+        if (hasKeystoreProps) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("KEYSTORE_FILE"))
+                storePassword = keystoreProperties.getProperty("KEYSTORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasKeystoreProps) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
