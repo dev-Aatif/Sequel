@@ -102,10 +102,6 @@ class ShowRepositoryImpl @Inject constructor(
         showDao.updateFavoriteStatus(showId, mediaType, isFavorite)
     }
 
-    override suspend fun toggleWatchlist(showId: Int, mediaType: String, isInWatchlist: Boolean) {
-        showDao.updateWatchlistStatus(showId, mediaType, isInWatchlist)
-    }
-
     override suspend fun updateWatchlistStatus(showId: Int, mediaType: String, isInWatchlist: Boolean) {
         showDao.updateWatchlistStatus(showId, mediaType, isInWatchlist)
     }

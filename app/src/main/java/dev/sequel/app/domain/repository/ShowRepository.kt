@@ -54,9 +54,6 @@ interface ShowRepository {
     /** Toggle favorite status for a show. */
     suspend fun toggleFavorite(showId: Int, mediaType: String, isFavorite: Boolean)
 
-    /** Toggle watchlist status for a show. */
-    suspend fun toggleWatchlist(showId: Int, mediaType: String, isInWatchlist: Boolean)
-
-    /** Update watchlist status (identical to toggleWatchlist, added for explicit matching). */
+    /** Update watchlist status. */
     suspend fun updateWatchlistStatus(showId: Int, mediaType: String, isInWatchlist: Boolean)
 }

@@ -53,6 +53,7 @@ import dev.sequel.app.presentation.components.ShowCard
 import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
 import dev.sequel.app.presentation.state.BottomSheetUiState
+import dev.sequel.app.domain.error.toAppError
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -143,7 +144,7 @@ fun HomeScreen(
                     ) {
                         items(
                             count = pagedShows.itemCount,
-                            key = pagedShows.itemKey { it.id },
+                            key = pagedShows.itemKey { "${it.id}_${it.mediaType}" },
                             contentType = pagedShows.itemContentType { "ShowCard" }
                         ) { index ->
                             val show = pagedShows[index]
@@ -172,7 +173,7 @@ fun HomeScreen(
                             item {
                                 Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
                                     dev.sequel.app.presentation.components.BeautifulErrorState(
-                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        error = (pagedShows.loadState.refresh as LoadState.Error).error.toAppError(),
                                         onRetry = { pagedShows.retry() },
                                         isCard = true
                                     )
@@ -193,7 +194,7 @@ fun HomeScreen(
                             item {
                                 Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
                                     dev.sequel.app.presentation.components.BeautifulErrorState(
-                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        error = (pagedShows.loadState.append as LoadState.Error).error.toAppError(),
                                         onRetry = { pagedShows.retry() },
                                         isCard = true
                                     )
@@ -295,7 +296,7 @@ fun HomeScreen(
                     ) {
                         items(
                             count = pagedShows.itemCount,
-                            key = pagedShows.itemKey { it.id },
+                            key = pagedShows.itemKey { "${it.id}_${it.mediaType}" },
                             contentType = pagedShows.itemContentType { "ShowCard" }
                         ) { index ->
                             val show = pagedShows[index]
@@ -324,7 +325,7 @@ fun HomeScreen(
                             item {
                                 Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
                                     dev.sequel.app.presentation.components.BeautifulErrorState(
-                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        error = (pagedShows.loadState.refresh as LoadState.Error).error.toAppError(),
                                         onRetry = { pagedShows.retry() },
                                         isCard = true
                                     )
@@ -345,7 +346,7 @@ fun HomeScreen(
                             item {
                                 Box(modifier = Modifier.width(280.dp).padding(vertical = 16.dp)) {
                                     dev.sequel.app.presentation.components.BeautifulErrorState(
-                                        error = dev.sequel.app.domain.error.AppError.NoInternet,
+                                        error = (pagedShows.loadState.append as LoadState.Error).error.toAppError(),
                                         onRetry = { pagedShows.retry() },
                                         isCard = true
                                     )
