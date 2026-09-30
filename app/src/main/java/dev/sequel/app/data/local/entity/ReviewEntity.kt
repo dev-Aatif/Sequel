@@ -26,7 +26,7 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index(value = ["media_id", "media_type"]),
+        Index(value = ["media_id", "media_type", "season_num", "episode_num"], unique = true),
         Index(value = ["sync_status"])
     ]
 )

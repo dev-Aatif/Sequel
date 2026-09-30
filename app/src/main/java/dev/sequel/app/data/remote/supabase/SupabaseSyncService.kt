@@ -108,6 +108,7 @@ class SupabaseSyncService @Inject constructor(
     suspend fun upsertReview(dto: SupabaseReviewDto): String {
         val result = supabaseClient.postgrest[TABLE_REVIEWS]
             .upsert(dto) {
+                onConflict = "user_id, media_id, season_num, episode_num"
                 select(Columns.list("id"))
             }
             .decodeSingle<SupabaseReviewDto>()

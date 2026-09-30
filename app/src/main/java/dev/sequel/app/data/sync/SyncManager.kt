@@ -48,7 +48,7 @@ class SyncManager @Inject constructor(
     }
 
     /** Trigger an immediate sync of reviews. */
-    fun syncReviewsNow() {
+    fun syncReviewsNow(mediaId: Int? = null) {
         val request = OneTimeWorkRequestBuilder<SyncReviewsWorker>()
             .setConstraints(networkConstraints)
             .setBackoffCriteria(
@@ -57,9 +57,10 @@ class SyncManager @Inject constructor(
             )
             .build()
 
+        val uniqueWorkName = if (mediaId != null) "${SyncReviewsWorker.WORK_NAME}_${mediaId}" else SyncReviewsWorker.WORK_NAME + "_now"
         workManager.enqueueUniqueWork(
-            SyncReviewsWorker.WORK_NAME + "_now",
-            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            uniqueWorkName,
+            ExistingWorkPolicy.REPLACE,
             request
         )
     }

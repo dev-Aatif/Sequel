@@ -32,6 +32,9 @@ data class SupabaseReviewDto(
     @SerialName("vibe_emoji")
     val vibeEmoji: String? = null,
 
+    @SerialName("rating")
+    val rating: Int? = null,
+
     @SerialName("is_spoiler")
     val isSpoiler: Boolean = false,
 

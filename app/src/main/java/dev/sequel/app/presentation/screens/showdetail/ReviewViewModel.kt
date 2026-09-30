@@ -76,8 +76,8 @@ class ReviewViewModel @Inject constructor(
      */
     fun submitRating(rating: Int) {
         viewModelScope.launch {
-            reviewDao.upsertRating(currentMediaId, currentMediaType, rating)
-            syncManager.syncReviewsNow()
+            reviewDao.upsertRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, rating)
+            syncManager.syncReviewsNow(currentMediaId)
         }
     }
 
@@ -86,8 +86,8 @@ class ReviewViewModel @Inject constructor(
      */
     fun deleteRating() {
         viewModelScope.launch {
-            reviewDao.deleteRating(currentMediaId, currentMediaType)
-            syncManager.syncReviewsNow()
+            reviewDao.deleteRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            syncManager.syncReviewsNow(currentMediaId)
         }
     }
 
@@ -99,19 +99,8 @@ class ReviewViewModel @Inject constructor(
         if (text.isBlank()) return
         
         viewModelScope.launch {
-            val entity = ReviewEntity(
-                mediaId = currentMediaId,
-                mediaType = currentMediaType,
-                seasonNum = currentSeasonNum,
-                episodeNum = currentEpisodeNum,
-                reviewText = text,
-                rating = null,
-                isRatingOnly = false,
-                isSpoiler = isSpoiler,
-                syncStatus = SyncStatus.PENDING
-            )
-            reviewDao.insertReview(entity)
-            syncManager.syncReviewsNow()
+            reviewDao.upsertReviewText(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, text, isSpoiler)
+            syncManager.syncReviewsNow(currentMediaId)
             
             // Optimistically add review to the list so user sees it immediately
             val currentState = _communityState.value
@@ -125,6 +114,7 @@ class ReviewViewModel @Inject constructor(
                     episodeNum = currentEpisodeNum,
                     reviewText = text,
                     vibeEmoji = null,
+                    rating = null,
                     isSpoiler = isSpoiler,
                     createdAt = System.currentTimeMillis().toString()
                 )
@@ -144,7 +134,7 @@ class ReviewViewModel @Inject constructor(
             val local = reviewDao.getReviewBySupabaseId(reviewId)
             if (local != null) {
                 reviewDao.updateReviewText(local.id, newText, isSpoiler)
-                syncManager.syncReviewsNow()
+                syncManager.syncReviewsNow(currentMediaId)
             }
             
             // Optimistically update UI
@@ -169,7 +159,7 @@ class ReviewViewModel @Inject constructor(
             // Delete local cache by supabase ID
             val localReview = reviewDao.getReviewBySupabaseId(reviewId)
             localReview?.let { reviewDao.markReviewDeleted(it.id) }
-            syncManager.syncReviewsNow()
+            syncManager.syncReviewsNow(currentMediaId)
 
             // Optimistically update UI
             val currentState = _communityState.value

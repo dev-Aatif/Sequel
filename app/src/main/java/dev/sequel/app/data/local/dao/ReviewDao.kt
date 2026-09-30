@@ -17,72 +17,80 @@ interface ReviewDao {
     @Insert
     suspend fun insertReviewInternal(review: ReviewEntity): Long
 
-    // ── Rating Operations (one per show) ─────────────────────────
+    // ── Unified Operations ─────────────────────────
 
-    /**
-     * Upsert a rating for a show. Finds existing rating-only row and updates,
-     * or inserts a new one. Ratings are always is_rating_only = true.
-     */
     @androidx.room.Transaction
-    suspend fun upsertRating(mediaId: Int, mediaType: String, rating: Int) {
-        val existing = getRatingRow(mediaId, mediaType)
+    suspend fun upsertRating(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, rating: Int) {
+        val existing = getReviewForMediaAndEpisode(mediaId, mediaType, seasonNum, episodeNum)
         if (existing != null) {
-            updateRating(existing.id, rating, System.currentTimeMillis())
+            updateReview(existing.copy(rating = rating, updatedAt = System.currentTimeMillis(), syncStatus = SyncStatus.PENDING))
         } else {
             insertReviewInternal(
                 ReviewEntity(
                     mediaId = mediaId,
                     mediaType = mediaType,
+                    seasonNum = seasonNum,
+                    episodeNum = episodeNum,
                     reviewText = null,
                     rating = rating,
-                    isRatingOnly = true,
+                    isRatingOnly = false,
                     syncStatus = SyncStatus.PENDING
                 )
             )
         }
     }
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND is_rating_only = 1 AND sync_status != 'DELETED' LIMIT 1")
+    @androidx.room.Transaction
+    suspend fun upsertReviewText(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, text: String, isSpoiler: Boolean) {
+        val existing = getReviewForMediaAndEpisode(mediaId, mediaType, seasonNum, episodeNum)
+        if (existing != null) {
+            updateReview(existing.copy(
+                reviewText = text,
+                isSpoiler = isSpoiler,
+                isRatingOnly = false,
+                updatedAt = System.currentTimeMillis(),
+                syncStatus = SyncStatus.PENDING
+            ))
+        } else {
+            insertReviewInternal(
+                ReviewEntity(
+                    mediaId = mediaId,
+                    mediaType = mediaType,
+                    seasonNum = seasonNum,
+                    episodeNum = episodeNum,
+                    reviewText = text,
+                    rating = null,
+                    isSpoiler = isSpoiler,
+                    isRatingOnly = false,
+                    syncStatus = SyncStatus.PENDING
+                )
+            )
+        }
+    }
+
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num IS NULL AND episode_num IS NULL AND sync_status != 'DELETED' LIMIT 1")
     suspend fun getRatingRow(mediaId: Int, mediaType: String): ReviewEntity?
 
-    @Query("UPDATE reviews SET rating = :rating, updated_at = :updatedAt, sync_status = 'PENDING' WHERE id = :id")
-    suspend fun updateRating(id: Long, rating: Int, updatedAt: Long)
-
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND is_rating_only = 1 AND sync_status != 'DELETED' LIMIT 1")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num IS NULL AND episode_num IS NULL AND sync_status != 'DELETED' LIMIT 1")
     fun observeRatingForMedia(mediaId: Int, mediaType: String): Flow<ReviewEntity?>
 
-    @Query("UPDATE reviews SET sync_status = 'DELETED' WHERE media_id = :mediaId AND media_type = :mediaType AND is_rating_only = 1")
-    suspend fun deleteRating(mediaId: Int, mediaType: String)
+    @Query("UPDATE reviews SET rating = NULL, sync_status = 'PENDING' WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
+    suspend fun deleteRating(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?)
 
     // ── Review Operations (multiple per show) ────────────────────
 
-    /**
-     * Insert a new text review. Always creates a new row.
-     */
-    @androidx.room.Transaction
-    suspend fun insertReview(review: ReviewEntity): Long {
-        return insertReviewInternal(review.copy(isRatingOnly = false))
-    }
-
-    /**
-     * Update an existing text review's content.
-     */
     @Query("UPDATE reviews SET review_text = :text, is_spoiler = :isSpoiler, updated_at = :updatedAt, sync_status = 'PENDING' WHERE id = :id")
     suspend fun updateReviewText(id: Long, text: String, isSpoiler: Boolean, updatedAt: Long = System.currentTimeMillis())
 
-    /**
-     * Get all text reviews for a specific media (excluding rating-only rows).
-     */
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND is_rating_only = 0 AND sync_status != 'DELETED' ORDER BY created_at DESC")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND sync_status != 'DELETED' ORDER BY created_at DESC")
     fun observeReviewsForMedia(mediaId: Int, mediaType: String): Flow<List<ReviewEntity>>
 
     // ── Legacy: used by sync pull ────────────────────────────────
 
     @androidx.room.Transaction
     suspend fun upsertReviewPull(newReview: ReviewEntity) {
-        if (newReview.isRatingOnly) {
-            // For rating rows, match by media_id + media_type + is_rating_only
-            val existing = getRatingRow(newReview.mediaId, newReview.mediaType)
+        if (newReview.supabaseId != null) {
+            val existing = getReviewBySupabaseId(newReview.supabaseId)
             if (existing != null) {
                 if (existing.syncStatus == SyncStatus.DELETED) return
                 if (existing.syncStatus == SyncStatus.SYNCED || newReview.updatedAt >= existing.updatedAt) {
@@ -93,21 +101,7 @@ interface ReviewDao {
                 insertReviewInternal(newReview)
             }
         } else {
-            // For text reviews, match by supabase_id
-            if (newReview.supabaseId != null) {
-                val existing = getReviewBySupabaseId(newReview.supabaseId)
-                if (existing != null) {
-                    if (existing.syncStatus == SyncStatus.DELETED) return
-                    if (existing.syncStatus == SyncStatus.SYNCED || newReview.updatedAt >= existing.updatedAt) {
-                        val merged = newReview.copy(id = existing.id, createdAt = existing.createdAt)
-                        updateReview(merged)
-                    }
-                } else {
-                    insertReviewInternal(newReview)
-                }
-            } else {
-                insertReviewInternal(newReview)
-            }
+            insertReviewInternal(newReview)
         }
     }
 
@@ -121,7 +115,7 @@ interface ReviewDao {
 
     // ── General Queries ──────────────────────────────────────────
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND (season_num = :seasonNum OR (season_num IS NULL AND :seasonNum IS NULL)) AND (episode_num = :episodeNum OR (episode_num IS NULL AND :episodeNum IS NULL))")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1) LIMIT 1")
     suspend fun getReviewForMediaAndEpisode(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?): ReviewEntity?
 
     // ── Updates ───────────────────────────────────────────────────
@@ -164,7 +158,7 @@ interface ReviewDao {
 
     // ── Deletes ───────────────────────────────────────────────────
 
-    @Query("DELETE FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND (season_num = :seasonNum OR (:seasonNum IS NULL AND season_num IS NULL)) AND (episode_num = :episodeNum OR (:episodeNum IS NULL AND episode_num IS NULL))")
+    @Query("DELETE FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
     suspend fun deleteReviewForMedia(mediaId: Int, mediaType: String, seasonNum: Int? = null, episodeNum: Int? = null)
 
     @Query("UPDATE reviews SET sync_status = 'DELETED' WHERE id = :id")
