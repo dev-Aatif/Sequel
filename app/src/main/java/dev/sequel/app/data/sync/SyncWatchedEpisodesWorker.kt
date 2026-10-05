@@ -69,9 +69,9 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                         userId = userId,
                         mediaType = record.mediaType.name.lowercase(),
                         tmdbShowId = record.showId,
-                        tmdbEpisodeId = record.episodeId,
-                        seasonNumber = record.seasonNumber,
-                        episodeNumber = record.episodeNumber,
+                        tmdbEpisodeId = if (record.mediaType.name.equals("MOVIE", ignoreCase = true)) null else record.episodeId,
+                        seasonNumber = if (record.mediaType.name.equals("MOVIE", ignoreCase = true)) null else record.seasonNumber,
+                        episodeNumber = if (record.mediaType.name.equals("MOVIE", ignoreCase = true)) null else record.episodeNumber,
                         watchedAt = record.watchedAt,
                         isSkipped = record.isSkipped
                     )
@@ -87,9 +87,9 @@ class SyncWatchedEpisodesWorker @AssistedInject constructor(
                         val supabaseId = result.id ?: continue
                         val localMatch = toUpsert.find { 
                             it.showId == result.tmdbShowId && 
-                            it.episodeId == result.tmdbEpisodeId &&
-                            it.seasonNumber == result.seasonNumber &&
-                            it.episodeNumber == result.episodeNumber
+                            it.episodeId == (result.tmdbEpisodeId ?: -1) &&
+                            it.seasonNumber == (result.seasonNumber ?: -1) &&
+                            it.episodeNumber == (result.episodeNumber ?: -1)
                         }
                         if (localMatch != null) {
                             updates.add(Pair(localMatch.id, supabaseId))

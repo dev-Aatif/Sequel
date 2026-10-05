@@ -1,5 +1,7 @@
 package dev.sequel.app.data.remote.supabase.dto
 
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -7,6 +9,7 @@ import kotlinx.serialization.Serializable
  * Supabase row for the `watched_episodes` table.
  * Matches the PostgreSQL schema on Supabase.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class SupabaseWatchedEpisodeDto(
     @SerialName("id")
@@ -18,6 +21,7 @@ data class SupabaseWatchedEpisodeDto(
     @SerialName("tmdb_show_id")
     val tmdbShowId: Int,
 
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("media_type")
     val mediaType: String = "tv",
 

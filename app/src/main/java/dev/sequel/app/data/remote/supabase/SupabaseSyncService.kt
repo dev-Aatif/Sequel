@@ -26,6 +26,7 @@ class SupabaseSyncService @Inject constructor(
     suspend fun upsertWatchedEpisode(dto: SupabaseWatchedEpisodeDto): String {
         val result = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
             .upsert(dto) {
+                onConflict = "user_id,tmdb_show_id,tmdb_episode_id,media_type"
                 select(Columns.list("id"))
             }
             .decodeSingle<SupabaseWatchedEpisodeDto>()
@@ -40,6 +41,7 @@ class SupabaseSyncService @Inject constructor(
         if (dtos.isEmpty()) return emptyList()
         val results = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
             .upsert(dtos) {
+                onConflict = "user_id,tmdb_show_id,tmdb_episode_id,media_type"
                 select() // Select all columns to map back to local rows
             }
             .decodeList<SupabaseWatchedEpisodeDto>()
@@ -108,7 +110,7 @@ class SupabaseSyncService @Inject constructor(
     suspend fun upsertReview(dto: SupabaseReviewDto): String {
         val result = supabaseClient.postgrest[TABLE_REVIEWS]
             .upsert(dto) {
-                onConflict = "user_id, media_id, season_num, episode_num"
+                onConflict = "user_id,media_id,season_num,episode_num"
                 select(Columns.list("id"))
             }
             .decodeSingle<SupabaseReviewDto>()

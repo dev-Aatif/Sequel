@@ -1,12 +1,14 @@
 package dev.sequel.app.data.sync
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dev.sequel.app.data.local.dao.ReviewDao
+import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.local.dao.WatchlistDao
 import dev.sequel.app.data.local.entity.MediaType
@@ -16,6 +18,8 @@ import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
 import dev.sequel.app.data.remote.supabase.SupabaseAuthService
 import dev.sequel.app.data.remote.supabase.SupabaseSyncService
+import dev.sequel.app.domain.repository.ShowRepository
+import kotlinx.coroutines.delay
 
 @HiltWorker
 class SyncPullWorker @AssistedInject constructor(
@@ -25,7 +29,9 @@ class SyncPullWorker @AssistedInject constructor(
     private val supabaseSyncService: SupabaseSyncService,
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val reviewDao: ReviewDao,
-    private val watchlistDao: WatchlistDao
+    private val watchlistDao: WatchlistDao,
+    private val showDao: ShowDao,
+    private val showRepository: ShowRepository
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -40,9 +46,9 @@ class SyncPullWorker @AssistedInject constructor(
                     supabaseId = dto.id,
                     mediaType = if (dto.mediaType.equals("movie", ignoreCase = true)) MediaType.MOVIE else MediaType.TV,
                     showId = dto.tmdbShowId,
-                    episodeId = dto.tmdbEpisodeId,
-                    seasonNumber = dto.seasonNumber,
-                    episodeNumber = dto.episodeNumber,
+                    episodeId = dto.tmdbEpisodeId ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
+                    seasonNumber = dto.seasonNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
+                    episodeNumber = dto.episodeNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
                     watchedAt = dto.watchedAt,
                     syncStatus = SyncStatus.SYNCED,
                     isSkipped = dto.isSkipped
@@ -55,7 +61,11 @@ class SyncPullWorker @AssistedInject constructor(
             val localSynced = watchedEpisodeDao.getByStatus(SyncStatus.SYNCED)
             val toDeleteLocally = localSynced.filter { it.supabaseId != null && it.supabaseId !in remoteIds }
             toDeleteLocally.forEach { watchedEpisodeDao.deleteEpisodeById(it.id) }
+
+            // 1b. Post-pull hook: fetch missing show/movie metadata from TMDB
+            hydrateShowMetadata(watchedEntities)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync watched episodes", e)
             hasFailures = true
         }
 
@@ -85,6 +95,7 @@ class SyncPullWorker @AssistedInject constructor(
             val toDeleteRevLocally = localSyncedReviews.filter { it.supabaseId != null && it.supabaseId !in remoteRevIds }
             toDeleteRevLocally.forEach { reviewDao.deleteReviewById(it.id) }
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync reviews", e)
             hasFailures = true
         }
 
@@ -109,13 +120,52 @@ class SyncPullWorker @AssistedInject constructor(
             val toDeleteWLocally = localSyncedWatchlist.filter { Pair(it.tmdbId, it.mediaType.name.lowercase()) !in remoteWatchlistKeys }
             toDeleteWLocally.forEach { watchlistDao.deleteWatchlistById(it.tmdbId, it.mediaType.name.lowercase()) }
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync watchlist", e)
             hasFailures = true
         }
 
         return if (hasFailures) Result.retry() else Result.success()
     }
 
+    /**
+     * For each distinct (showId, mediaType) in [watchedEntities], check if the `shows` table
+     * already has metadata. If not, fetch it from TMDB and insert it.
+     * Batched in chunks of 5 with a 500ms delay between chunks to avoid TMDB 429 rate limits.
+     */
+    private suspend fun hydrateShowMetadata(watchedEntities: List<WatchedEpisodeEntity>) {
+        val distinctShows = watchedEntities
+            .map { Pair(it.showId, it.mediaType) }
+            .distinct()
+
+        // Filter to only those missing from the local `shows` table
+        val missing = distinctShows.filter { (showId, mediaType) ->
+            showDao.getShowById(showId, mediaType.name.lowercase()) == null
+        }
+
+        if (missing.isEmpty()) return
+
+        Log.d(TAG, "Hydrating ${missing.size} missing show(s) from TMDB")
+
+        // Chunk into batches of 5 to avoid TMDB rate limits
+        missing.chunked(5).forEach { chunk ->
+            for ((showId, mediaType) in chunk) {
+                try {
+                    when (mediaType) {
+                        MediaType.TV -> showRepository.fetchShowDetail(showId)
+                        MediaType.MOVIE -> showRepository.fetchMovieDetail(showId)
+                    }
+                } catch (e: Exception) {
+                    // Log and continue — one failure should not abort the entire pull
+                    Log.w(TAG, "Failed to fetch TMDB metadata for $mediaType/$showId", e)
+                }
+            }
+            // Small delay between chunks to be respectful to TMDB rate limits
+            delay(500)
+        }
+    }
+
     companion object {
         const val WORK_NAME = "sync_pull_worker"
+        private const val TAG = "SyncPullWorker"
     }
 }

@@ -1,11 +1,14 @@
 package dev.sequel.app.data.remote.supabase.dto
 
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
  * Supabase row for the `reviews` table.
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class SupabaseReviewDto(
     @SerialName("id")
@@ -20,9 +23,11 @@ data class SupabaseReviewDto(
     @SerialName("media_type")
     val mediaType: String? = null,
 
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("season_num")
     val seasonNum: Int? = null,
 
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("episode_num")
     val episodeNum: Int? = null,
 

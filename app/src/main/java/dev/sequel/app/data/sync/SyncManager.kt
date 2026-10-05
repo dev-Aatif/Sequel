@@ -51,13 +51,14 @@ class SyncManager @Inject constructor(
     fun syncReviewsNow(mediaId: Int? = null) {
         val request = OneTimeWorkRequestBuilder<SyncReviewsWorker>()
             .setConstraints(networkConstraints)
+            .setInitialDelay(1000, TimeUnit.MILLISECONDS)
             .setBackoffCriteria(
                 BackoffPolicy.EXPONENTIAL,
                 30, TimeUnit.SECONDS
             )
             .build()
 
-        val uniqueWorkName = if (mediaId != null) "${SyncReviewsWorker.WORK_NAME}_${mediaId}" else SyncReviewsWorker.WORK_NAME + "_now"
+        val uniqueWorkName = if (mediaId != null) "sync_review_${mediaId}" else SyncReviewsWorker.WORK_NAME + "_now"
         workManager.enqueueUniqueWork(
             uniqueWorkName,
             ExistingWorkPolicy.REPLACE,
@@ -65,7 +66,14 @@ class SyncManager @Inject constructor(
         )
     }
 
+    private var lastSyncAllTime = 0L
+
     fun syncAllNow() {
+        val now = System.currentTimeMillis()
+        // Prevent multiple ViewModels from hammering the endpoints at the exact same time
+        if (now - lastSyncAllTime < 5000) return
+        lastSyncAllTime = now
+
         syncPullNow()
         syncWatchedEpisodesNow()
         syncReviewsNow()
