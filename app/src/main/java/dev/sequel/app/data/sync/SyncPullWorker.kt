@@ -38,130 +38,162 @@ class SyncPullWorker @AssistedInject constructor(
         val userId = supabaseAuthService.awaitUserId() ?: return Result.failure()
         var hasFailures = false
 
-        try {
-            // 1. Fetch & Hydrate Watched Episodes
-            val remoteWatched = supabaseSyncService.fetchAllWatchedEpisodes(userId)
-            val watchedEntities = remoteWatched.map { dto ->
-                WatchedEpisodeEntity(
-                    supabaseId = dto.id,
-                    mediaType = if (dto.mediaType.equals("movie", ignoreCase = true)) MediaType.MOVIE else MediaType.TV,
-                    showId = dto.tmdbShowId,
-                    episodeId = dto.tmdbEpisodeId ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
-                    seasonNumber = dto.seasonNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
-                    episodeNumber = dto.episodeNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
-                    watchedAt = dto.watchedAt,
-                    syncStatus = SyncStatus.SYNCED,
-                    isSkipped = dto.isSkipped
-                )
-            }
-            watchedEpisodeDao.upsertWatchedEpisodesPullTransaction(watchedEntities)
+        // ── Phase 1: Download all remote data from Supabase ─────────
+        // We fetch everything first, then figure out which parent show rows
+        // are missing before attempting any Room inserts (FK constraints).
 
-            // Handle server deletes: local SYNCED records that are missing from remote
-            val remoteIds = watchedEntities.mapNotNull { it.supabaseId }.toSet()
-            val localSynced = watchedEpisodeDao.getByStatus(SyncStatus.SYNCED)
-            val toDeleteLocally = localSynced.filter { it.supabaseId != null && it.supabaseId !in remoteIds }
-            toDeleteLocally.forEach { watchedEpisodeDao.deleteEpisodeById(it.id) }
-
-            // 1b. Post-pull hook: fetch missing show/movie metadata from TMDB
-            hydrateShowMetadata(watchedEntities)
+        val remoteWatched = try {
+            supabaseSyncService.fetchAllWatchedEpisodes(userId)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync watched episodes", e)
+            Log.e(TAG, "Failed to fetch watched episodes from Supabase", e)
             hasFailures = true
+            emptyList()
         }
 
-        try {
-            // 2. Fetch & Hydrate Reviews
-            val remoteReviews = supabaseSyncService.fetchAllReviews(userId)
-            val reviewEntities = remoteReviews.map { dto ->
-                ReviewEntity(
-                    supabaseId = dto.id,
-                    mediaId = dto.mediaId,
-                    mediaType = dto.mediaType ?: (if (dto.seasonNum != null) "tv" else "movie"),
-                    seasonNum = dto.seasonNum,
-                    episodeNum = dto.episodeNum,
-                    reviewText = dto.reviewText,
-                    rating = dto.vibeEmoji?.toIntOrNull(),
-                    isRatingOnly = dto.reviewText.isNullOrBlank() && dto.vibeEmoji != null,
-                    isSpoiler = dto.isSpoiler ?: false,
-                    updatedAt = dto.updatedAt ?: 0L,
-                    syncStatus = SyncStatus.SYNCED
-                )
-            }
-            reviewDao.upsertReviewsPullTransaction(reviewEntities)
-
-            // Handle server deletes for reviews
-            val remoteRevIds = reviewEntities.mapNotNull { it.supabaseId }.toSet()
-            val localSyncedReviews = reviewDao.getByStatus(SyncStatus.SYNCED)
-            val toDeleteRevLocally = localSyncedReviews.filter { it.supabaseId != null && it.supabaseId !in remoteRevIds }
-            toDeleteRevLocally.forEach { reviewDao.deleteReviewById(it.id) }
+        val remoteReviews = try {
+            supabaseSyncService.fetchAllReviews(userId)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync reviews", e)
+            Log.e(TAG, "Failed to fetch reviews from Supabase", e)
             hasFailures = true
+            emptyList()
         }
 
-        try {
-            // 3. Fetch & Hydrate Watchlist
-            val remoteWatchlist = supabaseSyncService.fetchAllWatchlist(userId)
-            val watchlistEntities = remoteWatchlist.map { dto ->
-                WatchlistEntity(
-                    tmdbId = dto.tmdbId,
-                    mediaType = if (dto.mediaType.equals("movie", ignoreCase = true)) MediaType.MOVIE else MediaType.TV,
-                    title = dto.title,
-                    posterPath = dto.posterPath,
-                    addedAt = dto.addedAt,
-                    syncStatus = SyncStatus.SYNCED
-                )
-            }
-            watchlistDao.upsertWatchlistPullTransaction(watchlistEntities)
-
-            // Handle server deletes for watchlist
-            val remoteWatchlistKeys = watchlistEntities.map { Pair(it.tmdbId, it.mediaType.name.lowercase()) }.toSet()
-            val localSyncedWatchlist = watchlistDao.getByStatus(SyncStatus.SYNCED)
-            val toDeleteWLocally = localSyncedWatchlist.filter { Pair(it.tmdbId, it.mediaType.name.lowercase()) !in remoteWatchlistKeys }
-            toDeleteWLocally.forEach { watchlistDao.deleteWatchlistById(it.tmdbId, it.mediaType.name.lowercase()) }
+        val remoteWatchlist = try {
+            supabaseSyncService.fetchAllWatchlist(userId)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync watchlist", e)
+            Log.e(TAG, "Failed to fetch watchlist from Supabase", e)
             hasFailures = true
+            emptyList()
+        }
+
+        // ── Phase 2: Hydrate missing show metadata from TMDB ────────
+        // Both watched_episodes and reviews have a FK to shows(id, media_type).
+        // We MUST insert the parent show rows BEFORE inserting children.
+
+        val allReferencedShows = mutableSetOf<Pair<Int, String>>() // (tmdbId, mediaType)
+
+        remoteWatched.forEach { dto ->
+            val mt = if (dto.mediaType.equals("movie", ignoreCase = true)) "movie" else "tv"
+            allReferencedShows.add(Pair(dto.tmdbShowId, mt))
+        }
+        remoteReviews.forEach { dto ->
+            val mt = dto.mediaType ?: (if (dto.seasonNum != null) "tv" else "movie")
+            allReferencedShows.add(Pair(dto.mediaId, mt))
+        }
+
+        // Filter to only those missing from the local shows table
+        val missingShows = allReferencedShows.filter { (showId, mediaType) ->
+            showDao.getShowById(showId, mediaType) == null
+        }
+
+        if (missingShows.isNotEmpty()) {
+            Log.d(TAG, "Hydrating ${missingShows.size} missing show(s) from TMDB before inserting children")
+            missingShows.chunked(5).forEach { chunk ->
+                for ((showId, mediaType) in chunk) {
+                    try {
+                        when (mediaType) {
+                            "tv" -> showRepository.fetchShowDetail(showId)
+                            "movie" -> showRepository.fetchMovieDetail(showId)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to fetch TMDB metadata for $mediaType/$showId", e)
+                        // Don't set hasFailures here — the child insert will simply
+                        // fail with FK violation and we'll catch that below.
+                    }
+                }
+                delay(500) // Respect TMDB rate limits
+            }
+        }
+
+        // ── Phase 3: Insert children into Room ──────────────────────
+
+        // 3a. Watched Episodes
+        if (remoteWatched.isNotEmpty()) {
+            try {
+                val watchedEntities = remoteWatched.map { dto ->
+                    WatchedEpisodeEntity(
+                        supabaseId = dto.id,
+                        mediaType = if (dto.mediaType.equals("movie", ignoreCase = true)) MediaType.MOVIE else MediaType.TV,
+                        showId = dto.tmdbShowId,
+                        episodeId = dto.tmdbEpisodeId ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
+                        seasonNumber = dto.seasonNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
+                        episodeNumber = dto.episodeNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
+                        watchedAt = dto.watchedAt,
+                        syncStatus = SyncStatus.SYNCED,
+                        isSkipped = dto.isSkipped
+                    )
+                }
+                watchedEpisodeDao.upsertWatchedEpisodesPullTransaction(watchedEntities)
+
+                // Handle server deletes: local SYNCED records that are missing from remote
+                val remoteIds = watchedEntities.mapNotNull { it.supabaseId }.toSet()
+                val localSynced = watchedEpisodeDao.getByStatus(SyncStatus.SYNCED)
+                val toDeleteLocally = localSynced.filter { it.supabaseId != null && it.supabaseId !in remoteIds }
+                toDeleteLocally.forEach { watchedEpisodeDao.deleteEpisodeById(it.id) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to insert watched episodes into Room", e)
+                hasFailures = true
+            }
+        }
+
+        // 3b. Reviews
+        if (remoteReviews.isNotEmpty()) {
+            try {
+                val reviewEntities = remoteReviews.map { dto ->
+                    ReviewEntity(
+                        supabaseId = dto.id,
+                        mediaId = dto.mediaId,
+                        mediaType = dto.mediaType ?: (if (dto.seasonNum != null) "tv" else "movie"),
+                        seasonNum = dto.seasonNum,
+                        episodeNum = dto.episodeNum,
+                        reviewText = dto.reviewText,
+                        rating = dto.vibeEmoji?.toIntOrNull(),
+                        isRatingOnly = dto.reviewText.isNullOrBlank() && dto.vibeEmoji != null,
+                        isSpoiler = dto.isSpoiler ?: false,
+                        updatedAt = dto.updatedAt ?: 0L,
+                        syncStatus = SyncStatus.SYNCED
+                    )
+                }
+                reviewDao.upsertReviewsPullTransaction(reviewEntities)
+
+                // Handle server deletes for reviews
+                val remoteRevIds = reviewEntities.mapNotNull { it.supabaseId }.toSet()
+                val localSyncedReviews = reviewDao.getByStatus(SyncStatus.SYNCED)
+                val toDeleteRevLocally = localSyncedReviews.filter { it.supabaseId != null && it.supabaseId !in remoteRevIds }
+                toDeleteRevLocally.forEach { reviewDao.deleteReviewById(it.id) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to insert reviews into Room", e)
+                hasFailures = true
+            }
+        }
+
+        // 3c. Watchlist (no FK to shows, so this always worked)
+        if (remoteWatchlist.isNotEmpty()) {
+            try {
+                val watchlistEntities = remoteWatchlist.map { dto ->
+                    WatchlistEntity(
+                        tmdbId = dto.tmdbId,
+                        mediaType = if (dto.mediaType.equals("movie", ignoreCase = true)) MediaType.MOVIE else MediaType.TV,
+                        title = dto.title,
+                        posterPath = dto.posterPath,
+                        addedAt = dto.addedAt,
+                        syncStatus = SyncStatus.SYNCED
+                    )
+                }
+                watchlistDao.upsertWatchlistPullTransaction(watchlistEntities)
+
+                // Handle server deletes for watchlist
+                val remoteWatchlistKeys = watchlistEntities.map { Pair(it.tmdbId, it.mediaType.name.lowercase()) }.toSet()
+                val localSyncedWatchlist = watchlistDao.getByStatus(SyncStatus.SYNCED)
+                val toDeleteWLocally = localSyncedWatchlist.filter { Pair(it.tmdbId, it.mediaType.name.lowercase()) !in remoteWatchlistKeys }
+                toDeleteWLocally.forEach { watchlistDao.deleteWatchlistById(it.tmdbId, it.mediaType.name.lowercase()) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to insert watchlist into Room", e)
+                hasFailures = true
+            }
         }
 
         return if (hasFailures) Result.retry() else Result.success()
-    }
-
-    /**
-     * For each distinct (showId, mediaType) in [watchedEntities], check if the `shows` table
-     * already has metadata. If not, fetch it from TMDB and insert it.
-     * Batched in chunks of 5 with a 500ms delay between chunks to avoid TMDB 429 rate limits.
-     */
-    private suspend fun hydrateShowMetadata(watchedEntities: List<WatchedEpisodeEntity>) {
-        val distinctShows = watchedEntities
-            .map { Pair(it.showId, it.mediaType) }
-            .distinct()
-
-        // Filter to only those missing from the local `shows` table
-        val missing = distinctShows.filter { (showId, mediaType) ->
-            showDao.getShowById(showId, mediaType.name.lowercase()) == null
-        }
-
-        if (missing.isEmpty()) return
-
-        Log.d(TAG, "Hydrating ${missing.size} missing show(s) from TMDB")
-
-        // Chunk into batches of 5 to avoid TMDB rate limits
-        missing.chunked(5).forEach { chunk ->
-            for ((showId, mediaType) in chunk) {
-                try {
-                    when (mediaType) {
-                        MediaType.TV -> showRepository.fetchShowDetail(showId)
-                        MediaType.MOVIE -> showRepository.fetchMovieDetail(showId)
-                    }
-                } catch (e: Exception) {
-                    // Log and continue — one failure should not abort the entire pull
-                    Log.w(TAG, "Failed to fetch TMDB metadata for $mediaType/$showId", e)
-                }
-            }
-            // Small delay between chunks to be respectful to TMDB rate limits
-            delay(500)
-        }
     }
 
     companion object {
