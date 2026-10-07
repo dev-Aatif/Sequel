@@ -95,16 +95,12 @@ interface ReviewDao {
 
     @androidx.room.Transaction
     suspend fun upsertReviewPull(newReview: ReviewEntity) {
-        if (newReview.supabaseId != null) {
-            val existing = getReviewBySupabaseId(newReview.supabaseId)
-            if (existing != null) {
-                if (existing.syncStatus == SyncStatus.DELETED) return
-                if (existing.syncStatus == SyncStatus.SYNCED || newReview.updatedAt >= existing.updatedAt) {
-                    val merged = newReview.copy(id = existing.id, createdAt = existing.createdAt)
-                    updateReview(merged)
-                }
-            } else {
-                insertReviewInternal(newReview)
+        val existing = getReviewForMediaAndEpisodeIncludingDeleted(newReview.mediaId, newReview.mediaType, newReview.seasonNum, newReview.episodeNum)
+        if (existing != null) {
+            if (existing.syncStatus == SyncStatus.DELETED || existing.syncStatus == SyncStatus.PENDING) return
+            if (existing.syncStatus == SyncStatus.SYNCED || newReview.updatedAt >= existing.updatedAt) {
+                val merged = newReview.copy(id = existing.id, createdAt = existing.createdAt)
+                updateReview(merged)
             }
         } else {
             insertReviewInternal(newReview)
@@ -121,8 +117,11 @@ interface ReviewDao {
 
     // ── General Queries ──────────────────────────────────────────
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1) LIMIT 1")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1) AND sync_status != 'DELETED' LIMIT 1")
     suspend fun getReviewForMediaAndEpisode(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?): ReviewEntity?
+
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1) LIMIT 1")
+    suspend fun getReviewForMediaAndEpisodeIncludingDeleted(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?): ReviewEntity?
 
     // ── Updates ───────────────────────────────────────────────────
 
@@ -142,18 +141,18 @@ interface ReviewDao {
 
     // ── Queries (reactive) ────────────────────────────────────────
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num = :seasonNum AND episode_num = :episodeNum")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num = :seasonNum AND episode_num = :episodeNum AND sync_status != 'DELETED'")
     fun observeReviewForEpisode(mediaId: Int, mediaType: String, seasonNum: Int, episodeNum: Int): Flow<ReviewEntity?>
 
-    @Query("SELECT * FROM reviews ORDER BY updated_at DESC")
+    @Query("SELECT * FROM reviews WHERE sync_status != 'DELETED' ORDER BY updated_at DESC")
     fun observeAllReviews(): Flow<List<ReviewEntity>>
 
     // ── Queries (suspend) ─────────────────────────────────────────
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND sync_status != 'DELETED'")
     suspend fun getReviewForMedia(mediaId: Int, mediaType: String): ReviewEntity?
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num = :seasonNum AND episode_num = :episodeNum")
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num = :seasonNum AND episode_num = :episodeNum AND sync_status != 'DELETED'")
     suspend fun getReviewForEpisode(mediaId: Int, mediaType: String, seasonNum: Int, episodeNum: Int): ReviewEntity?
 
     @Query("SELECT * FROM reviews WHERE sync_status != 'SYNCED'")

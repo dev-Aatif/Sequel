@@ -801,21 +801,40 @@ fun RatingDialog(currentRating: Int?, onDismiss: () -> Unit, onSubmit: (Int) -> 
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // The Slider
-                Slider(
-                    value = selectedRating.toFloat(),
-                    onValueChange = { selectedRating = it.toInt() },
-                    valueRange = 0f..10f,
-                    steps = 9,
-                    colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = Color.White.copy(0.1f),
-                        activeTickColor = Color.Transparent,
-                        inactiveTickColor = Color.Transparent
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // The Segmented Rating Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    for (i in 1..10) {
+                        val isSelected = selectedRating == i
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(0.65f)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(0.1f))
+                                .clickable {
+                                    if (isSelected) selectedRating = 0 else selectedRating = i
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = i.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White
+                            )
+                        }
+                    }
+                }
+                
+                if (selectedRating > 0) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TextButton(onClick = { selectedRating = 0 }) {
+                        Text("Clear Rating", color = MaterialTheme.colorScheme.error)
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -837,7 +856,7 @@ fun RatingDialog(currentRating: Int?, onDismiss: () -> Unit, onSubmit: (Int) -> 
                     }
                     
                     Button(
-                        onClick = { if (selectedRating > 0) onSubmit(selectedRating) },
+                        onClick = { onSubmit(selectedRating) },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -845,8 +864,7 @@ fun RatingDialog(currentRating: Int?, onDismiss: () -> Unit, onSubmit: (Int) -> 
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        enabled = selectedRating > 0
+                        )
                     ) {
                         Text("Submit", fontWeight = FontWeight.Bold)
                     }

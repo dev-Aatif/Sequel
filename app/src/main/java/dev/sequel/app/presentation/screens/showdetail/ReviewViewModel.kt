@@ -76,6 +76,10 @@ class ReviewViewModel @Inject constructor(
      * Rating is stored as a rating-only row in the reviews table.
      */
     fun submitRating(rating: Int) {
+        if (rating == 0) {
+            deleteRating()
+            return
+        }
         viewModelScope.launch {
             reviewDao.upsertRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, rating)
             syncManager.syncReviewsNow(currentMediaId)
@@ -87,7 +91,19 @@ class ReviewViewModel @Inject constructor(
      */
     fun deleteRating() {
         viewModelScope.launch {
-            reviewDao.deleteRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            val localReview = reviewDao.getReviewForMediaAndEpisode(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            if (localReview != null) {
+                if (localReview.reviewText.isNullOrBlank()) {
+                    reviewDao.markReviewDeleted(localReview.id)
+                    currentUserId?.let { uid ->
+                        try {
+                            supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                        } catch (e: Exception) {}
+                    }
+                } else {
+                    reviewDao.deleteRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                }
+            }
             syncManager.syncReviewsNow(currentMediaId)
         }
     }
@@ -151,14 +167,24 @@ class ReviewViewModel @Inject constructor(
 
     fun deleteReview(reviewId: String) {
         viewModelScope.launch {
-            try {
-                // Ignore network errors, local delete will still happen
-                supabaseSyncService.deleteReview(reviewId)
-            } catch (e: Exception) {
-            }
-            // Delete local cache by supabase ID
             val localReview = reviewDao.getReviewBySupabaseId(reviewId)
-            localReview?.let { reviewDao.markReviewDeleted(it.id) }
+            if (localReview != null) {
+                if (localReview.rating == null) {
+                    reviewDao.markReviewDeleted(localReview.id)
+                    currentUserId?.let { uid ->
+                        try {
+                            supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                        } catch (e: Exception) {}
+                    }
+                } else {
+                    reviewDao.updateReviewText(localReview.id, "", false)
+                }
+            } else {
+                // Fallback if local not found, just delete remotely
+                try {
+                    supabaseSyncService.deleteReview(reviewId)
+                } catch (e: Exception) {}
+            }
             syncManager.syncReviewsNow(currentMediaId)
 
             // Optimistically update UI

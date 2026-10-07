@@ -41,7 +41,7 @@ import dev.sequel.app.data.local.dao.WatchedMovieDao
         WatchlistEntity::class,
         dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

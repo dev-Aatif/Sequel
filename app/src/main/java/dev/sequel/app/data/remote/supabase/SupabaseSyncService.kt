@@ -194,6 +194,29 @@ class SupabaseSyncService @Inject constructor(
     }
 
     /**
+     * Delete a review by media criteria (used for immediate deletions).
+     */
+    suspend fun deleteReviewForMedia(userId: String, mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?) {
+        supabaseClient.postgrest[TABLE_REVIEWS].delete {
+            filter {
+                eq("user_id", userId)
+                eq("media_id", mediaId)
+                eq("media_type", mediaType)
+                if (seasonNum != null) {
+                    eq("season_num", seasonNum)
+                } else {
+                    filter("season_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+                }
+                if (episodeNum != null) {
+                    eq("episode_num", episodeNum)
+                } else {
+                    filter("episode_num", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null")
+                }
+            }
+        }
+    }
+
+    /**
      * Fetch all reviews for the current user from Supabase.
      */
     suspend fun fetchAllReviews(userId: String): List<SupabaseReviewDto> {
