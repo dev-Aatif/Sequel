@@ -70,6 +70,8 @@ Dump.kt
 install.cmd
 test/
 skills/
+scratch/
+*.py
 
 # ── Release Output Directories ────────────────────────────
 app/release/

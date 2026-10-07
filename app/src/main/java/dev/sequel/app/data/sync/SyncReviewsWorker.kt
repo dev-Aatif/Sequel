@@ -44,6 +44,12 @@ class SyncReviewsWorker @AssistedInject constructor(
                         supabaseSyncService.deleteReview(record.supabaseId)
                     }
                     reviewDao.deleteReviewById(record.id)
+                } else if (record.rating == null && record.reviewText.isNullOrBlank()) {
+                    // Instruction: if a user removes a rating and no review text exists, issue an HTTP DELETE
+                    if (record.supabaseId != null) {
+                        supabaseSyncService.deleteReview(record.supabaseId)
+                    }
+                    reviewDao.deleteReviewById(record.id)
                 } else {
                     val dto = SupabaseReviewDto(
                         id = record.supabaseId,
@@ -53,7 +59,6 @@ class SyncReviewsWorker @AssistedInject constructor(
                         seasonNum = record.seasonNum,
                         episodeNum = record.episodeNum,
                         reviewText = record.reviewText,
-                        vibeEmoji = null,
                         rating = record.rating,
                         isSpoiler = record.isSpoiler,
                         updatedAt = record.updatedAt

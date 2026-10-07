@@ -120,7 +120,7 @@ class MediaImportWorker @AssistedInject constructor(
                             WatchedEpisodeEntity(
                                 mediaType = MediaType.MOVIE,
                                 showId = movieId,
-                                episodeId = -1,
+                                tmdbEpisodeId = -1,
                                 seasonNumber = -1,
                                 episodeNumber = -1,
                                 syncStatus = SyncStatus.PENDING,
@@ -165,9 +165,9 @@ class MediaImportWorker @AssistedInject constructor(
                                             WatchedEpisodeEntity(
                                                 mediaType = MediaType.TV,
                                                 showId = showId,
-                                                episodeId = tmdbEpisode.id,
-                                                seasonNumber = ep.seasonNumber,
-                                                episodeNumber = ep.episodeNumber,
+                                                tmdbEpisodeId = tmdbEpisode.id,
+                                                seasonNumber = ep.seasonNumber ?: 0,
+                                                episodeNumber = ep.episodeNumber ?: 0,
                                                 syncStatus = SyncStatus.PENDING,
                                                 watchedAt = ep.watchedAt ?: System.currentTimeMillis()
                                             )

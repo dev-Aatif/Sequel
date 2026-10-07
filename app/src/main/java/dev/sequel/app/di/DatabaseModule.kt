@@ -13,6 +13,7 @@ import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.SeasonDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
+import dev.sequel.app.data.local.dao.WatchedMovieDao
 import javax.inject.Singleton
 
 @Module
@@ -37,7 +38,8 @@ object DatabaseModule {
                 SequelDatabase.MIGRATION_11_12,
                 SequelDatabase.MIGRATION_12_13,
                 SequelDatabase.MIGRATION_13_14,
-                SequelDatabase.MIGRATION_14_15
+                SequelDatabase.MIGRATION_14_15,
+                SequelDatabase.MIGRATION_15_16
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -54,6 +56,9 @@ object DatabaseModule {
 
     @Provides
     fun provideWatchedEpisodeDao(database: SequelDatabase): WatchedEpisodeDao = database.watchedEpisodeDao()
+
+    @Provides
+    fun provideWatchedMovieDao(database: SequelDatabase): WatchedMovieDao = database.watchedMovieDao()
 
     @Provides
     fun provideReviewDao(database: SequelDatabase): ReviewDao = database.reviewDao()

@@ -2,6 +2,7 @@ package dev.sequel.app.data.remote.supabase
 
 import dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto
 import dev.sequel.app.data.remote.supabase.dto.SupabaseWatchedEpisodeDto
+import dev.sequel.app.data.remote.supabase.dto.SupabaseWatchedMovieDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -17,6 +18,69 @@ class SupabaseSyncService @Inject constructor(
     private val supabaseClient: SupabaseClient
 ) {
 
+    // ── Watched Movies ────────────────────────────────────────────
+
+    /**
+     * Upsert a watched movie to Supabase.
+     * @return The Supabase-generated UUID for the record.
+     */
+    suspend fun upsertWatchedMovie(dto: SupabaseWatchedMovieDto): String {
+        val result = supabaseClient.postgrest[TABLE_WATCHED_MOVIES]
+            .upsert(dto) {
+                onConflict = "user_id,tmdb_movie_id"
+                select(Columns.list("id"))
+            }
+            .decodeSingle<SupabaseWatchedMovieDto>()
+        return result.id ?: throw IllegalStateException("Supabase did not return an ID")
+    }
+
+    /**
+     * Batch upsert watched movies.
+     * @return List of upserted DTOs with Supabase UUIDs.
+     */
+    suspend fun upsertWatchedMovies(dtos: List<SupabaseWatchedMovieDto>): List<SupabaseWatchedMovieDto> {
+        if (dtos.isEmpty()) return emptyList()
+        val results = supabaseClient.postgrest[TABLE_WATCHED_MOVIES]
+            .upsert(dtos) {
+                onConflict = "user_id,tmdb_movie_id"
+                select()
+            }
+            .decodeList<SupabaseWatchedMovieDto>()
+        return results
+    }
+
+    /**
+     * Delete a watched movie from Supabase by its UUID.
+     */
+    suspend fun deleteWatchedMovie(supabaseId: String) {
+        supabaseClient.postgrest[TABLE_WATCHED_MOVIES]
+            .delete {
+                filter {
+                    eq("id", supabaseId)
+                }
+            }
+    }
+
+    /**
+     * Fetch all watched movies for the current user from Supabase.
+     */
+    suspend fun fetchAllWatchedMovies(userId: String): List<SupabaseWatchedMovieDto> {
+        val results = mutableListOf<SupabaseWatchedMovieDto>()
+        var offset = 0L
+        val limit = 1000L
+        while (true) {
+            val chunk = supabaseClient.postgrest[TABLE_WATCHED_MOVIES]
+                .select {
+                    filter { eq("user_id", userId) }
+                    range(offset, offset + limit - 1)
+                }.decodeList<SupabaseWatchedMovieDto>()
+            results.addAll(chunk)
+            if (chunk.size < limit) break
+            offset += limit
+        }
+        return results
+    }
+
     // ── Watched Episodes ──────────────────────────────────────────
 
     /**
@@ -26,7 +90,7 @@ class SupabaseSyncService @Inject constructor(
     suspend fun upsertWatchedEpisode(dto: SupabaseWatchedEpisodeDto): String {
         val result = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
             .upsert(dto) {
-                onConflict = "user_id,tmdb_show_id,tmdb_episode_id,media_type"
+                onConflict = "user_id,tmdb_episode_id"
                 select(Columns.list("id"))
             }
             .decodeSingle<SupabaseWatchedEpisodeDto>()
@@ -41,7 +105,7 @@ class SupabaseSyncService @Inject constructor(
         if (dtos.isEmpty()) return emptyList()
         val results = supabaseClient.postgrest[TABLE_WATCHED_EPISODES]
             .upsert(dtos) {
-                onConflict = "user_id,tmdb_show_id,tmdb_episode_id,media_type"
+                onConflict = "user_id,tmdb_episode_id"
                 select() // Select all columns to map back to local rows
             }
             .decodeList<SupabaseWatchedEpisodeDto>()
@@ -110,7 +174,7 @@ class SupabaseSyncService @Inject constructor(
     suspend fun upsertReview(dto: SupabaseReviewDto): String {
         val result = supabaseClient.postgrest[TABLE_REVIEWS]
             .upsert(dto) {
-                onConflict = "user_id,media_id,season_num,episode_num"
+                onConflict = "user_id,media_id,media_type,season_num,episode_num"
                 select(Columns.list("id"))
             }
             .decodeSingle<SupabaseReviewDto>()
@@ -154,6 +218,7 @@ class SupabaseSyncService @Inject constructor(
      */
     suspend fun fetchReviewsForMedia(
         mediaId: Int,
+        mediaType: String,
         seasonNum: Int? = null,
         episodeNum: Int? = null
     ): List<SupabaseReviewDto> {
@@ -165,6 +230,7 @@ class SupabaseSyncService @Inject constructor(
                 .select {
                     filter {
                         eq("media_id", mediaId)
+                        eq("media_type", mediaType)
                         if (seasonNum != null) {
                             eq("season_num", seasonNum)
                         } else {
@@ -188,6 +254,7 @@ class SupabaseSyncService @Inject constructor(
     // ── Watchlist ─────────────────────────────────────────────────
 
     companion object {
+        const val TABLE_WATCHED_MOVIES = "watched_movies"
         const val TABLE_WATCHED_EPISODES = "watched_episodes"
         const val TABLE_REVIEWS = "reviews"
         const val TABLE_WATCHLIST = "user_watchlist"
@@ -198,11 +265,12 @@ class SupabaseSyncService @Inject constructor(
         supabaseClient.postgrest[TABLE_WATCHLIST].upsert(dtos)
     }
 
-    suspend fun deleteFromWatchlist(userId: String, tmdbId: Int) {
+    suspend fun deleteFromWatchlist(userId: String, tmdbId: Int, mediaType: String) {
         supabaseClient.postgrest[TABLE_WATCHLIST].delete {
             filter {
                 eq("user_id", userId)
                 eq("tmdb_id", tmdbId)
+                eq("media_type", mediaType)
             }
         }
     }

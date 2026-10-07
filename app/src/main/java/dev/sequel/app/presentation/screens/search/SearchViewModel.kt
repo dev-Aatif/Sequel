@@ -54,6 +54,7 @@ class SearchViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
     private val watchlistRepository: WatchlistRepository,
     private val watchedEpisodeRepository: WatchedEpisodeRepository,
+    private val watchedMovieDao: dev.sequel.app.data.local.dao.WatchedMovieDao,
     private val showRepository: ShowRepository,
     private val seasonRepository: SeasonRepository,
     private val syncManager: SyncManager,
@@ -149,8 +150,7 @@ class SearchViewModel @Inject constructor(
                 val inWatchlist = watchlistRepository.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == "movie") {
-                    val watchedList = watchedEpisodeRepository.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
-                    val isMovieWatched = watchedList.isNotEmpty()
+                    val isMovieWatched = watchedMovieDao.observeIsMovieWatched(show.id).firstOrNull() ?: false
                     
                     _bottomSheetState.value = BottomSheetUiState(
                         show = showInfo,
@@ -234,16 +234,14 @@ class SearchViewModel @Inject constructor(
             try {
                 if (show.mediaType == "movie") {
                     if (state.isWatched) {
-                        watchedEpisodeRepository.unwatchAllForShow(show.id, show.mediaType)
+                        watchedMovieDao.unwatchMovie(show.id)
                         _bottomSheetState.value = state.copy(isWatched = false)
                         onSuccess("Removed from Watched")
                     } else {
-                        watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = dev.sequel.app.data.local.entity.MediaType.MOVIE,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = null,
-                            episodeNumber = null
+                        watchedMovieDao.upsertWatchedMovie(
+                            movieId = show.id,
+                            title = show.title,
+                            posterPath = show.posterPath
                         )
                         watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
@@ -272,21 +270,12 @@ class SearchViewModel @Inject constructor(
                     
                     if (ep != null) {
                         watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                             showId = show.id,
-                            episodeId = ep.id,
+                            tmdbEpisodeId = ep.id,
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
-                    } else {
-                        watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = next.seasonNumber,
-                            episodeNumber = next.episodeNumber
-                        )
-                    }
+                    } 
                         
                     onSuccess("Marked as Watched")
 
@@ -350,23 +339,13 @@ class SearchViewModel @Inject constructor(
                     
                     if (ep != null) {
                         watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
                             showId = show.id,
-                            episodeId = ep.id,
+                            tmdbEpisodeId = ep.id,
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber,
                             isSkipped = true
                         )
-                    } else {
-                        watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = dev.sequel.app.data.local.entity.MediaType.TV,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = next.seasonNumber,
-                            episodeNumber = next.episodeNumber,
-                            isSkipped = true
-                        )
-                    }
+                    } 
                     onSuccess("Skipped Episode")
                     val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()
                     if (updatedShow != null) {

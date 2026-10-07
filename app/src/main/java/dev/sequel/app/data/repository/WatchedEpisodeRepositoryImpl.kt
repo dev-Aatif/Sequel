@@ -12,25 +12,21 @@ import javax.inject.Singleton
 class WatchedEpisodeRepositoryImpl @Inject constructor(
     private val watchedEpisodeDao: WatchedEpisodeDao
 ) : WatchedEpisodeRepository {
-    override fun observeTotalMoviesWatched(): Flow<Int> = watchedEpisodeDao.observeTotalMoviesWatched()
-    
-    override fun observeWatchedByShow(showId: Int, mediaType: String): Flow<List<WatchedEpisodeEntity>> = 
-        watchedEpisodeDao.observeWatchedByShow(showId, mediaType)
+    override fun observeWatchedByShow(showId: Int): Flow<List<WatchedEpisodeEntity>> = 
+        watchedEpisodeDao.observeWatchedByShow(showId)
         
-    override suspend fun unwatchAllForShow(showId: Int, mediaType: String) = 
-        watchedEpisodeDao.unwatchAllForShow(showId, mediaType)
+    override suspend fun unwatchAllForShow(showId: Int) = 
+        watchedEpisodeDao.unwatchAllForShow(showId)
         
     override suspend fun upsertWatchedEpisode(
-        mediaType: MediaType,
         showId: Int,
-        episodeId: Int?,
-        seasonNumber: Int?,
-        episodeNumber: Int?,
+        tmdbEpisodeId: Int,
+        seasonNumber: Int,
+        episodeNumber: Int,
         isSkipped: Boolean
     ) = watchedEpisodeDao.upsertWatchedEpisode(
-        mediaType = mediaType,
         showId = showId,
-        episodeId = episodeId,
+        tmdbEpisodeId = tmdbEpisodeId,
         seasonNumber = seasonNumber,
         episodeNumber = episodeNumber,
         isSkipped = isSkipped

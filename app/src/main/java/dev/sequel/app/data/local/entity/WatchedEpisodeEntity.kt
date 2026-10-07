@@ -7,8 +7,9 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Records that a user has watched a specific episode.
- * This is the core tracking entity — saved locally first, then synced to Supabase.
+ * Records that a user has watched a specific TV episode.
+ * This table is now strictly for TV episodes — movies use [WatchedMovieEntity].
+ * Saved locally first, then synced to Supabase via WorkManager.
  */
 @Entity(
     tableName = "watched_episodes",
@@ -21,7 +22,7 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index(value = ["show_id", "media_type", "season_number", "episode_number"], unique = true), // unique watch per show/season/episode
+        Index(value = ["tmdb_episode_id"], unique = true),
         Index(value = ["show_id", "media_type"]),
         Index(value = ["sync_status"])
     ]
@@ -37,14 +38,14 @@ data class WatchedEpisodeEntity(
     @ColumnInfo(name = "show_id")
     val showId: Int,
 
-    @ColumnInfo(name = "episode_id")
-    val episodeId: Int? = null,
+    @ColumnInfo(name = "tmdb_episode_id")
+    val tmdbEpisodeId: Int,
 
     @ColumnInfo(name = "season_number")
-    val seasonNumber: Int? = null,
+    val seasonNumber: Int,
 
     @ColumnInfo(name = "episode_number")
-    val episodeNumber: Int? = null,
+    val episodeNumber: Int,
 
     @ColumnInfo(name = "watched_at")
     val watchedAt: Long = System.currentTimeMillis(),

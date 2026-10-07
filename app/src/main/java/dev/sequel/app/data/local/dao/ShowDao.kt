@@ -66,26 +66,26 @@ interface ShowDao {
     @Query("""
         SELECT s.* FROM shows s
         WHERE s.media_type = 'tv' 
-        AND EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)
+        AND EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id AND w.sync_status != 'DELETED')
     """)
     fun observeStartedTvShows(): Flow<List<ShowEntity>>
 
     @Query("""
         WITH WatchedCount AS (
             SELECT show_id, 
-                   COUNT(episode_id) AS watched_count
+                   COUNT(tmdb_episode_id) AS watched_count
             FROM watched_episodes
-            WHERE episode_id IS NOT NULL AND sync_status != 'DELETED'
+            WHERE tmdb_episode_id IS NOT NULL AND sync_status != 'DELETED'
             GROUP BY show_id
         ),
         LatestWatched AS (
             SELECT show_id, season_number, episode_number
             FROM watched_episodes we1
-            WHERE episode_id IS NOT NULL AND sync_status != 'DELETED'
+            WHERE tmdb_episode_id IS NOT NULL AND sync_status != 'DELETED'
               AND NOT EXISTS (
                   SELECT 1 FROM watched_episodes we2
                   WHERE we2.show_id = we1.show_id
-                    AND we2.episode_id IS NOT NULL AND we2.sync_status != 'DELETED'
+                    AND we2.tmdb_episode_id IS NOT NULL AND we2.sync_status != 'DELETED'
                     AND (we2.season_number > we1.season_number OR (we2.season_number = we1.season_number AND we2.episode_number > we1.episode_number))
               )
             GROUP BY show_id
@@ -100,7 +100,7 @@ interface ShowDao {
             SELECT id FROM episodes e2
             WHERE e2.show_id = s.id
             AND e2.id NOT IN (
-                SELECT episode_id FROM watched_episodes we WHERE we.show_id = s.id AND we.episode_id IS NOT NULL AND we.sync_status != 'DELETED'
+                SELECT tmdb_episode_id FROM watched_episodes we WHERE we.show_id = s.id AND we.tmdb_episode_id IS NOT NULL AND we.sync_status != 'DELETED'
             )
             AND (
                 lw.season_number IS NULL
@@ -125,7 +125,7 @@ interface ShowDao {
     @Query("""
         SELECT s.* FROM shows s
         WHERE s.media_type = 'movie' AND (s.is_in_watchlist = 1 OR s.is_favorite = 1)
-        AND NOT EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)
+        AND NOT EXISTS (SELECT 1 FROM watched_movies wm WHERE wm.tmdb_movie_id = s.id AND wm.sync_status != 'DELETED')
     """)
     fun observeUnwatchedTrackedMovies(): Flow<List<ShowEntity>>
 
@@ -134,7 +134,7 @@ interface ShowDao {
     @Query("""
         SELECT s.* FROM shows s
         WHERE s.media_type = 'tv' 
-        AND EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id)
+        AND EXISTS (SELECT 1 FROM watched_episodes w WHERE w.show_id = s.id AND w.sync_status != 'DELETED')
     """)
     suspend fun getStartedTvShows(): List<ShowEntity>
 
@@ -164,13 +164,13 @@ interface ShowDao {
 
     @Query("""
         SELECT s.*,
-               (SELECT COUNT(we.id) FROM watched_episodes we WHERE we.show_id = s.id AND we.episode_id IS NOT NULL AND we.sync_status != 'DELETED') AS watchedCount,
+               (SELECT COUNT(we.id) FROM watched_episodes we WHERE we.show_id = s.id AND we.tmdb_episode_id IS NOT NULL AND we.sync_status != 'DELETED') AS watchedCount,
                EXISTS (
                    SELECT 1 FROM episodes e 
                    WHERE e.show_id = s.id 
                    AND e.id NOT IN (
-                       SELECT episode_id FROM watched_episodes we2 
-                       WHERE we2.show_id = s.id AND we2.episode_id IS NOT NULL AND we2.sync_status != 'DELETED'
+                       SELECT tmdb_episode_id FROM watched_episodes we2 
+                       WHERE we2.show_id = s.id AND we2.tmdb_episode_id IS NOT NULL AND we2.sync_status != 'DELETED'
                    )
                ) AS hasUnwatchedEpisodes
         FROM shows s
@@ -182,7 +182,8 @@ interface ShowDao {
     @Query("""
         SELECT s.*
         FROM shows s
-        WHERE s.id IN (SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'movie' AND sync_status != 'DELETED')
+        WHERE s.id IN (SELECT DISTINCT tmdb_movie_id FROM watched_movies WHERE sync_status != 'DELETED')
+        AND s.media_type = 'movie'
         ORDER BY s.title ASC
     """)
     fun observeWatchedMovies(): Flow<List<ShowEntity>>

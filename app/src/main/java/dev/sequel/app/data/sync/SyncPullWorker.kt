@@ -10,11 +10,13 @@ import dagger.assisted.AssistedInject
 import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
+import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.data.local.dao.WatchlistDao
 import dev.sequel.app.data.local.entity.MediaType
 import dev.sequel.app.data.local.entity.ReviewEntity
 import dev.sequel.app.data.local.entity.SyncStatus
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
+import dev.sequel.app.data.local.entity.WatchedMovieEntity
 import dev.sequel.app.data.local.entity.WatchlistEntity
 import dev.sequel.app.data.remote.supabase.SupabaseAuthService
 import dev.sequel.app.data.remote.supabase.SupabaseSyncService
@@ -28,6 +30,7 @@ class SyncPullWorker @AssistedInject constructor(
     private val supabaseAuthService: SupabaseAuthService,
     private val supabaseSyncService: SupabaseSyncService,
     private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchedMovieDao: WatchedMovieDao,
     private val reviewDao: ReviewDao,
     private val watchlistDao: WatchlistDao,
     private val showDao: ShowDao,
@@ -39,10 +42,16 @@ class SyncPullWorker @AssistedInject constructor(
         var hasFailures = false
 
         // ── Phase 1: Download all remote data from Supabase ─────────
-        // We fetch everything first, then figure out which parent show rows
-        // are missing before attempting any Room inserts (FK constraints).
 
-        val remoteWatched = try {
+        val remoteWatchedMovies = try {
+            supabaseSyncService.fetchAllWatchedMovies(userId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch watched movies from Supabase", e)
+            hasFailures = true
+            emptyList()
+        }
+
+        val remoteWatchedEpisodes = try {
             supabaseSyncService.fetchAllWatchedEpisodes(userId)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch watched episodes from Supabase", e)
@@ -67,14 +76,15 @@ class SyncPullWorker @AssistedInject constructor(
         }
 
         // ── Phase 2: Hydrate missing show metadata from TMDB ────────
-        // Both watched_episodes and reviews have a FK to shows(id, media_type).
+        // watched_episodes have a FK to shows(id, media_type).
         // We MUST insert the parent show rows BEFORE inserting children.
+        // watched_movies carry their own title+poster, so they render immediately
+        // without needing a shows table entry.
 
         val allReferencedShows = mutableSetOf<Pair<Int, String>>() // (tmdbId, mediaType)
 
-        remoteWatched.forEach { dto ->
-            val mt = if (dto.mediaType.equals("movie", ignoreCase = true)) "movie" else "tv"
-            allReferencedShows.add(Pair(dto.tmdbShowId, mt))
+        remoteWatchedEpisodes.forEach { dto ->
+            allReferencedShows.add(Pair(dto.tmdbShowId, "tv"))
         }
         remoteReviews.forEach { dto ->
             val mt = dto.mediaType ?: (if (dto.seasonNum != null) "tv" else "movie")
@@ -107,17 +117,43 @@ class SyncPullWorker @AssistedInject constructor(
 
         // ── Phase 3: Insert children into Room ──────────────────────
 
-        // 3a. Watched Episodes
-        if (remoteWatched.isNotEmpty()) {
+        // 3a. Watched Movies — carry title+poster, render immediately
+        if (remoteWatchedMovies.isNotEmpty()) {
             try {
-                val watchedEntities = remoteWatched.map { dto ->
+                val movieEntities = remoteWatchedMovies.map { dto ->
+                    WatchedMovieEntity(
+                        supabaseId = dto.id,
+                        tmdbMovieId = dto.tmdbMovieId,
+                        title = dto.title,
+                        posterPath = dto.posterPath,
+                        watchedAt = dto.watchedAt,
+                        syncStatus = SyncStatus.SYNCED
+                    )
+                }
+                watchedMovieDao.upsertWatchedMoviesPullTransaction(movieEntities)
+
+                // Handle server deletes: local SYNCED records that are missing from remote
+                val remoteMovieIds = movieEntities.mapNotNull { it.supabaseId }.toSet()
+                val localSyncedMovies = watchedMovieDao.getByStatus(SyncStatus.SYNCED)
+                val toDeleteMoviesLocally = localSyncedMovies.filter { it.supabaseId != null && it.supabaseId !in remoteMovieIds }
+                toDeleteMoviesLocally.forEach { watchedMovieDao.deleteMovieById(it.tmdbMovieId) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to insert watched movies into Room", e)
+                hasFailures = true
+            }
+        }
+
+        // 3b. Watched Episodes (TV only)
+        if (remoteWatchedEpisodes.isNotEmpty()) {
+            try {
+                val watchedEntities = remoteWatchedEpisodes.map { dto ->
                     WatchedEpisodeEntity(
                         supabaseId = dto.id,
-                        mediaType = if (dto.mediaType.equals("movie", ignoreCase = true)) MediaType.MOVIE else MediaType.TV,
+                        mediaType = MediaType.TV,
                         showId = dto.tmdbShowId,
-                        episodeId = dto.tmdbEpisodeId ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
-                        seasonNumber = dto.seasonNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
-                        episodeNumber = dto.episodeNumber ?: (if (dto.mediaType.equals("movie", ignoreCase = true)) -1 else null),
+                        tmdbEpisodeId = dto.tmdbEpisodeId,
+                        seasonNumber = dto.seasonNumber,
+                        episodeNumber = dto.episodeNumber,
                         watchedAt = dto.watchedAt,
                         syncStatus = SyncStatus.SYNCED,
                         isSkipped = dto.isSkipped
@@ -136,7 +172,7 @@ class SyncPullWorker @AssistedInject constructor(
             }
         }
 
-        // 3b. Reviews
+        // 3c. Reviews
         if (remoteReviews.isNotEmpty()) {
             try {
                 val reviewEntities = remoteReviews.map { dto ->
@@ -147,8 +183,8 @@ class SyncPullWorker @AssistedInject constructor(
                         seasonNum = dto.seasonNum,
                         episodeNum = dto.episodeNum,
                         reviewText = dto.reviewText,
-                        rating = dto.vibeEmoji?.toIntOrNull(),
-                        isRatingOnly = dto.reviewText.isNullOrBlank() && dto.vibeEmoji != null,
+                        rating = dto.rating,
+                        isRatingOnly = dto.reviewText.isNullOrBlank() && dto.rating != null,
                         isSpoiler = dto.isSpoiler ?: false,
                         updatedAt = dto.updatedAt ?: 0L,
                         syncStatus = SyncStatus.SYNCED
@@ -167,7 +203,7 @@ class SyncPullWorker @AssistedInject constructor(
             }
         }
 
-        // 3c. Watchlist (no FK to shows, so this always worked)
+        // 3d. Watchlist (no FK to shows, so this always worked)
         if (remoteWatchlist.isNotEmpty()) {
             try {
                 val watchlistEntities = remoteWatchlist.map { dto ->

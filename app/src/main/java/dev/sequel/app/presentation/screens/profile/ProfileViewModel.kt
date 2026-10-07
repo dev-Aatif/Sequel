@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
+import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,20 +47,22 @@ data class ProfileUiState(
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val watchedEpisodeDao: WatchedEpisodeDao
+    private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchedMovieDao: WatchedMovieDao
 ) : ViewModel() {
 
     val uiState: StateFlow<ProfileUiState> = combine(
         watchedEpisodeDao.observeTotalEpisodesWatched(),
-        watchedEpisodeDao.observeTotalMoviesWatched(),
-        watchedEpisodeDao.observeTotalRuntimeMinutes(),
+        watchedMovieDao.observeTotalMoviesWatched(),
+        watchedEpisodeDao.observeEpisodeRuntimeMinutes(),
+        watchedMovieDao.observeMovieRuntimeMinutes(),
         watchedEpisodeDao.observeRecentActivity(limit = 10)
-    ) { episodes, movies, runtime, recentActivity ->
+    ) { episodes, movies, episodeRuntime, movieRuntime, recentActivity ->
         ProfileUiState(
             email = authRepository.currentUserEmail,
             totalEpisodesWatched = episodes,
             totalMoviesWatched = movies,
-            totalRuntimeMinutes = runtime,
+            totalRuntimeMinutes = episodeRuntime + movieRuntime,
             recentActivity = recentActivity
         )
     }.stateIn(

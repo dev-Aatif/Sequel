@@ -46,7 +46,7 @@ class SeasonDetailViewModel @Inject constructor(
 
     val uiState: StateFlow<SeasonDetailUiState> = combine(
         episodeDao.observeEpisodesBySeason(showId, seasonNumber),
-        watchedEpisodeDao.observeWatchedByShow(showId, "tv"),
+        watchedEpisodeDao.observeWatchedByShow(showId),
         _loadingError
     ) { episodes, watchedList, error ->
         if (error != null) {
@@ -54,7 +54,7 @@ class SeasonDetailViewModel @Inject constructor(
         } else if (episodes.isEmpty()) {
             SeasonDetailUiState.Loading
         } else {
-            val watchedMap = watchedList.associateBy { it.episodeId }
+            val watchedMap = watchedList.associateBy { it.tmdbEpisodeId }
             val seasonUi = SeasonUi(
                 seasonNumber = seasonNumber,
                 name = "Season $seasonNumber",
@@ -116,9 +116,8 @@ class SeasonDetailViewModel @Inject constructor(
                 watchedEpisodeDao.unwatchEpisode(episode.id)
             } else {
                 watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.TV,
                     showId = showId,
-                    episodeId = episode.id,
+                    tmdbEpisodeId = episode.id,
                     seasonNumber = episode.seasonNumber,
                     episodeNumber = episode.episodeNumber
                 )
@@ -134,9 +133,8 @@ class SeasonDetailViewModel @Inject constructor(
                 watchedEpisodeDao.unwatchEpisode(episode.id)
             } else {
                 watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.TV,
                     showId = showId,
-                    episodeId = episode.id,
+                    tmdbEpisodeId = episode.id,
                     seasonNumber = episode.seasonNumber,
                     episodeNumber = episode.episodeNumber,
                     isSkipped = true
@@ -152,9 +150,8 @@ class SeasonDetailViewModel @Inject constructor(
         viewModelScope.launch {
             episodes.forEach { episode ->
                 watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.TV,
                     showId = showId,
-                    episodeId = episode.id,
+                    tmdbEpisodeId = episode.id,
                     seasonNumber = episode.seasonNumber,
                     episodeNumber = episode.episodeNumber
                 )

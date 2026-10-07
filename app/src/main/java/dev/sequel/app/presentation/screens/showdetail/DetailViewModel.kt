@@ -15,6 +15,7 @@ import dev.sequel.app.data.local.dao.EpisodeDao
 import dev.sequel.app.data.local.dao.SeasonDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
+import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.data.local.dao.WatchlistDao
 import dev.sequel.app.data.remote.tmdb.TmdbApiService
 import dev.sequel.app.data.remote.tmdb.dto.TmdbSeasonDetailDto
@@ -103,6 +104,7 @@ class DetailViewModel @Inject constructor(
     private val showDao: ShowDao,
     private val seasonDao: SeasonDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchedMovieDao: WatchedMovieDao,
     private val watchlistDao: WatchlistDao,
     private val reviewDao: dev.sequel.app.data.local.dao.ReviewDao,
     private val syncManager: SyncManager,
@@ -115,7 +117,9 @@ class DetailViewModel @Inject constructor(
     private val _detailState = MutableStateFlow<DetailInternalState>(DetailInternalState.Loading)
 
     /** Set of watched episode IDs, observed from Room reactively. */
-    private val watchedFlow = watchedEpisodeDao.observeWatchedByShow(showId, mediaType)
+    private val watchedFlow = if (mediaType == "tv") watchedEpisodeDao.observeWatchedByShow(showId) else kotlinx.coroutines.flow.flowOf(emptyList())
+    
+    private val isMovieWatchedFlow = if (mediaType == "movie") watchedMovieDao.observeIsMovieWatched(showId) else kotlinx.coroutines.flow.flowOf(false)
     
     /** Whether this show is in the user's watchlist, observed reactively. */
     private val isInWatchlistFlow = watchlistDao.observeIsInWatchlist(showId, mediaType)
@@ -128,19 +132,16 @@ class DetailViewModel @Inject constructor(
      * so the UI always reflects the latest watched state without re-fetching.
      */
     val uiState: StateFlow<DetailUiState> = combine(
-        _detailState,
-        watchedFlow,
-        isInWatchlistFlow,
-        myRatingFlow,
-        episodeDao.observeEpisodesByShow(showId)
-    ) { internal, watchedList, isInWatchlist, myRating, episodesList ->
+        combine(_detailState, watchedFlow, isMovieWatchedFlow) { a, b, c -> Triple(a, b, c) },
+        combine(isInWatchlistFlow, myRatingFlow, episodeDao.observeEpisodesByShow(showId)) { d, e, f -> Triple(d, e, f) }
+    ) { (internal, watchedList, isMovieWatchedValue), (isInWatchlist, myRating, episodesList) ->
         when (internal) {
             is DetailInternalState.Loading -> DetailUiState.Loading
             is DetailInternalState.Error -> DetailUiState.Error(internal.error)
             is DetailInternalState.Loaded -> {
-                val watchedMap = watchedList.associateBy { it.episodeId }
+                val watchedMap = watchedList.associateBy { it.tmdbEpisodeId }
                 val watchedEpisodeKeys = watchedList.map { "S${it.seasonNumber}E${it.episodeNumber}" }.toSet()
-                val isMovieWatched = internal.show.mediaType == "movie" && watchedList.isNotEmpty()
+                val isMovieWatched = internal.show.mediaType == "movie" && isMovieWatchedValue
                 DetailUiState.Success(
                     show = internal.show,
                     isMovieWatched = isMovieWatched,
@@ -290,9 +291,8 @@ class DetailViewModel @Inject constructor(
                 watchedEpisodeDao.unwatchEpisode(episode.id)
             } else {
                 watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.TV,
                     showId = showId,
-                    episodeId = episode.id,
+                    tmdbEpisodeId = episode.id,
                     seasonNumber = episode.seasonNumber,
                     episodeNumber = episode.episodeNumber
                 )
@@ -309,17 +309,19 @@ class DetailViewModel @Inject constructor(
     fun toggleMovieWatched(targetIsWatched: Boolean) {
         viewModelScope.launch {
             if (targetIsWatched) {
-                watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.MOVIE,
-                    showId = showId,
-                    episodeId = -1,
-                    seasonNumber = -1,
-                    episodeNumber = -1
+                val currentState = _detailState.value
+                val title = if (currentState is DetailInternalState.Loaded) currentState.show.title else ""
+                val posterPath = if (currentState is DetailInternalState.Loaded) currentState.show.posterPath else null
+                
+                watchedMovieDao.upsertWatchedMovie(
+                    movieId = showId,
+                    title = title,
+                    posterPath = posterPath
                 )
                 watchlistDao.removeFromWatchlist(showId, mediaType)
                 syncManager.syncWatchlistNow()
             } else {
-                watchedEpisodeDao.unwatchAllForShow(showId, mediaType)
+                watchedMovieDao.unwatchMovie(showId)
             }
             syncManager.syncWatchedEpisodesNow()
         }

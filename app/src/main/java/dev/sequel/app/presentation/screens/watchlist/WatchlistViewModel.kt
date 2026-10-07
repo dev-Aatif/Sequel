@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sequel.app.data.local.dao.EpisodeDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
+import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.data.local.entity.MediaType
 import dev.sequel.app.data.local.entity.SyncStatus
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
@@ -64,6 +65,7 @@ class WatchlistViewModel @Inject constructor(
     private val showDao: ShowDao,
     private val episodeDao: EpisodeDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
+    private val watchedMovieDao: WatchedMovieDao,
     private val watchlistDao: dev.sequel.app.data.local.dao.WatchlistDao,
     private val syncManager: SyncManager,
     private val getNextEpisodeUseCase: GetNextEpisodeUseCase,
@@ -191,11 +193,10 @@ class WatchlistViewModel @Inject constructor(
                     
                     // Upsert DB immediately for optimistic UI
                     watchedEpisodeDao.upsertWatchedEpisode(
-                        mediaType = MediaType.TV,
                         showId = item.showId,
-                        episodeId = item.nextEpisodeId,
-                        seasonNumber = item.seasonNumber,
-                        episodeNumber = item.episodeNumber
+                        tmdbEpisodeId = item.nextEpisodeId,
+                        seasonNumber = item.seasonNumber ?: 0,
+                        episodeNumber = item.episodeNumber ?: 0
                     )
                     watchlistDao.removeFromWatchlist(item.showId, item.mediaType)
 
@@ -220,12 +221,10 @@ class WatchlistViewModel @Inject constructor(
                     }
                 }
             } else {
-                watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.MOVIE,
-                    showId = item.showId,
-                    episodeId = null,
-                    seasonNumber = null,
-                    episodeNumber = null
+                watchedMovieDao.upsertWatchedMovie(
+                    movieId = item.showId,
+                    title = item.title,
+                    posterPath = item.posterPath
                 )
                 watchlistDao.removeFromWatchlist(item.showId, item.mediaType)
             }
@@ -238,11 +237,10 @@ class WatchlistViewModel @Inject constructor(
         viewModelScope.launch {
             if (item.mediaType == "tv" && item.nextEpisodeId != null) {
                 watchedEpisodeDao.upsertWatchedEpisode(
-                    mediaType = MediaType.TV,
                     showId = item.showId,
-                    episodeId = item.nextEpisodeId,
-                    seasonNumber = item.seasonNumber,
-                    episodeNumber = item.episodeNumber,
+                    tmdbEpisodeId = item.nextEpisodeId,
+                    seasonNumber = item.seasonNumber ?: 0,
+                    episodeNumber = item.episodeNumber ?: 0,
                     isSkipped = true
                 )
                 syncManager.syncWatchedEpisodesNow()
@@ -291,8 +289,7 @@ class WatchlistViewModel @Inject constructor(
                 val inWatchlist = watchlistDao.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == "movie") {
-                    val watchedList = watchedEpisodeDao.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
-                    val isMovieWatched = watchedList.isNotEmpty()
+                    val isMovieWatched = watchedMovieDao.observeIsMovieWatched(show.id).firstOrNull() ?: false
                     
                     _bottomSheetState.value = BottomSheetUiState(
                         show = showInfo,
@@ -371,16 +368,14 @@ class WatchlistViewModel @Inject constructor(
             try {
                 if (show.mediaType == "movie") {
                     if (state.isWatched) {
-                        watchedEpisodeDao.unwatchAllForShow(show.id, show.mediaType)
+                        watchedMovieDao.unwatchMovie(show.id)
                         _bottomSheetState.value = state.copy(isWatched = false)
                         onSuccess("Removed from Watched")
                     } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
-                            mediaType = MediaType.MOVIE,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = null,
-                            episodeNumber = null
+                        watchedMovieDao.upsertWatchedMovie(
+                            movieId = show.id,
+                            title = show.title,
+                            posterPath = show.posterPath
                         )
                         watchlistDao.removeFromWatchlist(show.id, show.mediaType)
                         _bottomSheetState.value = state.copy(isWatched = true, inWatchlist = false)
@@ -404,23 +399,12 @@ class WatchlistViewModel @Inject constructor(
                     
                     if (ep != null) {
                         watchedEpisodeDao.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
                             showId = show.id,
-                            episodeId = ep.id,
-                            seasonNumber = next.seasonNumber,
-                            episodeNumber = next.episodeNumber
-                        )
-                    } else {
-                        // Offline gracefully degrade by saving what we know
-                        watchedEpisodeDao.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
-                            showId = show.id,
-                            episodeId = null,
+                            tmdbEpisodeId = ep.id,
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
                     }
-
                     watchlistDao.removeFromWatchlist(show.id, show.mediaType)
                     onSuccess("Marked as Watched")
                     
@@ -479,18 +463,8 @@ class WatchlistViewModel @Inject constructor(
                     }
                     if (ep != null) {
                         watchedEpisodeDao.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
                             showId = show.id,
-                            episodeId = ep.id,
-                            seasonNumber = next.seasonNumber,
-                            episodeNumber = next.episodeNumber,
-                            isSkipped = true
-                        )
-                    } else {
-                        watchedEpisodeDao.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
-                            showId = show.id,
-                            episodeId = null,
+                            tmdbEpisodeId = ep.id,
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber,
                             isSkipped = true

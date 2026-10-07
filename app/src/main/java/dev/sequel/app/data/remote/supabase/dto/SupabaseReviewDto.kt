@@ -34,9 +34,6 @@ data class SupabaseReviewDto(
     @SerialName("review_text")
     val reviewText: String? = null,
 
-    @SerialName("vibe_emoji")
-    val vibeEmoji: String? = null,
-
     @SerialName("rating")
     val rating: Int? = null,
 

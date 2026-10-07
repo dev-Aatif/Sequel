@@ -5,15 +5,13 @@ import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
 import kotlinx.coroutines.flow.Flow
 
 interface WatchedEpisodeRepository {
-    fun observeTotalMoviesWatched(): Flow<Int>
-    fun observeWatchedByShow(showId: Int, mediaType: String): Flow<List<WatchedEpisodeEntity>>
-    suspend fun unwatchAllForShow(showId: Int, mediaType: String)
+    fun observeWatchedByShow(showId: Int): Flow<List<WatchedEpisodeEntity>>
+    suspend fun unwatchAllForShow(showId: Int)
     suspend fun upsertWatchedEpisode(
-        mediaType: MediaType,
         showId: Int,
-        episodeId: Int?,
-        seasonNumber: Int?,
-        episodeNumber: Int?,
+        tmdbEpisodeId: Int,
+        seasonNumber: Int,
+        episodeNumber: Int,
         isSkipped: Boolean = false
     )
 }

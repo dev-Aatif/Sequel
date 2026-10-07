@@ -32,7 +32,7 @@ class SyncManager @Inject constructor(
 
     /** Trigger an immediate sync of watched episodes. */
     fun syncWatchedEpisodesNow() {
-        val request = OneTimeWorkRequestBuilder<SyncWatchedEpisodesWorker>()
+        val request = OneTimeWorkRequestBuilder<SyncWatchedWorker>()
             .setConstraints(networkConstraints)
             .setBackoffCriteria(
                 BackoffPolicy.EXPONENTIAL,
@@ -41,7 +41,7 @@ class SyncManager @Inject constructor(
             .build()
 
         workManager.enqueueUniqueWork(
-            SyncWatchedEpisodesWorker.WORK_NAME + "_now",
+            SyncWatchedWorker.WORK_NAME + "_now",
             ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
@@ -123,7 +123,7 @@ class SyncManager @Inject constructor(
      */
     fun schedulePeriodicSync() {
         // Watched episodes — every 30 minutes
-        val watchedWork = PeriodicWorkRequestBuilder<SyncWatchedEpisodesWorker>(
+        val watchedWork = PeriodicWorkRequestBuilder<SyncWatchedWorker>(
             repeatInterval = 30, TimeUnit.MINUTES
         )
             .setConstraints(networkConstraints)
@@ -134,7 +134,7 @@ class SyncManager @Inject constructor(
             .build()
 
         workManager.enqueueUniquePeriodicWork(
-            SyncWatchedEpisodesWorker.WORK_NAME,
+            SyncWatchedWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             watchedWork
         )
@@ -192,7 +192,7 @@ class SyncManager @Inject constructor(
     }
 
     fun cancelPeriodicSync() {
-        workManager.cancelUniqueWork(SyncWatchedEpisodesWorker.WORK_NAME)
+        workManager.cancelUniqueWork(SyncWatchedWorker.WORK_NAME)
         workManager.cancelUniqueWork(SyncReviewsWorker.WORK_NAME)
         workManager.cancelUniqueWork(SyncWatchlistWorker.WORK_NAME)
         workManager.cancelUniqueWork(SyncPullWorker.WORK_NAME)

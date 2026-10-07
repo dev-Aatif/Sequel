@@ -34,7 +34,7 @@ interface EpisodeDao {
     @Query("""
         SELECT * FROM episodes 
         WHERE show_id = :showId 
-        AND id NOT IN (SELECT episode_id FROM watched_episodes WHERE show_id = :showId AND episode_id IS NOT NULL AND sync_status != 'DELETED')
+        AND id NOT IN (SELECT tmdb_episode_id FROM watched_episodes WHERE show_id = :showId AND tmdb_episode_id IS NOT NULL AND sync_status != 'DELETED')
         ORDER BY season_number ASC, episode_number ASC 
         LIMIT 1
     """)

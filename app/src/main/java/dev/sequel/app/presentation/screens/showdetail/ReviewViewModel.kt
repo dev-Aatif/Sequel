@@ -54,6 +54,7 @@ class ReviewViewModel @Inject constructor(
                 // Fetch community reviews from Supabase directly for the watercooler
                 val reviews = supabaseSyncService.fetchReviewsForMedia(
                     mediaId = mediaId,
+                    mediaType = mediaType,
                     seasonNum = seasonNum,
                     episodeNum = episodeNum
                 )
@@ -113,7 +114,6 @@ class ReviewViewModel @Inject constructor(
                     seasonNum = currentSeasonNum,
                     episodeNum = currentEpisodeNum,
                     reviewText = text,
-                    vibeEmoji = null,
                     rating = null,
                     isSpoiler = isSpoiler,
                     createdAt = System.currentTimeMillis().toString()

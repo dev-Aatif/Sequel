@@ -16,10 +16,12 @@ import dev.sequel.app.data.local.entity.ReviewEntity
 import dev.sequel.app.data.local.entity.SeasonEntity
 import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.data.local.entity.WatchedEpisodeEntity
+import dev.sequel.app.data.local.entity.WatchedMovieEntity
 
 import dev.sequel.app.data.local.entity.RemoteKeys
 import dev.sequel.app.data.local.dao.RemoteKeysDao
 import dev.sequel.app.data.local.entity.WatchlistEntity
+import dev.sequel.app.data.local.dao.WatchedMovieDao
 
 /**
  * Sequel Room Database — Single Source of Truth.
@@ -33,12 +35,13 @@ import dev.sequel.app.data.local.entity.WatchlistEntity
         SeasonEntity::class,
         EpisodeEntity::class,
         WatchedEpisodeEntity::class,
+        WatchedMovieEntity::class,
         ReviewEntity::class,
         RemoteKeys::class,
         WatchlistEntity::class,
         dev.sequel.app.data.local.entity.TrendingShowEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -48,6 +51,7 @@ abstract class SequelDatabase : RoomDatabase() {
     abstract fun seasonDao(): SeasonDao
     abstract fun episodeDao(): EpisodeDao
     abstract fun watchedEpisodeDao(): WatchedEpisodeDao
+    abstract fun watchedMovieDao(): WatchedMovieDao
     abstract fun reviewDao(): ReviewDao
     abstract fun remoteKeysDao(): RemoteKeysDao
     abstract fun watchlistDao(): dev.sequel.app.data.local.dao.WatchlistDao
@@ -154,6 +158,42 @@ abstract class SequelDatabase : RoomDatabase() {
                 
                 // 4. Create new non-unique index
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_media_id_media_type` ON `reviews` (`media_id`, `media_type`)")
+            }
+        }
+
+        /**
+         * Migration 15→16: Separate movies from TV episodes.
+         * - Create dedicated `watched_movies` table.
+         * - Migrate existing movie rows from `watched_episodes` into `watched_movies`.
+         * - Delete movie rows from `watched_episodes`.
+         */
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create watched_movies table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `watched_movies` (
+                        `tmdb_movie_id` INTEGER NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `poster_path` TEXT,
+                        `watched_at` INTEGER NOT NULL,
+                        `sync_status` TEXT NOT NULL,
+                        `supabase_id` TEXT,
+                        PRIMARY KEY(`tmdb_movie_id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_movies_sync_status` ON `watched_movies` (`sync_status`)")
+
+                // 2. Migrate movie rows: join with shows to get title and poster_path
+                db.execSQL("""
+                    INSERT OR IGNORE INTO `watched_movies` (`tmdb_movie_id`, `title`, `poster_path`, `watched_at`, `sync_status`, `supabase_id`)
+                    SELECT we.show_id, COALESCE(s.title, 'Unknown'), s.poster_path, we.watched_at, we.sync_status, we.supabase_id
+                    FROM `watched_episodes` we
+                    LEFT JOIN `shows` s ON we.show_id = s.id AND s.media_type = 'movie'
+                    WHERE we.media_type = 'MOVIE'
+                """.trimIndent())
+
+                // 3. Remove migrated movie rows from watched_episodes
+                db.execSQL("DELETE FROM `watched_episodes` WHERE `media_type` = 'MOVIE'")
             }
         }
     }

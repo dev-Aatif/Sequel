@@ -77,6 +77,12 @@ interface ReviewDao {
     @Query("UPDATE reviews SET rating = NULL, sync_status = 'PENDING' WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
     suspend fun deleteRating(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?)
 
+    @Query("UPDATE reviews SET rating = NULL, updated_at = :updatedAt WHERE media_id = :mediaId AND media_type = :mediaType")
+    suspend fun clearRating(mediaId: Int, mediaType: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND rating IS NULL AND (review_text IS NULL OR review_text = '')")
+    suspend fun deleteEmptyReviews(mediaId: Int, mediaType: String)
+
     // ── Review Operations (multiple per show) ────────────────────
 
     @Query("UPDATE reviews SET review_text = :text, is_spoiler = :isSpoiler, updated_at = :updatedAt, sync_status = 'PENDING' WHERE id = :id")

@@ -42,7 +42,7 @@ class GetNextEpisodeUseCase @Inject constructor(
         }
 
         // 2. If no local next episode, fallback to TMDB to see if there's a next season we haven't cached
-        val watchedList = watchedEpisodeRepository.observeWatchedByShow(showId, dev.sequel.app.data.local.entity.MediaType.TV.name.lowercase()).firstOrNull() ?: emptyList()
+        val watchedList = watchedEpisodeRepository.observeWatchedByShow(showId).firstOrNull() ?: emptyList()
         
         // Fetch show details from network to ensure we have the latest seasons cached
         showRepository.fetchShowDetail(showId)

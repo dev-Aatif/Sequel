@@ -47,6 +47,7 @@ class HomeViewModel @Inject constructor(
     private val seasonRepository: SeasonRepository,
     private val watchlistRepository: WatchlistRepository,
     private val watchedEpisodeRepository: WatchedEpisodeRepository,
+    private val watchedMovieDao: dev.sequel.app.data.local.dao.WatchedMovieDao,
     private val syncRepository: SyncRepository,
     private val getNextEpisodeUseCase: GetNextEpisodeUseCase
 ) : ViewModel() {
@@ -74,7 +75,7 @@ class HomeViewModel @Inject constructor(
     val hasAnyTrackingHistory: StateFlow<Boolean?> = combine(
         watchlistRepository.observeWatchlist(),
         showRepository.observeStartedTvShows(),
-        watchedEpisodeRepository.observeTotalMoviesWatched()
+        watchedMovieDao.observeTotalMoviesWatched()
     ) { watchlist, startedTv, moviesWatched ->
         watchlist.isNotEmpty() || startedTv.isNotEmpty() || moviesWatched > 0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -126,8 +127,7 @@ class HomeViewModel @Inject constructor(
                 val inWatchlist = watchlistRepository.observeIsInWatchlist(show.id, show.mediaType).firstOrNull() ?: false
                 
                 if (show.mediaType == MediaType.MOVIE.name.lowercase()) {
-                    val watchedList = watchedEpisodeRepository.observeWatchedByShow(show.id, show.mediaType).firstOrNull() ?: emptyList()
-                    val isMovieWatched = watchedList.isNotEmpty()
+                    val isMovieWatched = watchedMovieDao.observeIsMovieWatched(show.id).firstOrNull() ?: false
                     
                     _bottomSheetState.value = BottomSheetUiState(
                         show = showInfo,
@@ -210,16 +210,14 @@ class HomeViewModel @Inject constructor(
             try {
                 if (show.mediaType == MediaType.MOVIE.name.lowercase()) {
                     if (state.isWatched) {
-                        watchedEpisodeRepository.unwatchAllForShow(show.id, show.mediaType)
+                        watchedMovieDao.unwatchMovie(show.id)
                         _bottomSheetState.value = state.copy(isWatched = false)
                         _uiEvent.send(HomeUiEvent.ShowToast("Removed from Watched"))
                     } else {
-                        watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = MediaType.MOVIE,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = null,
-                            episodeNumber = null
+                        watchedMovieDao.upsertWatchedMovie(
+                            movieId = show.id,
+                            title = show.title,
+                            posterPath = show.posterPath
                         )
                         watchlistRepository.removeFromWatchlist(show.id, show.mediaType)
                         showRepository.updateWatchlistStatus(show.id, show.mediaType, false)
@@ -242,21 +240,12 @@ class HomeViewModel @Inject constructor(
                     
                     if (ep != null) {
                         watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
                             showId = show.id,
-                            episodeId = ep.id,
+                            tmdbEpisodeId = ep.id,
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber
                         )
-                    } else {
-                        watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = next.seasonNumber,
-                            episodeNumber = next.episodeNumber
-                        )
-                    }
+                    } 
                     _uiEvent.send(HomeUiEvent.ShowToast("Marked as Watched"))
                     
                     val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()
@@ -297,23 +286,13 @@ class HomeViewModel @Inject constructor(
                     }
                     if (ep != null) {
                         watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
                             showId = show.id,
-                            episodeId = ep.id,
+                            tmdbEpisodeId = ep.id,
                             seasonNumber = next.seasonNumber,
                             episodeNumber = next.episodeNumber,
                             isSkipped = true
                         )
-                    } else {
-                        watchedEpisodeRepository.upsertWatchedEpisode(
-                            mediaType = MediaType.TV,
-                            showId = show.id,
-                            episodeId = null,
-                            seasonNumber = next.seasonNumber,
-                            episodeNumber = next.episodeNumber,
-                            isSkipped = true
-                        )
-                    }
+                    } 
                     _uiEvent.send(HomeUiEvent.ShowToast("Skipped Episode"))
                     
                     val updatedShow = showRepository.observeShow(show.id, show.mediaType).firstOrNull()

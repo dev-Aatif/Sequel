@@ -52,7 +52,7 @@ class SyncWatchlistWorker @AssistedInject constructor(
 
                 for (deleted in toDelete) {
                     try {
-                        supabaseSyncService.deleteFromWatchlist(userId, deleted.tmdbId)
+                        supabaseSyncService.deleteFromWatchlist(userId, deleted.tmdbId, deleted.mediaType.name.lowercase())
                         watchlistDao.deleteWatchlistById(deleted.tmdbId, deleted.mediaType.name.lowercase())
                     } catch (e: Exception) {
                         hasFailures = true

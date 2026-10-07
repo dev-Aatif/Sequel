@@ -15,7 +15,7 @@ data class SupabaseWatchlistDto(
     val mediaType: String,
 
     @SerialName("title")
-    val title: String,
+    val title: String = "Unknown Title",
 
     @SerialName("poster_path")
     val posterPath: String?,
