@@ -73,6 +73,14 @@ class ReviewViewModel @Inject constructor(
 
     private var syncJob: kotlinx.coroutines.Job? = null
 
+    private fun scheduleSync() {
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(300)
+            syncManager.syncReviewsNow(currentMediaId)
+        }
+    }
+
     /**
      * Submit a rating (1-10) for the current media. This is completely separate from reviews.
      * Rating is stored as a rating-only row in the reviews table.
@@ -84,12 +92,7 @@ class ReviewViewModel @Inject constructor(
         }
         viewModelScope.launch {
             reviewDao.upsertRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, rating)
-            
-            syncJob?.cancel()
-            syncJob = launch {
-                kotlinx.coroutines.delay(400)
-                syncManager.syncReviewsNow(currentMediaId)
-            }
+            scheduleSync()
         }
     }
 
@@ -121,11 +124,7 @@ class ReviewViewModel @Inject constructor(
                 }
             }
             if (needsSync) {
-                syncJob?.cancel()
-                syncJob = launch {
-                    kotlinx.coroutines.delay(400)
-                    syncManager.syncReviewsNow(currentMediaId)
-                }
+                scheduleSync()
             }
         }
     }
@@ -139,7 +138,7 @@ class ReviewViewModel @Inject constructor(
         
         viewModelScope.launch {
             reviewDao.upsertReviewText(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, text, isSpoiler)
-            syncManager.syncReviewsNow(currentMediaId)
+            scheduleSync()
             
             // Optimistically add review to the list so user sees it immediately
             val currentState = _communityState.value
@@ -172,7 +171,7 @@ class ReviewViewModel @Inject constructor(
             val local = reviewDao.getReviewBySupabaseId(reviewId)
             if (local != null) {
                 reviewDao.updateReviewText(local.id, newText, isSpoiler)
-                syncManager.syncReviewsNow(currentMediaId)
+                scheduleSync()
             }
             
             // Optimistically update UI
@@ -208,11 +207,7 @@ class ReviewViewModel @Inject constructor(
                 } catch (e: Exception) {}
             }
             if (needsSync) {
-                syncJob?.cancel()
-                syncJob = launch {
-                    kotlinx.coroutines.delay(400)
-                    syncManager.syncReviewsNow(currentMediaId)
-                }
+                scheduleSync()
             }
 
             // Optimistically update UI
