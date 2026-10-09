@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +31,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onNavigateToAuth: () -> Unit,
-    onImportClick: () -> Unit
+    onImportClick: () -> Unit,
+    onNavigateToPrivacyPolicy: () -> Unit
 ) {
     val isDeleting by viewModel.isDeleting.collectAsState()
     val context = LocalContext.current
@@ -110,15 +112,8 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = { Icon(Icons.Outlined.Security, contentDescription = null) },
                     title = "Privacy Policy",
-                    trailingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
-                    onClick = {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/dev-Aatif/Sequel/blob/main/docs/privacy.html"))
-                            context.startActivity(intent)
-                        } catch (e: ActivityNotFoundException) {
-                            Toast.makeText(context, "No web browser installed to open this link.", Toast.LENGTH_LONG).show()
-                        }
-                    }
+                    trailingIcon = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
+                    onClick = onNavigateToPrivacyPolicy
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem(

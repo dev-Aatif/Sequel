@@ -178,7 +178,17 @@ fun SequelNavGraph(
                 },
                 onImportClick = {
                     navController.navigate(Screen.MediaImport.route)
+                },
+                onNavigateToPrivacyPolicy = {
+                    navController.navigate(Screen.PrivacyPolicy.route)
                 }
+            )
+        }
+
+        // ── Privacy Policy ─────────────────────────────────────────
+        composable(Screen.PrivacyPolicy.route) {
+            dev.sequel.app.presentation.screens.settings.PrivacyPolicyScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
