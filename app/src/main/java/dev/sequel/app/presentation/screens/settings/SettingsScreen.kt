@@ -113,7 +113,7 @@ fun SettingsScreen(
                     trailingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
                     onClick = {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/privacy"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sequel-app.com/privacy"))
                             context.startActivity(intent)
                         } catch (e: ActivityNotFoundException) {
                             Toast.makeText(context, "No web browser installed to open this link.", Toast.LENGTH_LONG).show()

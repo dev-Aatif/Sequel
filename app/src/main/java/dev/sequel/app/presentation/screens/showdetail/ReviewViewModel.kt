@@ -71,6 +71,8 @@ class ReviewViewModel @Inject constructor(
         }
     }
 
+    private var syncJob: kotlinx.coroutines.Job? = null
+
     /**
      * Submit a rating (1-10) for the current media. This is completely separate from reviews.
      * Rating is stored as a rating-only row in the reviews table.
@@ -82,7 +84,12 @@ class ReviewViewModel @Inject constructor(
         }
         viewModelScope.launch {
             reviewDao.upsertRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, rating)
-            syncManager.syncReviewsNow(currentMediaId)
+            
+            syncJob?.cancel()
+            syncJob = launch {
+                kotlinx.coroutines.delay(400)
+                syncManager.syncReviewsNow(currentMediaId)
+            }
         }
     }
 
@@ -92,19 +99,34 @@ class ReviewViewModel @Inject constructor(
     fun deleteRating() {
         viewModelScope.launch {
             val localReview = reviewDao.getReviewForMediaAndEpisode(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            var needsSync = false
             if (localReview != null) {
                 if (localReview.reviewText.isNullOrBlank()) {
-                    reviewDao.markReviewDeleted(localReview.id)
-                    currentUserId?.let { uid ->
+                    reviewDao.deleteReviewById(localReview.id)
+                    val supabaseId = localReview.supabaseId
+                    if (supabaseId != null) {
                         try {
-                            supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                            supabaseSyncService.deleteReview(supabaseId)
                         } catch (e: Exception) {}
+                    } else {
+                        currentUserId?.let { uid ->
+                            try {
+                                supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                            } catch (e: Exception) {}
+                        }
                     }
                 } else {
                     reviewDao.deleteRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                    needsSync = true
                 }
             }
-            syncManager.syncReviewsNow(currentMediaId)
+            if (needsSync) {
+                syncJob?.cancel()
+                syncJob = launch {
+                    kotlinx.coroutines.delay(400)
+                    syncManager.syncReviewsNow(currentMediaId)
+                }
+            }
         }
     }
 
@@ -168,16 +190,16 @@ class ReviewViewModel @Inject constructor(
     fun deleteReview(reviewId: String) {
         viewModelScope.launch {
             val localReview = reviewDao.getReviewBySupabaseId(reviewId)
+            var needsSync = false
             if (localReview != null) {
                 if (localReview.rating == null) {
-                    reviewDao.markReviewDeleted(localReview.id)
-                    currentUserId?.let { uid ->
-                        try {
-                            supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
-                        } catch (e: Exception) {}
-                    }
+                    reviewDao.deleteReviewById(localReview.id)
+                    try {
+                        supabaseSyncService.deleteReview(reviewId)
+                    } catch (e: Exception) {}
                 } else {
                     reviewDao.updateReviewText(localReview.id, "", false)
+                    needsSync = true
                 }
             } else {
                 // Fallback if local not found, just delete remotely
@@ -185,7 +207,13 @@ class ReviewViewModel @Inject constructor(
                     supabaseSyncService.deleteReview(reviewId)
                 } catch (e: Exception) {}
             }
-            syncManager.syncReviewsNow(currentMediaId)
+            if (needsSync) {
+                syncJob?.cancel()
+                syncJob = launch {
+                    kotlinx.coroutines.delay(400)
+                    syncManager.syncReviewsNow(currentMediaId)
+                }
+            }
 
             // Optimistically update UI
             val currentState = _communityState.value

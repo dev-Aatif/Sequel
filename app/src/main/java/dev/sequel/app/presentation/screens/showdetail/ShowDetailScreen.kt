@@ -156,6 +156,7 @@ private fun ShowDetailContent(
 
     var showRatingDialog by remember { mutableStateOf(false) }
     var showNotWatchedDialog by remember { mutableStateOf(false) }
+    var showRemoveRatingDialog by remember { mutableStateOf(false) }
 
     val isFullyWatched = remember(show.mediaType, state.isMovieWatched, state.seasons, state.watchedEpisodeKeys) {
         if (show.mediaType == "movie") {
@@ -323,7 +324,11 @@ private fun ShowDetailContent(
                         )
                         .hapticClickable { 
                             if (!isFullyWatched) {
-                                showNotWatchedDialog = true
+                                if (state.userRating != null) {
+                                    showRemoveRatingDialog = true
+                                } else {
+                                    showNotWatchedDialog = true
+                                }
                             } else {
                                 showRatingDialog = true 
                             }
@@ -520,6 +525,30 @@ private fun ShowDetailContent(
                 }
             }
         }
+    }
+
+    if (showRemoveRatingDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoveRatingDialog = false },
+            title = { Text("Remove Rating") },
+            text = { Text("Are you sure you want to remove your rating?") },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        onSubmitRating(0)
+                        showRemoveRatingDialog = false 
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.onError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveRatingDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showNotWatchedDialog) {
