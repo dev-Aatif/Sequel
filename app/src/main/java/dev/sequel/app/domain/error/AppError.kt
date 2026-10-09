@@ -2,6 +2,8 @@ package dev.sequel.app.domain.error
 
 import retrofit2.HttpException
 import java.io.IOException
+import io.github.jan.supabase.exceptions.RestException
+import io.github.jan.supabase.exceptions.HttpRequestException
 
 sealed class AppError(val message: String) {
     // Network Errors
@@ -32,15 +34,29 @@ fun Throwable.toAppError(): AppError {
         is java.net.ConnectException -> AppError.NoInternet
         is java.net.SocketTimeoutException -> AppError.Timeout
         is IOException -> AppError.NoInternet
+        is HttpRequestException -> AppError.NoInternet
+        is RestException -> {
+            val errorString = this.error.lowercase()
+            val description = this.description?.lowercase() ?: ""
+            when {
+                errorString.contains("invalid_credentials") || description.contains("invalid login") -> AppError.InvalidCredentials()
+                errorString.contains("user_already_exists") || description.contains("already registered") -> AppError.Validation("User already exists.")
+                errorString.contains("weak_password") || description.contains("weak password") -> AppError.WeakPassword()
+                errorString.contains("not_found") -> AppError.NotFound
+                errorString.contains("unauthorized") -> AppError.AuthFailed
+                errorString.contains("rate_limit") || description.contains("rate limit") || errorString.contains("too_many_requests") -> AppError.Validation("Too many attempts. Please try again later.")
+                else -> AppError.Unknown("An unexpected network error occurred.")
+            }
+        }
         is HttpException -> {
             when (this.code()) {
                 401 -> AppError.AuthFailed
                 403 -> AppError.SessionExpired
                 404 -> AppError.NotFound
                 in 500..599 -> AppError.ServerError
-                else -> AppError.Unknown("An unexpected network error occurred (${this.code()}).")
+                else -> AppError.Unknown("An unexpected network error occurred.")
             }
         }
-        else -> AppError.Unknown(this.message ?: "An unexpected error occurred.")
+        else -> AppError.Unknown("An unexpected error occurred.")
     }
 }

@@ -28,6 +28,10 @@ object SupabaseModule {
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
             install(Auth) {
+                // Configure deep link structure
+                scheme = "sequel"
+                host = "login-callback"
+                
                 // Ensure auth state is automatically restored from device storage
                 // By default on Android, it uses EncryptedSharedPreferences if available
                 alwaysAutoRefresh = true
