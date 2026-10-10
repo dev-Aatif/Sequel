@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
+class EmailConfirmationRequiredException(message: String) : Exception(message)
+
 /**
  * Wrapper around Supabase Auth for email/password authentication.
  */
@@ -57,7 +59,7 @@ class SupabaseAuthService @Inject constructor(
             }
             val user = auth.currentUserOrNull() 
             if (user == null) {
-                throw IllegalStateException("Sign up succeeded, but email confirmation is required. Please check your inbox to verify your account.")
+                throw EmailConfirmationRequiredException("Sign up succeeded, but email confirmation is required. Please check your inbox to verify your account.")
             }
             user
         }
@@ -74,6 +76,23 @@ class SupabaseAuthService @Inject constructor(
                 this.password = password
             }
             auth.currentUserOrNull() ?: throw IllegalStateException("Sign in succeeded but user is null")
+        }
+    }
+
+    /**
+     * Send a password reset email.
+     */
+    suspend fun resetPasswordForEmail(email: String, redirectUrl: String? = null) {
+        auth.resetPasswordForEmail(email = email, redirectUrl = redirectUrl)
+    }
+
+
+    /**
+     * Update the user's password.
+     */
+    suspend fun updatePassword(newPassword: String) {
+        auth.updateUser {
+            this.password = newPassword
         }
     }
 

@@ -28,4 +28,10 @@ interface AuthRepository {
 
     /** Sign out. */
     suspend fun signOut()
+
+    /** Request password reset email */
+    suspend fun resetPasswordForEmail(email: String): Result<Unit>
+
+    /** Update password */
+    suspend fun updatePassword(newPassword: String): Result<Unit>
 }

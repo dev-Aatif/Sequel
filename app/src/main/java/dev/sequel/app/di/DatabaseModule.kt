@@ -39,7 +39,8 @@ object DatabaseModule {
                 SequelDatabase.MIGRATION_12_13,
                 SequelDatabase.MIGRATION_13_14,
                 SequelDatabase.MIGRATION_14_15,
-                SequelDatabase.MIGRATION_15_16
+                SequelDatabase.MIGRATION_15_16,
+                SequelDatabase.MIGRATION_16_17
             )
             .fallbackToDestructiveMigration()
             .build()

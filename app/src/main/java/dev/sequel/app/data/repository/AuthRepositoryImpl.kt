@@ -52,4 +52,18 @@ class AuthRepositoryImpl @Inject constructor(
         appDatabase.clearAllTables()
         supabaseAuthService.signOut()
     }
+
+    override suspend fun resetPasswordForEmail(email: String): Result<Unit> {
+        return runCatching {
+            // "sequel://login-callback" will log the user in via a recovery token
+            supabaseAuthService.resetPasswordForEmail(email, "sequel://login-callback")
+        }
+    }
+
+
+    override suspend fun updatePassword(newPassword: String): Result<Unit> {
+        return runCatching {
+            supabaseAuthService.updatePassword(newPassword)
+        }
+    }
 }

@@ -44,6 +44,7 @@ fun BeautifulErrorState(
         is AppError.ParseError -> Icons.Default.BrokenImage
         is AppError.Validation -> Icons.Default.Warning
         is AppError.Unknown -> Icons.Default.ErrorOutline
+        is AppError.SuccessMessage -> Icons.Default.CheckCircle
     }
 
     val title: String = when (error) {
@@ -57,6 +58,7 @@ fun BeautifulErrorState(
         is AppError.ParseError -> "Data Error"
         is AppError.Validation -> "Invalid Input"
         is AppError.Unknown -> "Oops!"
+        is AppError.SuccessMessage -> "Success"
     }
 
     AnimatedVisibility(

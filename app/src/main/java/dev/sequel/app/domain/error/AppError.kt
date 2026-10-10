@@ -26,10 +26,12 @@ sealed class AppError(val message: String) {
 
     // Generic
     class Unknown(msg: String = "An unexpected error occurred.") : AppError(msg)
+    class SuccessMessage(msg: String) : AppError(msg)
 }
 
 fun Throwable.toAppError(): AppError {
     return when (this) {
+        is dev.sequel.app.data.remote.supabase.EmailConfirmationRequiredException -> AppError.SuccessMessage(this.message ?: "Sign up successful! Please check your email.")
         is java.net.UnknownHostException,
         is java.net.ConnectException -> AppError.NoInternet
         is java.net.SocketTimeoutException -> AppError.Timeout

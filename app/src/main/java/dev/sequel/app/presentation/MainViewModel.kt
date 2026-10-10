@@ -20,6 +20,8 @@ class MainViewModel @Inject constructor(
     private val _startDestination = MutableStateFlow<String?>(null)
     val startDestination: StateFlow<String?> = _startDestination.asStateFlow()
 
+    val authState = authRepository.authStateFlow
+
     init {
         viewModelScope.launch {
             val isAuthenticated = authRepository.authStateFlow.first()

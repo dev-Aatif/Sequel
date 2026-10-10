@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.foundation.shape.RoundedCornerShape
 import dev.sequel.app.presentation.components.glassmorphicBackground
 
@@ -27,6 +28,8 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var forgotPasswordEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(viewModel.events) {
         viewModel.events.collectLatest { event ->
@@ -121,9 +124,15 @@ fun LoginScreen(
 
         val currentError = uiState.error
         if (currentError != null) {
+            val isSuccess = currentError is dev.sequel.app.domain.error.AppError.SuccessMessage
+            val containerColor = if (isSuccess) androidx.compose.ui.graphics.Color(0xFF2E7D32).copy(alpha = 0.9f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f)
+            val contentColor = if (isSuccess) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onErrorContainer
+            val iconColor = if (isSuccess) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.error
+            val icon = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.VisibilityOff
+
             Spacer(modifier = Modifier.height(12.dp))
             androidx.compose.material3.Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f)),
+                colors = CardDefaults.cardColors(containerColor = containerColor),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -132,23 +141,31 @@ fun LoginScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.VisibilityOff,
+                        imageVector = icon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
+                        tint = iconColor,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = currentError.message,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        color = contentColor,
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        if (!uiState.isSignUpMode) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                TextButton(onClick = { showForgotPasswordDialog = true }) {
+                    Text("Forgot Password?", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = viewModel::submit,
@@ -172,5 +189,48 @@ fun LoginScreen(
             Text(if (uiState.isSignUpMode) "Already have an account? Login" else "Don't have an account? Sign Up")
         }
     }
+    }
+
+    if (showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showForgotPasswordDialog = false
+                forgotPasswordEmail = ""
+            },
+            title = { Text("Reset Password") },
+            text = {
+                Column {
+                    Text("Enter your email to receive a password reset link.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = forgotPasswordEmail,
+                        onValueChange = { forgotPasswordEmail = it },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.resetPassword(forgotPasswordEmail)
+                        showForgotPasswordDialog = false
+                        forgotPasswordEmail = ""
+                    },
+                    enabled = forgotPasswordEmail.isNotBlank()
+                ) {
+                    Text("Send Reset Link")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showForgotPasswordDialog = false
+                    forgotPasswordEmail = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

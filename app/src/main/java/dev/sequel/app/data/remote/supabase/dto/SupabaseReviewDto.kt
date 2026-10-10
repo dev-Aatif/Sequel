@@ -37,6 +37,7 @@ data class SupabaseReviewDto(
     @SerialName("rating")
     val rating: Int? = null,
 
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("is_spoiler")
     val isSpoiler: Boolean = false,
 

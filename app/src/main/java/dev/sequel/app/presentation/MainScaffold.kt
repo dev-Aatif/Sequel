@@ -38,7 +38,7 @@ import androidx.compose.foundation.background
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun MainScaffold(viewModel: MainViewModel = hiltViewModel()) {
+fun MainScaffold(viewModel: MainViewModel = hiltViewModel(), isRecovery: Boolean = false, onRecoveryConsumed: () -> Unit = {}) {
     val startDestination by viewModel.startDestination.collectAsState()
 
     if (startDestination == null) {
@@ -52,6 +52,29 @@ fun MainScaffold(viewModel: MainViewModel = hiltViewModel()) {
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
+
+        val isAuthenticated by viewModel.authState.collectAsState(initial = false)
+
+        androidx.compose.runtime.LaunchedEffect(isAuthenticated, currentRoute, isRecovery) {
+            val current = currentRoute ?: startDestination
+            val isOnLoginScreen = current == Screen.Login.route
+            val isOnHomeScreen = current == Screen.Home.route || current == Screen.Search.route || current == Screen.Watchlist.route || current == Screen.Settings.route
+            
+            if (isRecovery && isAuthenticated && current != Screen.SetNewPassword.route) {
+                onRecoveryConsumed()
+                navController.navigate(Screen.SetNewPassword.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            } else if (isAuthenticated && isOnLoginScreen && !isRecovery) {
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            } else if (!isAuthenticated && isOnHomeScreen) {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Home.route) { inclusive = true }
+                }
+            }
+        }
 
         // Bottom bar is visible only on main tab screens
         val bottomBarRoutes = BottomNavItem.entries.map { it.route }

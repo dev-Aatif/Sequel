@@ -196,5 +196,26 @@ abstract class SequelDatabase : RoomDatabase() {
                 db.execSQL("DELETE FROM `watched_episodes` WHERE `media_type` = 'MOVIE'")
             }
         }
+
+        /**
+         * Migration 16→17: Create a partial unique index for movie reviews (where season/episode are NULL).
+         * This prevents ghost duplicate rows that standard UNIQUE indexes allow due to NULL != NULL rules.
+         */
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Delete duplicate ghost rows for movies first, keeping only the most recently updated one
+                db.execSQL("""
+                    DELETE FROM reviews 
+                    WHERE season_num IS NULL AND episode_num IS NULL AND id NOT IN (
+                        SELECT id FROM (
+                            SELECT id, ROW_NUMBER() OVER(PARTITION BY media_id, media_type ORDER BY updated_at DESC) as rn
+                            FROM reviews
+                            WHERE season_num IS NULL AND episode_num IS NULL
+                        ) WHERE rn = 1
+                    )
+                """)
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `idx_reviews_movie_unique` ON `reviews` (`media_id`, `media_type`) WHERE season_num IS NULL AND episode_num IS NULL")
+            }
+        }
     }
 }

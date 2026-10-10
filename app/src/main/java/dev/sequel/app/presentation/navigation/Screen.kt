@@ -8,6 +8,7 @@ sealed class Screen(val route: String) {
 
     // ── Auth ──────────────────────────────────────────────────────
     data object Login : Screen("login")
+    data object SetNewPassword : Screen("set_new_password")
 
     // ── Main (Bottom Nav) ─────────────────────────────────────────
     data object Home : Screen("home")

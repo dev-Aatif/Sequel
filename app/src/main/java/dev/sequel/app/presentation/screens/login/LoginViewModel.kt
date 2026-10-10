@@ -131,4 +131,33 @@ class LoginViewModel @Inject constructor(
             )
         }
     }
+
+    fun resetPassword(email: String) {
+        if (email.isBlank()) {
+            _uiState.update { it.copy(error = AppError.Validation("Please enter your email to reset password")) }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            authRepository.resetPasswordForEmail(email.trim()).fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = AppError.SuccessMessage("Password reset email sent! Check your inbox.")
+                        )
+                    }
+                },
+                onFailure = { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = throwable.toAppError()
+                        )
+                    }
+                }
+            )
+        }
+    }
 }

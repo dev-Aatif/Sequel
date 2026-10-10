@@ -86,4 +86,5 @@ class SettingsViewModel @Inject constructor(
             _navigateEvent.send(Unit)
         }
     }
+
 }

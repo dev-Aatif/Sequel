@@ -62,6 +62,15 @@ fun SequelNavGraph(
                 }
             )
         }
+        composable(Screen.SetNewPassword.route) {
+            dev.sequel.app.presentation.screens.login.SetNewPasswordScreen(
+                onPasswordSet = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(0) { inclusive = true } // Clear backstack completely
+                    }
+                }
+            )
+        }
 
         // ── Main tabs ─────────────────────────────────────────────
         composable(Screen.Home.route) {

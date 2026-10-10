@@ -14,18 +14,19 @@ interface ReviewDao {
 
     // ── Inserts ───────────────────────────────────────────────────
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertReviewInternal(review: ReviewEntity): Long
 
     // ── Unified Operations ─────────────────────────
 
+    @Query("UPDATE reviews SET rating = :rating, updated_at = :updatedAt, sync_status = 'PENDING' WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
+    suspend fun updateRatingOnly(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, rating: Int, updatedAt: Long): Int
+
     @androidx.room.Transaction
     suspend fun upsertRating(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, rating: Int) {
-        val existing = getReviewForMediaAndEpisode(mediaId, mediaType, seasonNum, episodeNum)
-        if (existing != null) {
-            updateReview(existing.copy(rating = rating, updatedAt = System.currentTimeMillis(), syncStatus = SyncStatus.PENDING))
-        } else {
-            insertReviewInternal(
+        val updatedRows = updateRatingOnly(mediaId, mediaType, seasonNum, episodeNum, rating, System.currentTimeMillis())
+        if (updatedRows == 0) {
+            val id = insertReviewInternal(
                 ReviewEntity(
                     mediaId = mediaId,
                     mediaType = mediaType,
@@ -37,22 +38,20 @@ interface ReviewDao {
                     syncStatus = SyncStatus.PENDING
                 )
             )
+            if (id == -1L) {
+                updateRatingOnly(mediaId, mediaType, seasonNum, episodeNum, rating, System.currentTimeMillis())
+            }
         }
     }
 
+    @Query("UPDATE reviews SET review_text = :text, is_spoiler = :isSpoiler, is_rating_only = 0, updated_at = :updatedAt, sync_status = 'PENDING' WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
+    suspend fun updateReviewTextOnly(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, text: String, isSpoiler: Boolean, updatedAt: Long): Int
+
     @androidx.room.Transaction
     suspend fun upsertReviewText(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, text: String, isSpoiler: Boolean) {
-        val existing = getReviewForMediaAndEpisode(mediaId, mediaType, seasonNum, episodeNum)
-        if (existing != null) {
-            updateReview(existing.copy(
-                reviewText = text,
-                isSpoiler = isSpoiler,
-                isRatingOnly = false,
-                updatedAt = System.currentTimeMillis(),
-                syncStatus = SyncStatus.PENDING
-            ))
-        } else {
-            insertReviewInternal(
+        val updatedRows = updateReviewTextOnly(mediaId, mediaType, seasonNum, episodeNum, text, isSpoiler, System.currentTimeMillis())
+        if (updatedRows == 0) {
+            val id = insertReviewInternal(
                 ReviewEntity(
                     mediaId = mediaId,
                     mediaType = mediaType,
@@ -65,6 +64,9 @@ interface ReviewDao {
                     syncStatus = SyncStatus.PENDING
                 )
             )
+            if (id == -1L) {
+                updateReviewTextOnly(mediaId, mediaType, seasonNum, episodeNum, text, isSpoiler, System.currentTimeMillis())
+            }
         }
     }
 
