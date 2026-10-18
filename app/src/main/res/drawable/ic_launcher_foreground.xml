@@ -1,10 +1,134 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- "S" letter as the foreground icon -->
+
+    <!-- ── Ambient glow behind main emblem ─────────────────────────────── -->
     <path
-        android:fillColor="#E4A0F7"
-        android:pathData="M62.5,35.5c-2.8,-3.2 -7.1,-5 -12,-5c-8.3,0 -14.5,5.2 -14.5,12.2c0,6.2 4.5,9.8 12.5,12.2l3.5,1c5.8,1.7 8.5,3.8 8.5,7.3c0,4.2 -3.8,7 -9.5,7c-4.5,0 -8,-1.8 -10.5,-5l-4.5,3.8c3.5,4.2 8.8,6.5 14.8,6.5c9.3,0 15.5,-5.5 15.5,-13c0,-7 -4.8,-10.5 -13.3,-13l-3.2,-0.8c-5,-1.5 -8,-3.2 -8,-6.5c0,-3.8 3.5,-6.5 8.5,-6.5c3.8,0 6.8,1.5 9,4l3.2,-4.2z" />
+        android:pathData="M54,56m-24,0a24,24 0 1,1 48,0a24,24 0 1,1 -48,0"
+        android:fillColor="#A855F7"
+        android:fillAlpha="0.12" />
+
+    <!-- ── Layer 1: Rear stacked card (SequelSecondary Teal #03DAC6) ───── -->
+    <path
+        android:pathData="M73,44h3c2.2,0 4,1.8 4,4v18c0,2.2 -1.8,4 -4,4h-3z"
+        android:fillColor="#03DAC6"
+        android:fillAlpha="0.75" />
+
+    <!-- ── Layer 2: Middle stacked card (SequelAccent Purple #A855F7) ──── -->
+    <path
+        android:pathData="M68,39h4c2.2,0 4,1.8 4,4v27c0,2.2 -1.8,4 -4,4h-4z"
+        android:fillColor="#A855F7" />
+
+    <!-- ── Layer 3: Top Clapper Stick (Angled & Striped) ────────────────── -->
+    <group
+        android:pivotX="27"
+        android:pivotY="42"
+        android:rotation="-13">
+        <!-- Clapper stick base -->
+        <path
+            android:pathData="M27,33h44c2,0 3.5,1.5 3.5,3.5v3c0,2 -1.5,3.5 -3.5,3.5h-44c-2,0 -3.5,-1.5 -3.5,-3.5v-3c0,-2 1.5,-3.5 3.5,-3.5z"
+            android:fillColor="#222632"
+            android:strokeColor="#A855F7"
+            android:strokeWidth="0.8"
+            android:strokeAlpha="0.5" />
+        <!-- Diagonal light stripes on the clapper stick -->
+        <path
+            android:pathData="M37,33.5l-4,9h4.5l4,-9z"
+            android:fillColor="#F3F4F6"
+            android:fillAlpha="0.9" />
+        <path
+            android:pathData="M48,33.5l-4,9h4.5l4,-9z"
+            android:fillColor="#F3F4F6"
+            android:fillAlpha="0.9" />
+        <path
+            android:pathData="M59,33.5l-4,9h4.5l4,-9z"
+            android:fillColor="#F3F4F6"
+            android:fillAlpha="0.9" />
+        <path
+            android:pathData="M70,33.5l-4,9h3.5c0.5,0 1,-0.3 1.2,-0.7l1.7,-3.8c0.4,-0.9 0.1,-2 -0.7,-2.6l-1,-0.9z"
+            android:fillColor="#F3F4F6"
+            android:fillAlpha="0.9" />
+    </group>
+
+    <!-- ── Layer 4: Main Clapperboard / Film Frame Body ────────────────── -->
+    <path
+        android:pathData="M32,41h32c3.3,0 6,2.7 6,6v20c0,3.3 -2.7,6 -6,6h-32c-3.3,0 -6,-2.7 -6,-6v-20c0,-3.3 2.7,-6 6,-6z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="26"
+                android:startY="41"
+                android:endX="70"
+                android:endY="73"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#242936" />
+                <item android:offset="0.5" android:color="#1A1E27" />
+                <item android:offset="1.0" android:color="#13161D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Subtle purple rim glow along top & right of main card -->
+    <path
+        android:pathData="M26,47c0,-3.3 2.7,-6 6,-6h32c3.3,0 6,2.7 6,6v20"
+        android:strokeColor="#A855F7"
+        android:strokeWidth="1.2"
+        android:strokeAlpha="0.65" />
+
+    <!-- ── Layer 5: Film Perforation Cutouts (Left Edge) ────────────────── -->
+    <!-- Hole 1 -->
+    <path
+        android:pathData="M29,45.5h3c0.6,0 1,0.4 1,1v2c0,0.6 -0.4,1 -1,1h-3c-0.6,0 -1,-0.4 -1,-1v-2c0,-0.6 0.4,-1 1,-1z"
+        android:fillColor="#0F1115" />
+    <!-- Hole 2 -->
+    <path
+        android:pathData="M29,51.5h3c0.6,0 1,0.4 1,1v2c0,0.6 -0.4,1 -1,1h-3c-0.6,0 -1,-0.4 -1,-1v-2c0,-0.6 0.4,-1 1,-1z"
+        android:fillColor="#0F1115" />
+    <!-- Hole 3 -->
+    <path
+        android:pathData="M29,57.5h3c0.6,0 1,0.4 1,1v2c0,0.6 -0.4,1 -1,1h-3c-0.6,0 -1,-0.4 -1,-1v-2c0,-0.6 0.4,-1 1,-1z"
+        android:fillColor="#0F1115" />
+    <!-- Hole 4 -->
+    <path
+        android:pathData="M29,63.5h3c0.6,0 1,0.4 1,1v2c0,0.6 -0.4,1 -1,1h-3c-0.6,0 -1,-0.4 -1,-1v-2c0,-0.6 0.4,-1 1,-1z"
+        android:fillColor="#0F1115" />
+
+    <!-- ── Layer 6: Center Play Triangle Button ────────────────────────── -->
+    <path
+        android:pathData="M47.5,50.2c-0.7,-0.4 -1.5,0.1 -1.5,0.9v12.4c0,0.8 0.8,1.3 1.5,0.9l10.8,-6.2c0.7,-0.4 0.7,-1.4 0,-1.8z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- ── Layer 7: Watched / Tracked Badge with Checkmark (Bottom Right) ── -->
+    <!-- Ambient badge halo -->
+    <path
+        android:pathData="M66,66m-13,0a13,13 0 1,1 26,0a13,13 0 1,1 -26,0"
+        android:fillColor="#03DAC6"
+        android:fillAlpha="0.25" />
+
+    <!-- Badge circle with teal gradient -->
+    <path
+        android:pathData="M66,66m-10.5,0a10.5,10.5 0 1,1 21,0a10.5,10.5 0 1,1 -21,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="56"
+                android:startY="56"
+                android:endX="76"
+                android:endY="76"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#26E5D3" />
+                <item android:offset="1.0" android:color="#02A898" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Badge checkmark -->
+    <path
+        android:pathData="M61.8,66.2l3,3.1l6.8,-7.2"
+        android:strokeColor="#0B1317"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
 </vector>

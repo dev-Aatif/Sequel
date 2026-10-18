@@ -1,13 +1,11 @@
 # ─────────────────────────────────────────────────────────────
-# Sequel — .gitignore
+# Sequel — Industry Standard Android .gitignore
 # ─────────────────────────────────────────────────────────────
 
 # ── Built Artifacts ─────────────────────────────────────────
 *.apk
 *.ap_
 *.aab
-
-# ── Bytecode / VM ───────────────────────────────────────────
 *.dex
 *.class
 
@@ -17,61 +15,84 @@ gen/
 out/
 build/
 */build/
+app/build/
+app/release/
 
 # ── Gradle ──────────────────────────────────────────────────
 .gradle/
+buildOutputCleanup/
+.gradle-build/
 
-# ── Local Configuration (SDK paths, API keys) ──────────────
+# ── Local Configuration & Secrets (NEVER commit) ────────────
 local.properties
+keystore.properties
+secrets.properties
+*.env
+*.env.*
+.env
+.env.local
 
-# ── Signing & Credentials (NEVER commit) ────────────────────
+# ── Signing & Certificates (NEVER commit) ───────────────────
 *.jks
 *.keystore
 *.key
-keystore.properties
+*.pem
+*.p12
+*.pfx
+*.pkcs12
+release.keystore
 
-# ── ProGuard (Eclipse-generated, legacy) ────────────────────
-proguard/
+# ── Google Services & Cloud Keys ────────────────────────────
+google-services.json
+google-services-*.json
 
-# ── Logs ────────────────────────────────────────────────────
+# ── Logs & JVM Crash Dumps ──────────────────────────────────
 *.log
+hs_err_pid*
+replay_pid*
+*.hprof
+*.dump
 
-# ── Android Studio Navigation Editor ───────────────────────
-.navigation/
-
-# ── Android Studio Captures ─────────────────────────────────
-captures/
-
-# ── IntelliJ / Android Studio ──────────────────────────────
+# ── IntelliJ / Android Studio ───────────────────────────────
 *.iml
 .idea/
-
-# ── External Native Build ──────────────────────────────────
+*.ipr
+*.iws
+.navigation/
+captures/
 .externalNativeBuild
 .cxx/
 
-# ── Google Services ─────────────────────────────────────────
-google-services.json
-
-# ── Kotlin Compiler ────────────────────────────────────────
+# ── Kotlin Compiler ─────────────────────────────────────────
 .kotlin/
 
-# ── Editor / IDE ────────────────────────────────────────────
+# ── Editors & IDEs ──────────────────────────────────────────
 .vscode/
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
 
-# ── OS ──────────────────────────────────────────────────────
+# ── Operating System Junk ───────────────────────────────────
 .DS_Store
+._*
 Thumbs.db
+ehthumbs.db
+desktop.ini
 
-# ── Scratch / Test Files ───────────────────────────────────
-test*.kt
-test.md
-Dump.kt
-install.cmd
+# ── Scratch, Local Scripts & Test Stubs ─────────────────────
 test/
 skills/
 scratch/
+test*.kt
+test*.md
+Dump.kt
+install.cmd
 *.py
 
-# ── Release Output Directories ────────────────────────────
-app/release/
+# ── Web Development / Node ──────────────────────────────────
+node_modules/
+.npm/
+dist/
+.cache/
