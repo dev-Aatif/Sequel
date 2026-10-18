@@ -31,6 +31,9 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signUp(email: String, password: String): Result<UserInfo> {
         val result = supabaseAuthService.signUp(email, password)
         if (result.isSuccess) {
+            result.getOrNull()?.id?.let { uuid ->
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId(uuid)
+            }
             // Start periodic sync on successful auth
             syncManager.schedulePeriodicSync()
         }
@@ -40,6 +43,9 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signIn(email: String, password: String): Result<UserInfo> {
         val result = supabaseAuthService.signIn(email, password)
         if (result.isSuccess) {
+            result.getOrNull()?.id?.let { uuid ->
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId(uuid)
+            }
             syncManager.schedulePeriodicSync()
             // Sync any data that was created while offline
             syncManager.syncAllNow()
@@ -48,6 +54,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun signOut() {
+        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId("")
         syncManager.cancelAllSync()
         appDatabase.clearAllTables()
         supabaseAuthService.signOut()

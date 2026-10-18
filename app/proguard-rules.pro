@@ -3,10 +3,12 @@
 # ──────────────────────────────────────────────────────────────────────────
 
 # ── Global Attributes ────────────────────────────────────────────────────
-# Keep metadata R8 needs for reflection, serialization, and generic types.
+# Keep metadata R8 needs for reflection, serialization, generic types, and Crashlytics stack traces.
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
 -keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
 -keepattributes AnnotationDefault
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
 # ── Kotlinx Serialization ────────────────────────────────────────────────
 -dontnote kotlinx.serialization.AnnotationsKt

@@ -58,6 +58,9 @@ class SyncWatchedWorker @AssistedInject constructor(
                     }
                     watchedEpisodeDao.deleteEpisodeById(record.id)
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    android.util.Log.e("SYNC_WATCHED_WORKER", "Failed to delete watched episode ${record.id}", e)
+                    com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
                     hasFailures = true
                 }
             }
@@ -101,6 +104,12 @@ class SyncWatchedWorker @AssistedInject constructor(
                 }
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            android.util.Log.e("SYNC_WATCHED_WORKER", "Error syncing watched episodes batch", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().apply {
+                setCustomKey("sync_entity", "watched_episodes_batch")
+                recordException(e)
+            }
             hasFailures = true
         }
 
@@ -118,6 +127,9 @@ class SyncWatchedWorker @AssistedInject constructor(
                     }
                     watchedMovieDao.deleteMovieById(record.tmdbMovieId)
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    android.util.Log.e("SYNC_WATCHED_WORKER", "Failed to delete watched movie ${record.tmdbMovieId}", e)
+                    com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
                     hasFailures = true
                 }
             }
@@ -156,6 +168,12 @@ class SyncWatchedWorker @AssistedInject constructor(
                 }
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            android.util.Log.e("SYNC_WATCHED_WORKER", "Error syncing watched movies batch", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().apply {
+                setCustomKey("sync_entity", "watched_movies_batch")
+                recordException(e)
+            }
             hasFailures = true
         }
 

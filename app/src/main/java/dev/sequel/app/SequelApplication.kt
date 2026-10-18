@@ -49,8 +49,12 @@ class SequelApplication : Application(), Configuration.Provider {
         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             authService.authStateFlow.collect { isLoggedIn ->
                 if (isLoggedIn) {
+                    authService.currentUserId?.let { uuid ->
+                        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId(uuid)
+                    }
                     syncManager.schedulePeriodicSync()
                 } else {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId("")
                     syncManager.cancelPeriodicSync()
                 }
             }

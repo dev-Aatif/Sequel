@@ -71,6 +71,13 @@ class SyncReviewsWorker @AssistedInject constructor(
                     )
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                android.util.Log.e("SYNC_REVIEWS_WORKER", "Silent sync error for review ${record.id}", e)
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().apply {
+                    setCustomKey("sync_entity", "review")
+                    setCustomKey("media_id", record.mediaId)
+                    recordException(e)
+                }
                 hasFailures = true
             }
         }

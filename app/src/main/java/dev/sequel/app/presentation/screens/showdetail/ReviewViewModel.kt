@@ -77,7 +77,13 @@ class ReviewViewModel @Inject constructor(
         syncJob?.cancel()
         syncJob = viewModelScope.launch {
             kotlinx.coroutines.delay(300)
-            syncManager.syncReviewsNow(currentMediaId)
+            try {
+                syncManager.syncReviewsNow(currentMediaId)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                android.util.Log.e("SYNC_ERROR", "Failed to sync review for $currentMediaId", e)
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+            }
         }
     }
 

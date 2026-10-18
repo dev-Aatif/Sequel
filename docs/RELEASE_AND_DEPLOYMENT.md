@@ -54,6 +54,10 @@ buildTypes {
 To prevent runtime serialization failures when obfuscated, the following rules preserve DTOs, Room reflection, and Supabase data models:
 
 ```pro
+# Preserve stack trace line numbers for Crashlytics deobfuscation
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
 # Preserve Kotlin Serialization Models
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
 -keepclassmembers class * {

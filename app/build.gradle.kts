@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 // ── Release Signing ──────────────────────────────────────────────────────
@@ -172,6 +174,11 @@ dependencies {
 
     // ── CSV Import ────────────────────────────────────────────────
     implementation(libs.opencsv)
+
+    // ── Firebase ──────────────────────────────────────────────────
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
 
     // ── Testing ───────────────────────────────────────────────────
     testImplementation(libs.junit)

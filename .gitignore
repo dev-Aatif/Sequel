@@ -1,13 +1,16 @@
 # ─────────────────────────────────────────────────────────────
-# Sequel — Industry Standard Android .gitignore
+# Sequel — Production Android .gitignore
 # ─────────────────────────────────────────────────────────────
 
 # ── Built Artifacts ─────────────────────────────────────────
 *.apk
 *.ap_
 *.aab
+*.apks
+*.aar
 *.dex
 *.class
+*.idsig
 
 # ── Generated / Build Outputs ───────────────────────────────
 bin/
@@ -17,6 +20,7 @@ build/
 */build/
 app/build/
 app/release/
+reports/
 
 # ── Gradle ──────────────────────────────────────────────────
 .gradle/
@@ -40,11 +44,29 @@ secrets.properties
 *.p12
 *.pfx
 *.pkcs12
+*.pepk
+private_key.pepk
 release.keystore
 
-# ── Google Services & Cloud Keys ────────────────────────────
+# ── Google Services & Crashlytics ───────────────────────────
 google-services.json
 google-services-*.json
+crashlytics-build.properties
+crashlytics.properties
+com.google.firebase.crashlytics/
+.firebase/
+
+# ── ProGuard & R8 Code Shrinking Outputs ────────────────────
+proguard/
+mapping.txt
+seeds.txt
+usage.txt
+dump.txt
+*.mapping
+
+# ── Room Schemas (Must be tracked in git for migrations) ────
+!app/schemas/
+!app/schemas/**
 
 # ── Logs & JVM Crash Dumps ──────────────────────────────────
 *.log
@@ -62,6 +84,7 @@ replay_pid*
 captures/
 .externalNativeBuild
 .cxx/
+.shelf/
 
 # ── Kotlin Compiler ─────────────────────────────────────────
 .kotlin/
@@ -73,6 +96,8 @@ captures/
 *~
 *.bak
 *.tmp
+*.orig
+*.rej
 
 # ── Operating System Junk ───────────────────────────────────
 .DS_Store
@@ -81,14 +106,14 @@ Thumbs.db
 ehthumbs.db
 desktop.ini
 
-# ── Scratch, Local Scripts & Test Stubs ─────────────────────
-test/
-skills/
-scratch/
-test*.kt
-test*.md
-Dump.kt
-install.cmd
+# ── Scratch, Local Scripts & Test Stubs (Anchored to Root) ──
+/test/
+/skills/
+/scratch/
+/test*.kt
+/test*.md
+/Dump.kt
+/install.cmd
 *.py
 
 # ── Web Development / Node ──────────────────────────────────
