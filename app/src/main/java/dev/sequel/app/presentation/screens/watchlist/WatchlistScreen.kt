@@ -370,6 +370,7 @@ fun WatchedGlassmorphicRow(item: WatchedItem, onClick: () -> Unit, onLongClick: 
         "Completed" -> Color(0xFF10B981)
         "Up to Date" -> Color(0xFF3B82F6)
         "In Progress" -> Color(0xFFF59E0B)
+        "Cancelled" -> Color(0xFFEF4444)
         "Watched" -> Color(0xFF10B981)
         else -> MaterialTheme.colorScheme.onSurface.copy(0.6f)
     }

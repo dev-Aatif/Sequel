@@ -77,46 +77,28 @@ interface ShowDao {
             FROM watched_episodes
             WHERE tmdb_episode_id IS NOT NULL AND sync_status != 'DELETED'
             GROUP BY show_id
-        ),
-        LatestWatched AS (
-            SELECT show_id, season_number, episode_number
-            FROM watched_episodes we1
-            WHERE tmdb_episode_id IS NOT NULL AND sync_status != 'DELETED'
-              AND NOT EXISTS (
-                  SELECT 1 FROM watched_episodes we2
-                  WHERE we2.show_id = we1.show_id
-                    AND we2.tmdb_episode_id IS NOT NULL AND we2.sync_status != 'DELETED'
-                    AND (we2.season_number > we1.season_number OR (we2.season_number = we1.season_number AND we2.episode_number > we1.episode_number))
-              )
-            GROUP BY show_id
         )
         SELECT s.*, 
-               e.id as ep_id, e.show_id as ep_show_id, e.media_type as ep_media_type, e.name as ep_name, e.season_number AS ep_season_number, e.episode_number AS ep_episode_number, e.overview AS ep_overview, e.still_path AS ep_still_path, e.runtime AS ep_runtime, e.air_date AS ep_air_date,
+               e.id as ep_id, e.show_id as ep_show_id, e.media_type as ep_media_type, e.name as ep_name, 
+               e.season_number AS ep_season_number, e.episode_number AS ep_episode_number, 
+               e.overview AS ep_overview, e.still_path AS ep_still_path, e.runtime AS ep_runtime, e.air_date AS ep_air_date,
                COALESCE(wc.watched_count, 0) AS watchedCount
         FROM shows s
         LEFT JOIN WatchedCount wc ON s.id = wc.show_id
-        LEFT JOIN LatestWatched lw ON s.id = lw.show_id
-        LEFT JOIN episodes e ON e.id = (
+        INNER JOIN episodes e ON e.id = (
             SELECT id FROM episodes e2
             WHERE e2.show_id = s.id
-            AND e2.id NOT IN (
-                SELECT tmdb_episode_id FROM watched_episodes we WHERE we.show_id = s.id AND we.tmdb_episode_id IS NOT NULL AND we.sync_status != 'DELETED'
-            )
-            AND (
-                lw.season_number IS NULL
-                OR e2.season_number > lw.season_number 
-                OR (e2.season_number = lw.season_number AND e2.episode_number > lw.episode_number)
-            )
+              AND e2.season_number > 0
+              AND (e2.air_date IS NULL OR e2.air_date <= date('now'))
+              AND e2.id NOT IN (
+                  SELECT tmdb_episode_id FROM watched_episodes we 
+                  WHERE we.show_id = s.id AND we.tmdb_episode_id IS NOT NULL AND we.sync_status != 'DELETED'
+              )
             ORDER BY e2.season_number ASC, e2.episode_number ASC
             LIMIT 1
         )
         WHERE s.id IN (
             SELECT DISTINCT show_id FROM watched_episodes WHERE media_type = 'tv' AND sync_status != 'DELETED'
-        )
-        AND NOT (
-            s.number_of_episodes IS NOT NULL 
-            AND s.number_of_episodes > 0 
-            AND COALESCE(wc.watched_count, 0) >= s.number_of_episodes
         )
         ORDER BY s.title ASC
     """)
@@ -168,6 +150,8 @@ interface ShowDao {
                EXISTS (
                    SELECT 1 FROM episodes e 
                    WHERE e.show_id = s.id 
+                   AND e.season_number > 0
+                   AND (e.air_date IS NULL OR e.air_date <= date('now'))
                    AND e.id NOT IN (
                        SELECT tmdb_episode_id FROM watched_episodes we2 
                        WHERE we2.show_id = s.id AND we2.tmdb_episode_id IS NOT NULL AND we2.sync_status != 'DELETED'

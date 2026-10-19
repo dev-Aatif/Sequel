@@ -59,39 +59,26 @@ class GetNextEpisodeUseCase @Inject constructor(
             )
         }
 
-        val highest = watchedList.maxWithOrNull(compareBy({ it.seasonNumber ?: 0 }, { it.episodeNumber ?: 0 }))
-        val hSeason = highest?.seasonNumber ?: 1
-        val hEpisode = highest?.episodeNumber ?: 1
+        // 3. Scan every season in sequence (excluding specials Season 0) to find unhandled episodes
+        val regularSeasons = seasons.filter { it.seasonNumber > 0 }.sortedBy { it.seasonNumber }
+        for (seasonSummary in regularSeasons) {
+            val watchedInSeason = watchedList
+                .filter { it.seasonNumber == seasonSummary.seasonNumber }
+                .map { it.episodeNumber }
+                .toSet()
 
-        val seasonSummary = seasons.find { it.seasonNumber == hSeason }
-        if (seasonSummary != null) {
-            if (hEpisode < seasonSummary.episodeCount) {
-                // There is a next episode in this season on TMDB that we didn't cache locally!
+            val missingEpNumber = (1..seasonSummary.episodeCount).firstOrNull { it !in watchedInSeason }
+            if (missingEpNumber != null) {
                 return EpisodeProgressionState(
-                    nextEpisodeString = "Mark S${hSeason}E${hEpisode + 1} as Watched",
+                    nextEpisodeString = "Mark S${seasonSummary.seasonNumber}E$missingEpNumber as Watched",
                     nextEpisodeData = NextEpisodeProgressionData(
                         id = 0,
                         name = "",
-                        seasonNumber = hSeason,
-                        episodeNumber = hEpisode + 1
+                        seasonNumber = seasonSummary.seasonNumber,
+                        episodeNumber = missingEpNumber
                     ),
                     isCompleted = false
                 )
-            } else {
-                // Next season
-                val nextSeasonSummary = seasons.find { it.seasonNumber == hSeason + 1 }
-                if (nextSeasonSummary != null && nextSeasonSummary.episodeCount > 0) {
-                    return EpisodeProgressionState(
-                        nextEpisodeString = "Mark S${hSeason + 1}E1 as Watched",
-                        nextEpisodeData = NextEpisodeProgressionData(
-                            id = 0,
-                            name = "",
-                            seasonNumber = hSeason + 1,
-                            episodeNumber = 1
-                        ),
-                        isCompleted = false
-                    )
-                }
             }
         }
 
