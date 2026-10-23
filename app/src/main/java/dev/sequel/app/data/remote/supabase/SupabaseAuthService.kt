@@ -42,18 +42,11 @@ class SupabaseAuthService @Inject constructor(
     val authStateFlow: Flow<Boolean>
         get() = auth.sessionStatus
             .filter { status ->
-                status !is io.github.jan.supabase.auth.status.SessionStatus.Initializing
+                status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated ||
+                status is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated
             }
             .map { status ->
-                when (status) {
-                    is io.github.jan.supabase.auth.status.SessionStatus.Authenticated -> true
-                    is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated -> false
-                    is io.github.jan.supabase.auth.status.SessionStatus.NetworkError -> {
-                        // When offline, if a local user/session exists, treat as authenticated
-                        auth.currentUserOrNull() != null || auth.currentSessionOrNull() != null
-                    }
-                    else -> auth.currentUserOrNull() != null
-                }
+                status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated
             }
 
     /**
@@ -165,15 +158,14 @@ class SupabaseAuthService @Inject constructor(
 
         return kotlinx.coroutines.withTimeoutOrNull(3000L) {
             val status = auth.sessionStatus.filter { 
-                it !is io.github.jan.supabase.auth.status.SessionStatus.Initializing
+                it is io.github.jan.supabase.auth.status.SessionStatus.Authenticated || 
+                it is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated 
             }.first()
             
-            when (status) {
-                is io.github.jan.supabase.auth.status.SessionStatus.Authenticated -> status.session.user?.id
-                is io.github.jan.supabase.auth.status.SessionStatus.NetworkError -> {
-                    auth.currentUserOrNull()?.id ?: auth.currentSessionOrNull()?.user?.id
-                }
-                else -> null
+            if (status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
+                status.session.user?.id
+            } else {
+                null
             }
         } ?: auth.currentUserOrNull()?.id
     }

@@ -117,7 +117,7 @@ fun SettingsScreen(
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem(
-                    icon = { Icon(Icons.Default.Movie, contentDescription = null, tint = Color(0xFF01D277)) },
+                    icon = { Icon(Icons.Outlined.Movie, contentDescription = null, tint = Color(0xFF01D277)) },
                     title = "The Movie Database (TMDB)",
                     subtitle = "This product uses the TMDB API but is not endorsed or certified by TMDB.",
                     trailingIcon = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
