@@ -38,15 +38,22 @@ class SupabaseAuthService @Inject constructor(
     val isAuthenticated: Boolean
         get() = auth.currentUserOrNull() != null
 
-    /** Observe auth state changes. Emits true when logged in, false when logged out. Waits for storage load. */
+    /** Observe auth state changes. Emits true when logged in, false when logged out. Handles offline mode gracefully. */
     val authStateFlow: Flow<Boolean>
         get() = auth.sessionStatus
             .filter { status ->
-                status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated ||
-                status is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated
+                status !is io.github.jan.supabase.auth.status.SessionStatus.Initializing
             }
             .map { status ->
-                status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated
+                when (status) {
+                    is io.github.jan.supabase.auth.status.SessionStatus.Authenticated -> true
+                    is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated -> false
+                    is io.github.jan.supabase.auth.status.SessionStatus.NetworkError -> {
+                        // When offline, if a local user/session exists, treat as authenticated
+                        auth.currentUserOrNull() != null || auth.currentSessionOrNull() != null
+                    }
+                    else -> auth.currentUserOrNull() != null
+                }
             }
 
     /**
@@ -153,15 +160,22 @@ class SupabaseAuthService @Inject constructor(
      * and return the current user ID (or null if not logged in).
      */
     suspend fun awaitUserId(): String? {
-        val status = auth.sessionStatus.filter { 
-            it is io.github.jan.supabase.auth.status.SessionStatus.Authenticated || 
-            it is io.github.jan.supabase.auth.status.SessionStatus.NotAuthenticated 
-        }.first()
-        
-        return if (status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
-            status.session.user?.id
-        } else {
-            null
-        }
+        val current = auth.currentUserOrNull()?.id ?: auth.currentSessionOrNull()?.user?.id
+        if (current != null) return current
+
+        return kotlinx.coroutines.withTimeoutOrNull(3000L) {
+            val status = auth.sessionStatus.filter { 
+                it !is io.github.jan.supabase.auth.status.SessionStatus.Initializing
+            }.first()
+            
+            when (status) {
+                is io.github.jan.supabase.auth.status.SessionStatus.Authenticated -> status.session.user?.id
+                is io.github.jan.supabase.auth.status.SessionStatus.NetworkError -> {
+                    auth.currentUserOrNull()?.id ?: auth.currentSessionOrNull()?.user?.id
+                }
+                else -> null
+            }
+        } ?: auth.currentUserOrNull()?.id
     }
 }
+

@@ -26,13 +26,19 @@ class MainViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val isAuthenticated = authRepository.authStateFlow.first()
+            val isAuthenticated = kotlinx.coroutines.withTimeoutOrNull(2500L) {
+                authRepository.authStateFlow.first()
+            } ?: authRepository.isAuthenticated
+
             if (isAuthenticated) {
                 _startDestination.value = Screen.Home.route
             } else {
-                val isOnboardingCompleted = userPreferencesRepository.isOnboardingCompleted.first()
+                val isOnboardingCompleted = kotlinx.coroutines.withTimeoutOrNull(2500L) {
+                    userPreferencesRepository.isOnboardingCompleted.first()
+                } ?: false
                 _startDestination.value = if (isOnboardingCompleted) Screen.Login.route else Screen.Onboarding.route
             }
         }
     }
+
 }

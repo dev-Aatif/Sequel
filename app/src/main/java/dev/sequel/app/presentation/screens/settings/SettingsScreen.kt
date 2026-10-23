@@ -117,11 +117,27 @@ fun SettingsScreen(
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem(
+                    icon = { Icon(Icons.Default.Movie, contentDescription = null, tint = Color(0xFF01D277)) },
+                    title = "The Movie Database (TMDB)",
+                    subtitle = "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+                    trailingIcon = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.themoviedb.org"))
+                            context.startActivity(intent)
+                        } catch (e: ActivityNotFoundException) {
+                            Toast.makeText(context, "No browser found", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsItem(
                     icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
                     title = "App Version",
-                    subtitle = "v1.0.0 (Build 4)"
+                    subtitle = "v1.0.0 (Build 1)"
                 )
             }
+
 
             // Section 3: Account (Destructive Actions)
             SettingsSection(title = "Account") {

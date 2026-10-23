@@ -373,15 +373,14 @@ CREATE INDEX IF NOT EXISTS idx_watched_movies_user ON public.watched_movies(user
 CREATE TABLE IF NOT EXISTS public.watched_episodes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    show_id INTEGER NOT NULL,
-    media_type TEXT NOT NULL DEFAULT 'tv',
+    tmdb_show_id INTEGER NOT NULL,
+    tmdb_episode_id INTEGER NOT NULL,
     season_number INTEGER NOT NULL,
     episode_number INTEGER NOT NULL,
-    episode_id INTEGER NOT NULL,
     is_skipped BOOLEAN NOT NULL DEFAULT FALSE,
     watched_at BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT watched_episodes_unique UNIQUE (user_id, show_id, season_number, episode_number)
+    CONSTRAINT watched_episodes_unique UNIQUE (user_id, tmdb_episode_id)
 );
 
 ALTER TABLE public.watched_episodes ENABLE ROW LEVEL SECURITY;
@@ -392,7 +391,7 @@ FOR ALL
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
-CREATE INDEX IF NOT EXISTS idx_watched_episodes_user_show ON public.watched_episodes(user_id, show_id);
+CREATE INDEX IF NOT EXISTS idx_watched_episodes_user_show ON public.watched_episodes(user_id, tmdb_show_id);
 
 -- ── 5. Reviews Table ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.reviews (
@@ -423,4 +422,19 @@ USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
 CREATE INDEX IF NOT EXISTS idx_reviews_user_media ON public.reviews(user_id, media_id);
+
+-- ── 6. Account Deletion Function (Mandatory for Google Play) ─────
+-- Allows authenticated users to safely trigger their own account deletion via RPC
+CREATE OR REPLACE FUNCTION delete_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    DELETE FROM auth.users WHERE id = auth.uid();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION delete_user() TO authenticated;
 ```
+

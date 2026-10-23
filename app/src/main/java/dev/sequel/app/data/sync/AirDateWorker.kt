@@ -97,12 +97,13 @@ class AirDateWorker @AssistedInject constructor(
         }
 
         val notification = NotificationCompat.Builder(appContext, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Fallback icon
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("New Episode Today: $showName")
             .setContentText(episodeInfo)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
+
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(

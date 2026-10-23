@@ -107,11 +107,13 @@ For GitHub releases, internal testing, or sideloading:
 | Step | Requirement | Asset / Location | Status |
 | ---- | ----------- | ---------------- | ------ |
 | 1 | **High-Res App Icon** | 512 × 512 PNG, 32-bit color, no transparency | `docs/assets/playstore_icon.png` |
-| 2 | **Feature Graphic** | 1024 × 500 PNG/JPEG, 24-bit RGB | `docs/assets/app_logo.jpg` (or banner) |
-| 3 | **Privacy Policy URL** | Live accessible web URL | [Privacy Policy](privacy.html) |
+| 2 | **Feature Graphic** | 1024 × 500 PNG, 24-bit RGB | `docs/assets/playstore_feature_graphic.png` |
+| 3 | **Privacy Policy URL** | Live accessible HTTPS web URL | `https://dev-aatif.github.io/Sequel/privacy.html` |
+
 | 4 | **Target SDK** | Android 15 (API level 35) | `compileSdk = 35`, `targetSdk = 35` |
-| 5 | **Data Safety Form** | User library storage, email authentication | Fully documented in `docs/SECURITY_AND_PRIVACY.md` |
-| 6 | **App Permissions** | `INTERNET`, `ACCESS_NETWORK_STATE` | Clean manifest with zero sensitive permissions |
+| 5 | **Data Safety Form** | User library storage, email authentication, Crashlytics diagnostics | Fully documented in `docs/SECURITY_AND_PRIVACY.md` and `docs/privacy.html` |
+| 6 | **App Permissions** | `INTERNET`, `ACCESS_NETWORK_STATE`, `POST_NOTIFICATIONS` | Minimal runtime permissions |
+
 
 ---
 

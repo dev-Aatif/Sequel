@@ -262,8 +262,9 @@
 
             <h2>3. Third-Party Services & Integrations</h2>
             <ul>
-                <li><strong>The Movie Database (TMDB):</strong> We fetch movie and TV metadata via the TMDB API v3. TMDB receives search and lookup queries; we never transmit your user identity, email, or account information to TMDB.</li>
+                <li><strong>The Movie Database (TMDB):</strong> We fetch movie and TV metadata via the TMDB API v3. TMDB receives search and lookup queries; we never transmit your user identity, email, or account information to TMDB. <em>This product uses the TMDB API but is not endorsed or certified by TMDB.</em></li>
                 <li><strong>Supabase Cloud Backend:</strong> We use Supabase (PostgreSQL 15) for secure cloud synchronization. All cloud tables are protected by strict Row-Level Security (RLS) policies ensuring only your authenticated account can read or write your records.</li>
+                <li><strong>Google Firebase (Crashlytics & Analytics):</strong> We utilize Firebase Crashlytics to monitor application health and capture crash diagnostics, stack traces, and non-fatal error reports. Firebase Analytics collects anonymized, aggregated operational metrics (such as active sessions and screen views) to diagnose performance bottlenecks. No private watch history, personal reviews, or passwords are transmitted to Firebase.</li>
             </ul>
 
             <h2>4. Security & Data Protection</h2>
@@ -274,12 +275,14 @@
                 <li><strong>Sandbox Protection:</strong> Android system backup (`android:allowBackup="false"`) is disabled to prevent unauthorized local database extraction via ADB.</li>
             </ul>
 
-            <h2>5. Your Rights & Account Deletion (GDPR / CCPA)</h2>
+            <h2>5. Your Rights & Account Deletion (GDPR / CCPA / Google Play Policy)</h2>
             <p>You have complete ownership over your data:</p>
             <ul>
                 <li><strong>Export Your History:</strong> You can export your library anytime in open formats.</li>
-                <li><strong>Instant Account Deletion:</strong> You can permanently delete your account directly inside the app (<strong>Profile → Settings → Delete Account</strong>). This triggers a cascading deletion that immediately purges your profile, watched history, reviews, and cloud records from Supabase, alongside wiping your local Room database.</li>
+                <li><strong>In-App Account Deletion:</strong> You can permanently delete your account directly inside the app (<strong>Profile → Settings → Delete Account</strong>). This triggers an automated deletion that immediately purges your profile, watched history, reviews, and cloud records from Supabase, alongside wiping your local Room database.</li>
+                <li><strong>Web-Based Deletion Request:</strong> If you have uninstalled Sequel or cannot access the app, you may request permanent deletion of your account and associated cloud data by emailing <a href="mailto:privacy@sequel.app?subject=Account%20and%20Data%20Deletion%20Request" style="color: #c084fc; font-weight: 600;">privacy@sequel.app</a> or filing a request via our <a href="https://github.com/dev-Aatif/Sequel/issues" style="color: #c084fc; font-weight: 600;">Support Desk</a>. Your request will be fulfilled within 30 days.</li>
             </ul>
+
 
             <h2>6. Children's Privacy</h2>
             <p>Sequel does not knowingly collect personal information from children under the age of 13. If you believe a child has provided us with personal information, please contact us for immediate deletion.</p>
@@ -291,7 +294,8 @@
                 <span>&copy; 2026 Sequel Project. All rights reserved.</span>
                 <div>
                     <a href="https://github.com/dev-Aatif/Sequel">GitHub Repository</a> &bull; 
-                    <a href="../web/index.html">Web Portal</a>
+                    <a href="index.html">Web Portal</a>
+
                 </div>
             </div>
         </main>

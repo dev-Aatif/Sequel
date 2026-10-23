@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sequel — Modern Show & Movie Tracking for Android</title>
+    <meta name="description" content="Sequel is a modern, offline-first Android movie and TV show tracking app powered by Jetpack Compose, Room SQLite, Supabase cloud sync, and TMDB.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <!-- Navigation -->
+    <header class="navbar">
+        <div class="container navbar-inner">
+            <a href="#" class="nav-brand">
+                <img src="assets/logo.jpg" alt="Sequel Logo" class="nav-logo" onerror="this.src='assets/playstore_icon.png'">
+                <span class="nav-title">Sequel</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features" class="nav-link">Features</a></li>
+                <li><a href="#architecture" class="nav-link">Architecture</a></li>
+                <li><a href="#sync-engine" class="nav-link">Sync Engine</a></li>
+                <li><a href="#schema" class="nav-link">Database</a></li>
+                <li><a href="#docs" class="nav-link">Documentation</a></li>
+                <li>
+                    <a href="https://github.com/dev-Aatif/Sequel" class="btn-nav" target="_blank" rel="noopener">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <span>Android 15 Ready &bull; Offline-First Architecture</span>
+            </div>
+            <h1 class="hero-title">Track What You Watch.<br>Never Lose Your Place.</h1>
+            <p class="hero-subtitle">
+                Sequel is a modern Android application engineered for people tired of spreadsheets, bloated ad trackers, and lost viewing progress. Instant local reads, intelligent background sync, and an authoritative media catalog.
+            </p>
+            <div class="hero-actions">
+                <a href="#architecture" class="btn-primary">Explore System Architecture</a>
+                <a href="#docs" class="btn-secondary">Technical Documentation</a>
+            </div>
+
+            <!-- Specs Matrix -->
+            <div class="spec-bar">
+                <div class="spec-item">
+                    <div class="spec-value accent">Sub-10ms</div>
+                    <div class="spec-label">UI Read Latency</div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-value teal">100%</div>
+                    <div class="spec-label">Offline Capability</div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-value gold">v17</div>
+                    <div class="spec-label">Room SQLite Schema</div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-value accent">Zero</div>
+                    <div class="spec-label">Ad Trackers / Telemetry</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Core Capabilities</span>
+                <h2 class="section-title">Engineered Without Compromise</h2>
+                <p class="section-desc">Built using modern Android architecture components to ensure fluid performance, total reliability, and zero cloud lock-in.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon-wrap">⚡</div>
+                    <h3 class="feature-title">Offline-First SSOT</h3>
+                    <p class="feature-text">Room Database serves as the Single Source of Truth. The user interface never halts on network loading spinners; every screen renders cached records instantly.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrap teal">🔄</div>
+                    <h3 class="feature-title">Pragmatic Cloud Sync</h3>
+                    <p class="feature-text">WorkManager orchestrates background delta sync to Supabase with exponential backoff and APPEND_OR_REPLACE protection against rapid interaction cancellations.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrap">🎬</div>
+                    <h3 class="feature-title">Comprehensive Catalog</h3>
+                    <p class="feature-text">Deep integration with TMDB API v3 providing trending feeds, multi-search, air-date tracking, season-by-season breakdowns, and global CDN imagery.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrap teal">📥</div>
+                    <h3 class="feature-title">Zero-Lockin Importers</h3>
+                    <p class="feature-text">Migrate your entire viewing history from TV Time CSV or Trakt JSON/CSV with streaming parsing, fuzzy title disambiguation, and background progress notifications.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrap">🔒</div>
+                    <h3 class="feature-title">Row-Level Security</h3>
+                    <p class="feature-text">Cloud data isolation is enforced at the PostgreSQL kernel level via Supabase RLS. No advertising SDKs, no behavioral trackers, and full GDPR Right to Erasure.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon-wrap teal">🎨</div>
+                    <h3 class="feature-title">Pure Jetpack Compose</h3>
+                    <p class="feature-text">Declarative Material 3 design system with dark purple brand tokens, smooth shared-element transitions, and predictive back gestures.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Architecture Explorer -->
+    <section id="architecture" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">System Architecture</span>
+                <h2 class="section-title">Clean Layered Architecture</h2>
+                <p class="section-desc">Strict separation of concerns across Presentation, Domain, Data, and Remote subsystems.</p>
+            </div>
+
+            <div class="arch-explorer">
+                <div class="arch-layers">
+                    <button class="arch-tab-btn active" data-target="arch-pres">
+                        Presentation
+                        <span>Jetpack Compose • MVI</span>
+                    </button>
+                    <button class="arch-tab-btn" data-target="arch-dom">
+                        Domain
+                        <span>Pure Kotlin • UseCases</span>
+                    </button>
+                    <button class="arch-tab-btn" data-target="arch-data">
+                        Data Layer
+                        <span>Room SQLite • WorkManager</span>
+                    </button>
+                    <button class="arch-tab-btn" data-target="arch-remote">
+                        Remote Services
+                        <span>TMDB v3 • Supabase</span>
+                    </button>
+                </div>
+
+                <div class="arch-content">
+                    <div id="arch-pres" class="arch-panel active">
+                        <h3>Presentation Layer (`dev.sequel.app.presentation`)</h3>
+                        <p style="color:var(--text-muted); margin: 0.75rem 0 1rem;">
+                            Composed entirely in declarative Jetpack Compose with Material 3 theming. ViewModels expose immutable <code>StateFlow</code> streams to Composables, ensuring Unidirectional Data Flow (UDF).
+                        </p>
+                        <div class="code-box">
+                            <div class="code-header">
+                                <span>DetailViewModel.kt (State Pattern)</span>
+                                <button class="copy-btn" data-copy-target="#code-pres">Copy</button>
+                            </div>
+                            <pre><code id="code-pres">// Observes Room Flow immediately without blocking UI on remote network
+val uiState: StateFlow&lt;DetailUiState&gt; = combine(
+    showRepository.getShowWithSeasons(showId),
+    watchedEpisodeRepository.getWatchedEpisodesForShow(showId),
+    reviewRepository.getReviewForShow(showId)
+) { show, watched, review ->
+    DetailUiState.Loaded(show, watched, review)
+}.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DetailUiState.Loading)</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="arch-dom" class="arch-panel">
+                        <h3>Domain Layer (`dev.sequel.app.domain`)</h3>
+                        <p style="color:var(--text-muted); margin: 0.75rem 0 1rem;">
+                            Pure Kotlin business logic completely insulated from Android framework dependencies. Houses Use Cases, repository contracts, and the sealed <code>AppError</code> hierarchy.
+                        </p>
+                        <div class="code-box">
+                            <div class="code-header">
+                                <span>GetNextEpisodeUseCase.kt</span>
+                                <button class="copy-btn" data-copy-target="#code-dom">Copy</button>
+                            </div>
+                            <pre><code id="code-dom">class GetNextEpisodeUseCase @Inject constructor(
+    private val seasonRepository: SeasonRepository,
+    private val watchedEpisodeRepository: WatchedEpisodeRepository
+) {
+    suspend operator fun invoke(showId: Int): EpisodeEntity? {
+        val watched = watchedEpisodeRepository.getWatchedEpisodesList(showId)
+        val allEpisodes = seasonRepository.getAllEpisodesForShow(showId)
+        return allEpisodes.firstOrNull { ep ->
+            !watched.any { w -> w.seasonNumber == ep.seasonNumber && w.episodeNumber == ep.episodeNumber }
+        }
+    }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="arch-data" class="arch-panel">
+                        <h3>Data Layer (`dev.sequel.app.data`)</h3>
+                        <p style="color:var(--text-muted); margin: 0.75rem 0 1rem;">
+                            Room Database (SQLite v17) serves as the Single Source of Truth (SSOT). Repository implementations coordinate local caching with background WorkManager uploads.
+                        </p>
+                        <div class="code-box">
+                            <div class="code-header">
+                                <span>SequelDatabase.kt (Schema v17 Definition)</span>
+                                <button class="copy-btn" data-copy-target="#code-data">Copy</button>
+                            </div>
+                            <pre><code id="code-data">@Database(
+    entities = [
+        ShowEntity::class, SeasonEntity::class, EpisodeEntity::class,
+        WatchedEpisodeEntity::class, WatchedMovieEntity::class,
+        ReviewEntity::class, RemoteKeys::class, WatchlistEntity::class,
+        TrendingShowEntity::class
+    ],
+    version = 17,
+    exportSchema = true
+)
+abstract class SequelDatabase : RoomDatabase() { ... }</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="arch-remote" class="arch-panel">
+                        <h3>Remote Services Layer (`dev.sequel.app.data.remote`)</h3>
+                        <p style="color:var(--text-muted); margin: 0.75rem 0 1rem;">
+                            Coordinates communication with external APIs: Retrofit for TMDB v3 catalog queries and Ktor-based SupabaseClient for PostgreSQL storage and GoTrue authentication.
+                        </p>
+                        <div class="code-box">
+                            <div class="code-header">
+                                <span>SupabaseSyncService.kt (PostgREST Upsert)</span>
+                                <button class="copy-btn" data-copy-target="#code-remote">Copy</button>
+                            </div>
+                            <pre><code id="code-remote">suspend fun upsertWatchedMovie(dto: SupabaseWatchedMovieDto): String {
+    val result = supabaseClient.postgrest["watched_movies"]
+        .upsert(dto) {
+            onConflict = "user_id,tmdb_movie_id"
+            select(Columns.list("id"))
+        }
+        .decodeSingle&lt;SupabaseWatchedMovieDto&gt;()
+    return result.id ?: throw IllegalStateException("Supabase did not return an ID")
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sync Engine Interactive Simulation -->
+    <section id="sync-engine" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Reliability Engineering</span>
+                <h2 class="section-title">Pragmatic Offline Sync Engine</h2>
+                <p class="section-desc">Test Sequel's optimistic write and background upload state machine in real-time.</p>
+            </div>
+
+            <div class="arch-explorer" style="text-align: center;">
+                <div style="margin-bottom: 2rem;">
+                    <div style="display: inline-block; text-align: left; background: var(--bg); padding: 1.5rem 2rem; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+                        <div style="font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">Entity Status State Machine</div>
+                        <div id="sim-status-badge" class="spec-value teal">SYNCED</div>
+                    </div>
+                </div>
+
+                <button id="sim-trigger-btn" class="btn-primary" style="margin-bottom: 1.5rem;">
+                    Simulate: User Taps "Mark Watched"
+                </button>
+
+                <div class="code-box" style="text-align: left; max-width: 800px; margin: 0 auto;">
+                    <div class="code-header">
+                        <span>Event Dispatch Log</span>
+                        <span style="color:var(--secondary)">Live Telemetry</span>
+                    </div>
+                    <pre><code id="sim-log-output">System idle. All local Room records are currently synchronized with Supabase.</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Database Schema & Supabase DDL -->
+    <section id="schema" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Database & Cloud</span>
+                <h2 class="section-title">Supabase DDL & RLS Policies</h2>
+                <p class="section-desc">Production-grade PostgreSQL 15 schema ready for deployment in your Supabase SQL Editor.</p>
+            </div>
+
+            <div class="arch-explorer">
+                <div class="arch-layers" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.5rem;">
+                    <button class="arch-tab-btn schema-tab-btn active" data-schema-target="schema-wl">
+                        user_watchlist
+                        <span>Table & RLS</span>
+                    </button>
+                    <button class="arch-tab-btn schema-tab-btn" data-schema-target="schema-movies">
+                        watched_movies
+                        <span>Table & RLS</span>
+                    </button>
+                    <button class="arch-tab-btn schema-tab-btn" data-schema-target="schema-eps">
+                        watched_episodes
+                        <span>Table & RLS</span>
+                    </button>
+                    <button class="arch-tab-btn schema-tab-btn" data-schema-target="schema-revs">
+                        reviews
+                        <span>Table & RLS</span>
+                    </button>
+                </div>
+
+                <div class="arch-content">
+                    <div id="schema-wl" class="arch-panel schema-panel active">
+                        <div class="code-box" style="margin-top:0;">
+                            <div class="code-header">
+                                <span>user_watchlist.sql</span>
+                                <button class="copy-btn" data-copy-target="#code-sql-wl">Copy SQL</button>
+                            </div>
+                            <pre><code id="code-sql-wl">CREATE TABLE IF NOT EXISTS public.user_watchlist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    tmdb_id INTEGER NOT NULL,
+    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'movie')),
+    title TEXT NOT NULL,
+    poster_path TEXT,
+    added_at BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT user_watchlist_unique UNIQUE (user_id, tmdb_id, media_type)
+);
+
+ALTER TABLE public.user_watchlist ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own watchlist"
+ON public.user_watchlist FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="schema-movies" class="arch-panel schema-panel">
+                        <div class="code-box" style="margin-top:0;">
+                            <div class="code-header">
+                                <span>watched_movies.sql</span>
+                                <button class="copy-btn" data-copy-target="#code-sql-movies">Copy SQL</button>
+                            </div>
+                            <pre><code id="code-sql-movies">CREATE TABLE IF NOT EXISTS public.watched_movies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    tmdb_movie_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    poster_path TEXT,
+    watched_at BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT watched_movies_user_tmdb_unique UNIQUE (user_id, tmdb_movie_id)
+);
+
+ALTER TABLE public.watched_movies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their watched movies"
+ON public.watched_movies FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="schema-eps" class="arch-panel schema-panel">
+                        <div class="code-box" style="margin-top:0;">
+                            <div class="code-header">
+                                <span>watched_episodes.sql</span>
+                                <button class="copy-btn" data-copy-target="#code-sql-eps">Copy SQL</button>
+                            </div>
+                            <pre><code id="code-sql-eps">CREATE TABLE IF NOT EXISTS public.watched_episodes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    show_id INTEGER NOT NULL,
+    media_type TEXT NOT NULL DEFAULT 'tv',
+    season_number INTEGER NOT NULL,
+    episode_number INTEGER NOT NULL,
+    episode_id INTEGER NOT NULL,
+    is_skipped BOOLEAN NOT NULL DEFAULT FALSE,
+    watched_at BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT watched_episodes_unique UNIQUE (user_id, show_id, season_number, episode_number)
+);
+
+ALTER TABLE public.watched_episodes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their watched episodes"
+ON public.watched_episodes FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="schema-revs" class="arch-panel schema-panel">
+                        <div class="code-box" style="margin-top:0;">
+                            <div class="code-header">
+                                <span>reviews.sql</span>
+                                <button class="copy-btn" data-copy-target="#code-sql-revs">Copy SQL</button>
+                            </div>
+                            <pre><code id="code-sql-revs">CREATE TABLE IF NOT EXISTS public.reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    media_id INTEGER NOT NULL,
+    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'movie')),
+    season_num INTEGER,
+    episode_num INTEGER,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 10),
+    review_text TEXT,
+    is_rating_only BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_remote_reviews_movie_unique 
+ON public.reviews (user_id, media_id, media_type) 
+WHERE season_num IS NULL AND episode_num IS NULL;
+
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their reviews"
+ON public.reviews FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- In-Depth Documentation Hub -->
+    <section id="docs" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Knowledge Base</span>
+                <h2 class="section-title">Technical Documentation</h2>
+                <p class="section-desc">Authoritative guides, architecture decision records, and operational playbooks.</p>
+            </div>
+
+            <div class="docs-grid">
+                <a href="ARCHITECTURE.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Architecture</div>
+                        <h3 class="doc-card-title">System Architecture</h3>
+                        <p class="doc-card-desc">Clean Architecture breakdown, MVI state flow, Compose navigation, and Hilt injection graph.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="SYNC_ENGINE.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Engine</div>
+                        <h3 class="doc-card-title">Offline Sync Engine</h3>
+                        <p class="doc-card-desc">WorkManager workers, APPEND_OR_REPLACE policy, and Last-Write-Wins conflict resolution.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="DATABASE_SCHEMA.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Database</div>
+                        <h3 class="doc-card-title">Database & Migrations</h3>
+                        <p class="doc-card-desc">Room SQLite v17 schema, migration history (v1→v17), and Supabase PostgreSQL DDL.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="API_INTEGRATIONS.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Integrations</div>
+                        <h3 class="doc-card-title">API Integrations</h3>
+                        <p class="doc-card-desc">TMDB API v3 endpoints, image CDN dimensions, Supabase PostgREST & deep links.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="DATA_PORTABILITY_AND_IMPORTS.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Portability</div>
+                        <h3 class="doc-card-title">Data Importers</h3>
+                        <p class="doc-card-desc">TV Time and Trakt export parsers with fuzzy title resolution and background workers.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="SETUP_AND_CONTRIBUTING.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Development</div>
+                        <h3 class="doc-card-title">Setup & Contributing</h3>
+                        <p class="doc-card-desc">Local development environment, Android SDK 35, local.properties, and PR checklist.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="RELEASE_AND_DEPLOYMENT.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">DevOps</div>
+                        <h3 class="doc-card-title">Release Playbook</h3>
+                        <p class="doc-card-desc">Keystore signing, ProGuard/R8 shrinking rules, and Google Play Store checklist.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="SECURITY_AND_PRIVACY.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Security</div>
+                        <h3 class="doc-card-title">Security & Privacy</h3>
+                        <p class="doc-card-desc">Zero-tracking pledge, PostgreSQL Row-Level Security (RLS), and GDPR compliance.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+
+                <a href="MAINTENANCE_GUIDE.md" class="doc-card">
+                    <div>
+                        <div class="doc-card-badge">Governance</div>
+                        <h3 class="doc-card-title">Maintenance Guide</h3>
+                        <p class="doc-card-desc">Change-to-documentation matrix, schema synchronization rules, and update triggers.</p>
+                    </div>
+                    <div class="doc-card-link">Read Guide &rarr;</div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-inner">
+                <div class="footer-brand">
+                    <div class="nav-brand">
+                        <img src="assets/logo.jpg" alt="Sequel Logo" class="nav-logo" onerror="this.src='assets/playstore_icon.png'">
+                        <span class="nav-title">Sequel</span>
+                    </div>
+                    <p class="footer-text">
+                        Modern, offline-first media tracking built with Kotlin, Jetpack Compose, Room SQLite, Supabase, and TMDB.
+                    </p>
+                </div>
+
+                <div class="footer-nav-col">
+                    <h4>Architecture</h4>
+                    <ul>
+                        <li><a href="ARCHITECTURE.md">System Architecture</a></li>
+                        <li><a href="SYNC_ENGINE.md">Sync Engine</a></li>
+                        <li><a href="DATABASE_SCHEMA.md">Database Schema</a></li>
+                        <li><a href="decisions/README.md">ADR Records</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-nav-col">
+                    <h4>Community & Docs</h4>
+                    <ul>
+                        <li><a href="SETUP_AND_CONTRIBUTING.md">Contributor Guide</a></li>
+                        <li><a href="MAINTENANCE_GUIDE.md">Maintenance Guide</a></li>
+                        <li><a href="RELEASE_AND_DEPLOYMENT.md">Release Playbook</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                        <li><a href="https://github.com/dev-Aatif/Sequel">GitHub Repository</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <span>&copy; 2026 Sequel Project. All rights reserved.</span>
+                <span>Crafted for film & television enthusiasts.</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Copied to clipboard!</div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -115,8 +115,12 @@ fun HomeScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp)
+                contentPadding = PaddingValues(
+                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp,
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 112.dp
+                )
             ) {
+
                 item {
                     ZeroHistoryOnboarding(
                         modifier = Modifier.fillMaxWidth(),
