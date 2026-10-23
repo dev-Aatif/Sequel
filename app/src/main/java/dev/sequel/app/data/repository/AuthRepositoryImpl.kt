@@ -53,6 +53,26 @@ class AuthRepositoryImpl @Inject constructor(
         return result
     }
 
+    override suspend fun signInWithGoogle(): Result<Unit> {
+        val result = supabaseAuthService.signInWithGoogle()
+        if (result.isSuccess) {
+            syncManager.schedulePeriodicSync()
+        }
+        return result
+    }
+
+    override suspend fun signInWithGoogleIdToken(idToken: String, nonce: String?): Result<UserInfo> {
+        val result = supabaseAuthService.signInWithGoogleIdToken(idToken, nonce)
+        if (result.isSuccess) {
+            result.getOrNull()?.id?.let { uuid ->
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId(uuid)
+            }
+            syncManager.schedulePeriodicSync()
+            syncManager.syncAllNow()
+        }
+        return result
+    }
+
     override suspend fun signOut() {
         com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId("")
         syncManager.cancelAllSync()

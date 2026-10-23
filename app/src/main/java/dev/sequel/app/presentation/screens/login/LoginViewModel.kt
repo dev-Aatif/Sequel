@@ -79,6 +79,38 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun setSignUpMode(isSignUp: Boolean) {
+        if (_uiState.value.isSignUpMode != isSignUp) {
+            _uiState.update {
+                it.copy(
+                    isSignUpMode = isSignUp,
+                    error = null,
+                    confirmPassword = ""
+                )
+            }
+        }
+    }
+
+    fun signInWithGoogle() {
+        if (_uiState.value.isLoading) return
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            authRepository.signInWithGoogle().fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isLoading = false) }
+                },
+                onFailure = { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = throwable.toAppError()
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }

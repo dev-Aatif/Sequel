@@ -52,7 +52,16 @@ fun SequelNavGraph(
             )
         }
     ) {
-        // ── Auth ──────────────────────────────────────────────────
+        // ── Onboarding & Auth ─────────────────────────────────────
+        composable(Screen.Onboarding.route) {
+            dev.sequel.app.presentation.screens.onboarding.OnboardingScreen(
+                onFinishOnboarding = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(Screen.Login.route) {
             LoginScreen(
                 onLoginSuccess = {

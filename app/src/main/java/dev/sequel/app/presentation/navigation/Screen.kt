@@ -6,7 +6,8 @@ package dev.sequel.app.presentation.navigation
  */
 sealed class Screen(val route: String) {
 
-    // ── Auth ──────────────────────────────────────────────────────
+    // ── Onboarding & Auth ─────────────────────────────────────────
+    data object Onboarding : Screen("onboarding")
     data object Login : Screen("login")
     data object SetNewPassword : Screen("set_new_password")
 

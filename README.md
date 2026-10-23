@@ -41,9 +41,9 @@ Whether you're offline on a subway commute or managing a watchlist of 5,000+ tit
 - 🔄 **Pragmatic Background Sync Engine**: Intelligent WorkManager pipeline (`SyncManager`) featuring `APPEND_OR_REPLACE` concurrency protection, exponential backoff, and Last-Write-Wins (LWW) conflict resolution.
 - 🎬 **Comprehensive Media Catalog**: Complete TMDB integration for trending feeds, multi-search, episode air dates, content certifications, cast details, and high-res imagery.
 - 📥 **Zero-Lockin Data Importers**: Seamlessly migrate your entire viewing history from **TV Time CSV** and **Trakt CSV/JSON** with background title matching and progress notifications.
-- 🔐 **Privacy by Design & Row-Level Security**: No advertising SDKs, no behavioral trackers, and no third-party telemetry. Cloud data is isolated at the PostgreSQL kernel level using Supabase Row-Level Security (RLS).
-- 🎨 **Apple Simplicity & Android Native**: Modern Material 3 dark-purple visual identity (`#A855F7`, `#03DAC6`, `#0F1115`), edge-to-edge Compose architecture, predictive back gestures, and ambient glassmorphic elevations.
-- 🔗 **Deep-Link Authentication**: Built-in password reset and magic link verification handled via custom intent filters (`sequel://login-callback`).
+- 🎨 **Minimalistic Luxury & Micro-Engineered UI**: Custom interactive 3-chapter onboarding experience with gesture-driven showcase cards, live rating reflections, glowing pill indicators, and haptic feedback. Modern Material 3 dark-purple visual identity (`#A855F7`, `#03DAC6`, `#0F1115`), edge-to-edge Compose architecture, predictive back gestures, and ambient glassmorphic elevations.
+- 🔐 **Privacy by Design, Google Sign-In & RLS**: Streamlined Google Sign-In and email authentication with segmented tab switching. No advertising SDKs, no behavioral trackers, and no third-party telemetry. Cloud data is isolated at the PostgreSQL kernel level using Supabase Row-Level Security (RLS).
+- 🔗 **Deep-Link Authentication**: Built-in Google OAuth redirects, password reset, and magic link verification handled via custom intent filters (`sequel://login-callback`).
 
 ---
 

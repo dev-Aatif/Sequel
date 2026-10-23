@@ -26,6 +26,12 @@ interface AuthRepository {
     /** Sign in with email and password. */
     suspend fun signIn(email: String, password: String): Result<UserInfo>
 
+    /** Sign in or sign up with Google OAuth. */
+    suspend fun signInWithGoogle(): Result<Unit>
+
+    /** Sign in or sign up with Google ID token directly. */
+    suspend fun signInWithGoogleIdToken(idToken: String, nonce: String? = null): Result<UserInfo>
+
     /** Sign out. */
     suspend fun signOut()
 

@@ -4,6 +4,8 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -76,6 +78,30 @@ class SupabaseAuthService @Inject constructor(
                 this.password = password
             }
             auth.currentUserOrNull() ?: throw IllegalStateException("Sign in succeeded but user is null")
+        }
+    }
+
+    /**
+     * Sign in or sign up with Google OAuth.
+     * Launches the OAuth provider flow which redirects to sequel://login-callback.
+     */
+    suspend fun signInWithGoogle(): Result<Unit> {
+        return runCatching {
+            auth.signInWith(Google)
+        }
+    }
+
+    /**
+     * Sign in or sign up with a Google ID token directly.
+     */
+    suspend fun signInWithGoogleIdToken(idToken: String, nonce: String? = null): Result<UserInfo> {
+        return runCatching {
+            auth.signInWith(IDToken) {
+                this.idToken = idToken
+                this.provider = Google
+                this.nonce = nonce
+            }
+            auth.currentUserOrNull() ?: throw IllegalStateException("Google sign in succeeded but user is null")
         }
     }
 

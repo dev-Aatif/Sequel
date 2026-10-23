@@ -58,6 +58,7 @@ fun MainScaffold(viewModel: MainViewModel = hiltViewModel(), isRecovery: Boolean
         androidx.compose.runtime.LaunchedEffect(isAuthenticated, currentRoute, isRecovery) {
             val current = currentRoute ?: startDestination
             val isOnLoginScreen = current == Screen.Login.route
+            val isOnOnboardingScreen = current == Screen.Onboarding.route
             val isOnHomeScreen = current == Screen.Home.route || current == Screen.Search.route || current == Screen.Watchlist.route || current == Screen.Settings.route
             
             if (isRecovery && isAuthenticated && current != Screen.SetNewPassword.route) {
@@ -65,9 +66,9 @@ fun MainScaffold(viewModel: MainViewModel = hiltViewModel(), isRecovery: Boolean
                 navController.navigate(Screen.SetNewPassword.route) {
                     popUpTo(0) { inclusive = true }
                 }
-            } else if (isAuthenticated && isOnLoginScreen && !isRecovery) {
+            } else if (isAuthenticated && (isOnLoginScreen || isOnOnboardingScreen) && !isRecovery) {
                 navController.navigate(Screen.Home.route) {
-                    popUpTo(Screen.Login.route) { inclusive = true }
+                    popUpTo(0) { inclusive = true }
                 }
             } else if (!isAuthenticated && isOnHomeScreen) {
                 navController.navigate(Screen.Login.route) {

@@ -50,4 +50,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindWatchedEpisodeRepository(impl: dev.sequel.app.data.repository.WatchedEpisodeRepositoryImpl): dev.sequel.app.domain.repository.WatchedEpisodeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUserPreferencesRepository(impl: dev.sequel.app.data.repository.UserPreferencesRepositoryImpl): dev.sequel.app.domain.repository.UserPreferencesRepository
 }
