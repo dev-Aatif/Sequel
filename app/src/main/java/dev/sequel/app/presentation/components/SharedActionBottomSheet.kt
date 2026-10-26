@@ -13,6 +13,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
@@ -45,6 +47,7 @@ fun SharedActionBottomSheet(
     }
 
     ModalBottomSheet(
+        modifier = Modifier.testTag(TestTags.SHEET_REVIEW_DRAWER),
         onDismissRequest = onDismissRequest,
         sheetState = sheetState
     ) {
@@ -82,7 +85,9 @@ fun SharedActionBottomSheet(
                         onToggleWatchlist()
                         dismissWithAnimation()
                     },
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .testTag(TestTags.BTN_ADD_WATCHLIST)
+                        .fillMaxWidth(),
                     enabled = !isProcessingAction
                 ) {
                     val icon = if (bottomSheetState.inWatchlist) Icons.Filled.CheckCircle else Icons.Filled.Add

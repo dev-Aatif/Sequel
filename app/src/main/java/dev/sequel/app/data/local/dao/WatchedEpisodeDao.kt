@@ -107,14 +107,44 @@ interface WatchedEpisodeDao {
             s.title as showTitle,
             s.poster_path as posterPath,
             we.season_number as seasonNumber,
-            we.episode_number as episodeNumber
+            we.episode_number as episodeNumber,
+            r.rating as userRating,
+            e.runtime as runtime
         FROM watched_episodes we
         INNER JOIN shows s ON we.show_id = s.id AND s.media_type = 'tv'
+        LEFT JOIN episodes e ON we.tmdb_episode_id = e.id
+        LEFT JOIN reviews r ON r.media_id = we.show_id 
+            AND r.media_type = 'tv' 
+            AND r.season_num = we.season_number 
+            AND r.episode_num = we.episode_number
         WHERE we.sync_status != 'DELETED'
         ORDER BY we.watched_at DESC
         LIMIT :limit
     """)
     fun observeRecentActivity(limit: Int = 20): Flow<List<dev.sequel.app.data.local.entity.RecentActivityItem>>
+
+    @Query("""
+        SELECT 
+            we.id as historyId,
+            we.watched_at as watchedAt,
+            we.media_type as mediaType,
+            we.show_id as showId,
+            s.title as showTitle,
+            s.poster_path as posterPath,
+            we.season_number as seasonNumber,
+            we.episode_number as episodeNumber,
+            r.rating as userRating,
+            e.runtime as runtime
+        FROM watched_episodes we
+        INNER JOIN shows s ON we.show_id = s.id AND s.media_type = 'tv'
+        LEFT JOIN episodes e ON we.tmdb_episode_id = e.id
+        LEFT JOIN reviews r ON r.media_id = we.show_id 
+            AND r.media_type = 'tv' 
+            AND r.season_num = we.season_number 
+            AND r.episode_num = we.episode_number
+        WHERE we.sync_status != 'DELETED'
+    """)
+    fun observeAllWatchedTvActivity(): Flow<List<dev.sequel.app.data.local.entity.RecentActivityItem>>
 
     // ── Queries (suspend) ─────────────────────────────────────────
 

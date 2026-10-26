@@ -27,7 +27,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.local.entity.RecentActivityItem
+import dev.sequel.app.data.local.entity.MountRushmoreEntity
+import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 
 import android.annotation.SuppressLint
 
@@ -42,8 +51,15 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val pickerSlot by viewModel.pickerSlot.collectAsState()
+    val pickerQuery by viewModel.pickerQuery.collectAsState()
+    val pickerSearching by viewModel.pickerSearching.collectAsState()
+    val pickerResults by viewModel.pickerResults.collectAsState()
+
+    var selectedFilledSlot by remember { mutableStateOf<Pair<Int, MountRushmoreEntity>?>(null) }
 
     Scaffold(
+        modifier = Modifier.testTag(TestTags.SCREEN_PROFILE),
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0.dp)
     ) { _ ->
@@ -63,6 +79,18 @@ fun ProfileScreen(
                     onSettingsClick = onNavigateToSettings
                 )
             }
+
+            item {
+                MountRushmoreSection(
+                    slots = uiState.mountRushmore,
+                    onEmptySlotClick = { slotIndex ->
+                        viewModel.openPickerForSlot(slotIndex)
+                    },
+                    onFilledSlotClick = { slotIndex, item ->
+                        selectedFilledSlot = slotIndex to item
+                    }
+                )
+            }
             
             item {
                 ProfileStatsGrid(
@@ -73,15 +101,124 @@ fun ProfileScreen(
             }
 
             item {
-                Text(
-                    text = "Recent Activity",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Watch History",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    var sortMenuExpanded by remember { mutableStateOf(false) }
+
+                    Box {
+                        IconButton(
+                            modifier = Modifier.testTag(TestTags.BTN_SORT_HISTORY),
+                            onClick = { sortMenuExpanded = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sort,
+                                contentDescription = "Sort watch history",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = sortMenuExpanded,
+                            onDismissRequest = { sortMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                modifier = Modifier.testTag(TestTags.SORT_OPTION_DATE_DESC),
+                                text = { Text("Recently Logged") },
+                                onClick = {
+                                    viewModel.setSortOrder(HistorySortOrder.DATE_DESC)
+                                    sortMenuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Schedule, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                modifier = Modifier.testTag(TestTags.SORT_OPTION_DATE_ASC),
+                                text = { Text("Oldest Logged") },
+                                onClick = {
+                                    viewModel.setSortOrder(HistorySortOrder.DATE_ASC)
+                                    sortMenuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.History, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                modifier = Modifier.testTag(TestTags.SORT_OPTION_RATING_DESC),
+                                text = { Text("Highest Rated") },
+                                onClick = {
+                                    viewModel.setSortOrder(HistorySortOrder.RATING_DESC)
+                                    sortMenuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700))
+                                }
+                            )
+                            DropdownMenuItem(
+                                modifier = Modifier.testTag(TestTags.SORT_OPTION_RUNTIME_DESC),
+                                text = { Text("Runtime (Longest)") },
+                                onClick = {
+                                    viewModel.setSortOrder(HistorySortOrder.RUNTIME_DESC)
+                                    sortMenuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Timer, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
-            if (uiState.recentActivity.isEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        modifier = Modifier.testTag(TestTags.FILTER_HISTORY_ALL),
+                        selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.ALL,
+                        onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.ALL) },
+                        label = { Text("All") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                    FilterChip(
+                        modifier = Modifier.testTag(TestTags.FILTER_HISTORY_MOVIES),
+                        selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.MOVIE,
+                        onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.MOVIE) },
+                        label = { Text("Movies") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                    FilterChip(
+                        modifier = Modifier.testTag(TestTags.FILTER_HISTORY_SHOWS),
+                        selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.TV,
+                        onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.TV) },
+                        label = { Text("TV Shows") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+            }
+
+            if (uiState.watchHistoryItems.isEmpty()) {
                 item {
                     ZeroWatchHistoryCard(
                         onImportClick = onNavigateToImport,
@@ -89,7 +226,7 @@ fun ProfileScreen(
                     )
                 }
             } else {
-                items(uiState.recentActivity, key = { it.historyId }) { activity ->
+                items(uiState.watchHistoryItems, key = { "${it.mediaType.name}_${it.historyId}" }) { activity ->
                     RecentActivityCard(
                         item = activity,
                         onClick = {
@@ -97,6 +234,82 @@ fun ProfileScreen(
                         }
                     )
                 }
+            }
+        }
+
+        // Mount Rushmore Options Dialog for filled slots
+        selectedFilledSlot?.let { (slotIndex, entity) ->
+            AlertDialog(
+                modifier = Modifier.testTag(TestTags.DIALOG_RUSH_OPTIONS),
+                onDismissRequest = { selectedFilledSlot = null },
+                title = {
+                    Text(
+                        text = entity.title,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                text = {
+                    val roman = listOf("I", "II", "III", "IV").getOrElse(slotIndex) { "${slotIndex + 1}" }
+                    Text(text = "Manage Slot $roman pinned favorite")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val item = entity
+                            selectedFilledSlot = null
+                            onMediaClick(item.mediaId, item.mediaType)
+                        }
+                    ) {
+                        Text("View Details")
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                selectedFilledSlot = null
+                                viewModel.clearSlot(slotIndex)
+                            }
+                        ) {
+                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                        }
+                        TextButton(
+                            onClick = {
+                                selectedFilledSlot = null
+                                viewModel.openPickerForSlot(slotIndex)
+                            }
+                        ) {
+                            Text("Replace")
+                        }
+                    }
+                }
+            )
+        }
+
+        // Mount Rushmore Search & Picker Bottom Sheet
+        if (pickerSlot != null) {
+            val slot = pickerSlot!!
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.closePicker() },
+                sheetState = sheetState,
+                modifier = Modifier.testTag(TestTags.SHEET_RUSH_PICKER),
+                containerColor = MaterialTheme.colorScheme.surface,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                MountRushmorePickerContent(
+                    slotIndex = slot,
+                    query = pickerQuery,
+                    isSearching = pickerSearching,
+                    results = pickerResults,
+                    onQueryChange = { viewModel.onPickerQueryChanged(it) },
+                    onSelectShow = { show ->
+                        viewModel.selectSlotMedia(slot, show)
+                    },
+                    onDismiss = { viewModel.closePicker() }
+                )
             }
         }
     }
@@ -159,6 +372,7 @@ fun ProfileHeader(
         Spacer(modifier = Modifier.width(16.dp))
 
         FilledTonalIconButton(
+            modifier = Modifier.testTag(TestTags.BTN_SETTINGS),
             onClick = onSettingsClick
         ) {
             Icon(
@@ -445,6 +659,32 @@ fun RecentActivityCard(
                         )
                     }
 
+                    if (item.userRating != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(percent = 50))
+                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f))
+                                .padding(horizontal = 6.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFD700),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "${item.userRating}/10",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
+
                     Text(
                         text = relativeTime,
                         style = MaterialTheme.typography.bodySmall,
@@ -454,4 +694,379 @@ fun RecentActivityCard(
             }
         }
     }
+}
+
+// ── Mount Rushmore (Top 4 Pinned Favorites) ──────────────────────────────────
+
+@Composable
+fun MountRushmoreSection(
+    slots: List<MountRushmoreSlotUi>,
+    onEmptySlotClick: (slotIndex: Int) -> Unit,
+    onFilledSlotClick: (slotIndex: Int, item: MountRushmoreEntity) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val romanNumerals = listOf("I", "II", "III", "IV")
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(TestTags.SECTION_MOUNT_RUSHMORE),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color(0xFFFFD700)
+                )
+                Text(
+                    text = "MOUNT RUSHMORE",
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = "TOP 4 FAVORITES",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val displaySlots = (0..3).map { index ->
+                slots.find { it.slotIndex == index } ?: MountRushmoreSlotUi(index)
+            }
+
+            displaySlots.forEach { slot ->
+                val roman = romanNumerals.getOrElse(slot.slotIndex) { "${slot.slotIndex + 1}" }
+                Box(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (slot.isFilled && slot.item != null) {
+                        FilledRushmoreSlotCard(
+                            slotIndex = slot.slotIndex,
+                            romanNumeral = roman,
+                            item = slot.item,
+                            onClick = { onFilledSlotClick(slot.slotIndex, slot.item) }
+                        )
+                    } else {
+                        EmptyRushmoreSlotCard(
+                            slotIndex = slot.slotIndex,
+                            romanNumeral = roman,
+                            onClick = { onEmptySlotClick(slot.slotIndex) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyRushmoreSlotCard(
+    slotIndex: Int,
+    romanNumeral: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(2f / 3f)
+            .testTag(TestTags.rushSlotEmpty(slotIndex))
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .dashedBorder(
+                strokeWidth = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                cornerRadius = 12.dp
+            )
+            .clickable(onClick = onClick)
+            .padding(6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = romanNumeral,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Pin to slot $slotIndex",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Pin",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun FilledRushmoreSlotCard(
+    slotIndex: Int,
+    romanNumeral: String,
+    item: MountRushmoreEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(2f / 3f)
+            .testTag(TestTags.rushSlotFilled(slotIndex))
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                width = 1.5.dp,
+                color = Color(0xFFFFD700).copy(alpha = 0.85f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+    ) {
+        AsyncImage(
+            model = TmdbImageUtil.posterUrl(item.posterPath, TmdbImageUtil.PosterSize.W342),
+            contentDescription = item.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(4.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.Black.copy(alpha = 0.7f))
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = romanNumeral,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
+                color = Color(0xFFFFD700)
+            )
+        }
+
+        if (item.rating != null && item.rating > 0f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 3.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = String.format(java.util.Locale.US, "★%.1f", item.rating),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))
+                    )
+                )
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+fun MountRushmorePickerContent(
+    slotIndex: Int,
+    query: String,
+    isSearching: Boolean,
+    results: List<ShowEntity>,
+    onQueryChange: (String) -> Unit,
+    onSelectShow: (ShowEntity) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val romanNumerals = listOf("I", "II", "III", "IV")
+    val roman = romanNumerals.getOrElse(slotIndex) { "${slotIndex + 1}" }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.85f)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Pin to Slot $roman",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Choose a movie or TV show for your Mount Rushmore",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Close")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = { Text("Search title...") },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null)
+            },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear search")
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(TestTags.INPUT_SEARCH),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (isSearching) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (results.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (query.isBlank()) "Type a title to search..." else "No results found for \"$query\"",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(results, key = { "${it.id}_${it.mediaType}" }) { show ->
+                    Surface(
+                        onClick = { onSelectShow(show) },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = TmdbImageUtil.posterUrl(show.posterPath, TmdbImageUtil.PosterSize.W154),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .width(40.dp)
+                                    .height(60.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = show.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val year = show.firstAirDate?.take(4) ?: ""
+                                val type = show.mediaType.uppercase()
+                                val rating = if (show.voteAverage > 0.0) " • ★ ${String.format(java.util.Locale.US, "%.1f", show.voteAverage)}" else ""
+                                Text(
+                                    text = "$type • $year$rating",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun Modifier.dashedBorder(
+    strokeWidth: androidx.compose.ui.unit.Dp,
+    color: Color,
+    cornerRadius: androidx.compose.ui.unit.Dp
+): Modifier = this.drawBehind {
+    val stroke = Stroke(
+        width = strokeWidth.toPx(),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f)
+    )
+    drawRoundRect(
+        color = color,
+        style = stroke,
+        cornerRadius = CornerRadius(cornerRadius.toPx())
+    )
 }

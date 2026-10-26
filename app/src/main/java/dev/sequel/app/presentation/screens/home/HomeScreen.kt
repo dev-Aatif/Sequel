@@ -54,6 +54,8 @@ import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
 import dev.sequel.app.presentation.state.BottomSheetUiState
 import dev.sequel.app.domain.error.toAppError
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +106,11 @@ fun HomeScreen(
 
     val view = LocalView.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(TestTags.SCREEN_HOME)
+    ) {
 
         val hasError = pagedShows.loadState.refresh is LoadState.Error && pagedShows.itemCount == 0
 
@@ -384,6 +390,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 FilterChip(
+                    modifier = Modifier.testTag(TestTags.BTN_FILTER_SHOWS),
                     selected = currentType == "tv",
                     onClick = { viewModel.setMediaType("tv") },
                     label = { Text("TV Shows") },
@@ -395,6 +402,7 @@ fun HomeScreen(
                     shape = RoundedCornerShape(20.dp)
                 )
                 FilterChip(
+                    modifier = Modifier.testTag(TestTags.BTN_FILTER_MOVIES),
                     selected = currentType == "movie",
                     onClick = { viewModel.setMediaType("movie") },
                     label = { Text("Movies") },

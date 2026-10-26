@@ -36,7 +36,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "dev.sequel.app.HiltTestRunner"
 
         // Load local.properties manually since Gradle doesn't do it for project properties
         val localProperties = Properties()
@@ -100,6 +100,31 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/LICENSE.md",
+                "/META-INF/LICENSE.md",
+                "META-INF/LICENSE-notice.md",
+                "/META-INF/LICENSE-notice.md",
+                "META-INF/LICENSE.txt",
+                "/META-INF/LICENSE.txt",
+                "META-INF/NOTICE.md",
+                "/META-INF/NOTICE.md",
+                "META-INF/NOTICE.txt",
+                "/META-INF/NOTICE.txt",
+                "META-INF/INDEX.LIST",
+                "/META-INF/INDEX.LIST"
+            )
+        }
     }
 }
 
@@ -183,8 +208,23 @@ dependencies {
     // ── Testing ───────────────────────────────────────────────────
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
+    testImplementation(libs.room.testing)
+    testImplementation(libs.mockwebserver)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+
+    // Android / Instrumentation Testing (Hilt, Compose UI, MockK Android)
     androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.turbine)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.mockwebserver)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
 }

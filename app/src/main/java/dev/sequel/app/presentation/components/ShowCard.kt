@@ -18,6 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import dev.sequel.app.data.local.entity.ShowEntity
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -35,6 +37,7 @@ fun ShowCard(
 ) {
     Card(
         modifier = modifier
+            .testTag(TestTags.CARD_MEDIA_POSTER)
             .fillMaxWidth()
             .combinedClickable(
                 onClick = { onClick() },

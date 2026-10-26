@@ -7,11 +7,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.sequel.app.data.local.converter.Converters
 import dev.sequel.app.data.local.dao.EpisodeDao
+import dev.sequel.app.data.local.dao.MountRushmoreDao
 import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.SeasonDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.local.entity.EpisodeEntity
+import dev.sequel.app.data.local.entity.MountRushmoreEntity
 import dev.sequel.app.data.local.entity.ReviewEntity
 import dev.sequel.app.data.local.entity.SeasonEntity
 import dev.sequel.app.data.local.entity.ShowEntity
@@ -39,9 +41,10 @@ import dev.sequel.app.data.local.dao.WatchedMovieDao
         ReviewEntity::class,
         RemoteKeys::class,
         WatchlistEntity::class,
-        dev.sequel.app.data.local.entity.TrendingShowEntity::class
+        dev.sequel.app.data.local.entity.TrendingShowEntity::class,
+        MountRushmoreEntity::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -56,6 +59,7 @@ abstract class SequelDatabase : RoomDatabase() {
     abstract fun remoteKeysDao(): RemoteKeysDao
     abstract fun watchlistDao(): dev.sequel.app.data.local.dao.WatchlistDao
     abstract fun trendingShowDao(): dev.sequel.app.data.local.dao.TrendingShowDao
+    abstract fun mountRushmoreDao(): MountRushmoreDao
 
     companion object {
         const val DATABASE_NAME = "sequel_database"
@@ -215,6 +219,27 @@ abstract class SequelDatabase : RoomDatabase() {
                     )
                 """)
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `idx_reviews_movie_unique` ON `reviews` (`media_id`, `media_type`) WHERE season_num IS NULL AND episode_num IS NULL")
+            }
+        }
+
+        /**
+         * Migration 17→18: Create mount_rushmore table for top 4 pinned favorites.
+         */
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `mount_rushmore` (
+                        `slot_index` INTEGER NOT NULL,
+                        `media_id` INTEGER NOT NULL,
+                        `media_type` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `poster_path` TEXT,
+                        `year` TEXT,
+                        `rating` REAL,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`slot_index`)
+                    )
+                """.trimIndent())
             }
         }
     }

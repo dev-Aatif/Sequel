@@ -57,8 +57,34 @@ In your Supabase project dashboard:
 
 ## 3. Building & Testing
 
-### Terminal Build Commands
-Use Gradle wrapper to build the application:
+### 3.1 Three-Tier Testing Strategy
+To prevent long build and test execution cycles on every minor change, use the appropriate test tier:
+
+* **Level 1 — While Developing (Micro-iterations)**:
+  Run only the relevant test class or method. Ideal for iterating on a single feature or bugfix:
+  ```bash
+  # Test a single class
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.presentation.MainViewModelTurbineTest"
+
+  # Test a specific method
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.data.local.RoomDatabaseSmokeTest.insertAndQueryShowEntity_returnsExpectedEntity"
+  ```
+
+* **Level 2 — Before Committing a Meaningful Change**:
+  Run the unit test suite and UI smoke tests together:
+  ```bash
+  ./gradlew testDebugUnitTest
+  ./gradlew connectedDebugAndroidTest
+  ```
+
+* **Level 3 — Before Release or After Major Migrations**:
+  Run the complete end-to-end regression run, Room migration validation, and hosted sync checks:
+  ```bash
+  ./gradlew testDebugUnitTest connectedDebugAndroidTest
+  ```
+
+### 3.2 Terminal Build Commands
+Use the Gradle wrapper to build the application:
 
 ```bash
 # Compile and build debug APK

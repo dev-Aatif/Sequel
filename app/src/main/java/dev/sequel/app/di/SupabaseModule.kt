@@ -10,6 +10,7 @@ import dev.sequel.app.BuildConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.SettingsSessionManager
+import io.github.jan.supabase.auth.SettingsCodeVerifierCache
 import com.russhwolf.settings.SharedPreferencesSettings
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
@@ -40,7 +41,9 @@ object SupabaseModule {
 
                 // Provide a concrete storage engine on Android
                 val prefs = context.getSharedPreferences("supabase_session", Context.MODE_PRIVATE)
-                sessionManager = SettingsSessionManager(SharedPreferencesSettings(prefs))
+                val settings = SharedPreferencesSettings(prefs)
+                sessionManager = SettingsSessionManager(settings)
+                codeVerifierCache = SettingsCodeVerifierCache(settings)
             }
             install(Postgrest)
             install(Realtime)

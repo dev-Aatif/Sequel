@@ -33,6 +33,8 @@ import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -78,7 +80,11 @@ fun SearchScreen(
         selectedItemForAction?.let { viewModel.openBottomSheet(it) }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(TestTags.SCREEN_SEARCH)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -109,6 +115,7 @@ fun SearchScreen(
                             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .testTag(TestTags.INPUT_SEARCH)
                                 .onFocusChanged { isSearchFocused = it.isFocused }
                         )
                     }

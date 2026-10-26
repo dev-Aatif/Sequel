@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.sequel.app.data.local.SequelDatabase
 import dev.sequel.app.data.local.dao.EpisodeDao
+import dev.sequel.app.data.local.dao.MountRushmoreDao
 import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.SeasonDao
 import dev.sequel.app.data.local.dao.ShowDao
@@ -40,7 +41,8 @@ object DatabaseModule {
                 SequelDatabase.MIGRATION_13_14,
                 SequelDatabase.MIGRATION_14_15,
                 SequelDatabase.MIGRATION_15_16,
-                SequelDatabase.MIGRATION_16_17
+                SequelDatabase.MIGRATION_16_17,
+                SequelDatabase.MIGRATION_17_18
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -72,4 +74,7 @@ object DatabaseModule {
 
     @Provides
     fun provideTrendingShowDao(database: SequelDatabase) = database.trendingShowDao()
+
+    @Provides
+    fun provideMountRushmoreDao(database: SequelDatabase): MountRushmoreDao = database.mountRushmoreDao()
 }

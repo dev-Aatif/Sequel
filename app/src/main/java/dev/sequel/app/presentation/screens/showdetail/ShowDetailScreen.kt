@@ -38,6 +38,8 @@ import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
 import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
 import dev.sequel.app.presentation.components.spoilerShield
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 
 import android.annotation.SuppressLint
 
@@ -63,7 +65,10 @@ fun ShowDetailScreen(
     }
 
     // No fixed bottom bar — review input is inline in the scroll content
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { _ ->
+    Scaffold(
+        modifier = Modifier.testTag(TestTags.SCREEN_DETAIL),
+        containerColor = MaterialTheme.colorScheme.background
+    ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
@@ -317,6 +322,7 @@ private fun ShowDetailContent(
                 Text("Your Rating", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Box(
                     modifier = Modifier
+                        .testTag(TestTags.BTN_RATE_PILL)
                         .glassmorphicBackground(
                             RoundedCornerShape(20.dp),
                             surfaceTint = if (state.userRating != null) MaterialTheme.colorScheme.primary.copy(0.2f) else Color(0xCC1A1D24),

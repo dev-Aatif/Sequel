@@ -10,7 +10,9 @@ import dev.sequel.app.data.repository.ShowRepositoryImpl
 import dev.sequel.app.domain.repository.AuthRepository
 import dev.sequel.app.domain.repository.SeasonRepository
 import dev.sequel.app.domain.repository.ShowRepository
+import dev.sequel.app.data.repository.MountRushmoreRepositoryImpl
 import dev.sequel.app.data.repository.SearchRepositoryImpl
+import dev.sequel.app.domain.repository.MountRushmoreRepository
 import dev.sequel.app.domain.repository.SearchRepository
 import javax.inject.Singleton
 
@@ -54,4 +56,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUserPreferencesRepository(impl: dev.sequel.app.data.repository.UserPreferencesRepositoryImpl): dev.sequel.app.domain.repository.UserPreferencesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMountRushmoreRepository(impl: MountRushmoreRepositoryImpl): MountRushmoreRepository
 }

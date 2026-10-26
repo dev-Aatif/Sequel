@@ -83,3 +83,8 @@
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+# ── OpenCSV ─────────────────────────────────────────────────────────────
+-dontwarn com.opencsv.**
+-keep class com.opencsv.** { *; }
+

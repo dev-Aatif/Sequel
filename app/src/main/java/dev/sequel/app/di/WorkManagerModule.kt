@@ -1,6 +1,7 @@
 package dev.sequel.app.di
 
 import android.content.Context
+import androidx.work.Configuration
 import androidx.work.WorkManager
 import dagger.Module
 import dagger.Provides
@@ -18,6 +19,12 @@ object WorkManagerModule {
     fun provideWorkManager(
         @ApplicationContext context: Context
     ): WorkManager {
-        return WorkManager.getInstance(context)
+        return try {
+            WorkManager.getInstance(context)
+        } catch (_: IllegalStateException) {
+            val config = Configuration.Builder().build()
+            WorkManager.initialize(context, config)
+            WorkManager.getInstance(context)
+        }
     }
 }

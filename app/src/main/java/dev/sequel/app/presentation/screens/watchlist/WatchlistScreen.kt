@@ -48,6 +48,8 @@ import coil.compose.AsyncImage
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
 import dev.sequel.app.presentation.components.SharedActionBottomSheet
 import dev.sequel.app.presentation.components.glassmorphicBackground
+import androidx.compose.ui.platform.testTag
+import dev.sequel.app.presentation.util.TestTags
 import dev.sequel.app.presentation.components.hapticClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +82,7 @@ fun WatchlistScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .testTag(TestTags.SCREEN_WATCHLIST)
             .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
     ) {
         // ── 3-Tab Glassmorphic Segmented Control ──

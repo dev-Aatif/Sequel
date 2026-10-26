@@ -37,7 +37,8 @@ Whether you're offline on a subway commute or managing a watchlist of 5,000+ tit
 
 ## Key Features
 
-- ⚡ **Offline-First Single Source of Truth**: Powered by Room Database (SQLite v17) with Paging 3. Every read and write is local and instantaneous—the app never blocks on network spinners.
+- ⚡ **Offline-First Single Source of Truth**: Powered by Room Database (SQLite v18) with Paging 3. Every read and write is local and instantaneous—the app never blocks on network spinners.
+- 🏛️ **Top 4 "Mount Rushmore" Pinned Favorites**: Letterboxd-style showcase pinning your all-time top 4 favorite movies and TV shows to the top of your profile with Roman numeral slots (I–IV), gold border highlights, and seamless search selection.
 - 🔄 **Pragmatic Background Sync Engine**: Intelligent WorkManager pipeline (`SyncManager`) featuring `APPEND_OR_REPLACE` concurrency protection, exponential backoff, and Last-Write-Wins (LWW) conflict resolution.
 - 🎬 **Comprehensive Media Catalog**: Complete TMDB integration for trending feeds, multi-search, episode air dates, content certifications, cast details, and high-res imagery.
 - 📥 **Zero-Lockin Data Importers**: Seamlessly migrate your entire viewing history from **TV Time CSV** and **Trakt CSV/JSON** with background title matching and progress notifications.
@@ -144,8 +145,11 @@ sequel://login-callback
 # Assemble and install debug build on connected device/emulator
 ./gradlew installDebug
 
-# Run unit tests
+# Run unit tests (JVM, Robolectric, Turbine, Room in-memory)
 ./gradlew testDebugUnitTest
+
+# Run instrumentation tests (Compose UI, Hilt)
+./gradlew connectedDebugAndroidTest
 ```
 
 ---
@@ -180,6 +184,7 @@ Build production artifacts:
 Explore our comprehensive technical guides:
 
 ### Core Architecture & System Specifications
+- 📑 [**Product Requirements & Feature Specification**](docs/PRODUCT_SPECIFICATION.md) — Comprehensive PRD, Cine-Swipe discovery, Red Pill rating matrix, personal analytics, and Sequel Pro tiers.
 - 📘 [**System Architecture Guide**](docs/ARCHITECTURE.md) — Comprehensive breakdown of layers, state machines, and unidirectional data flow.
 - 🔄 [**Offline-First Sync Engine**](docs/SYNC_ENGINE.md) — WorkManager orchestration, `APPEND_OR_REPLACE` policy, and Last-Write-Wins conflict resolution.
 - 🗄️ [**Database Architecture & Schema**](docs/DATABASE_SCHEMA.md) — Room v17 schema, migration history (v1→v17), and copy-paste Supabase PostgreSQL DDL.

@@ -94,6 +94,28 @@ interface WatchedMovieDao {
     @Query("SELECT * FROM watched_movies WHERE sync_status != 'DELETED' ORDER BY title ASC")
     fun observeAllWatchedMovies(): Flow<List<WatchedMovieEntity>>
 
+    @Query("""
+        SELECT 
+            wm.tmdb_movie_id as historyId,
+            wm.watched_at as watchedAt,
+            'MOVIE' as mediaType,
+            wm.tmdb_movie_id as showId,
+            wm.title as showTitle,
+            wm.poster_path as posterPath,
+            NULL as seasonNumber,
+            NULL as episodeNumber,
+            r.rating as userRating,
+            s.runtime as runtime
+        FROM watched_movies wm
+        LEFT JOIN shows s ON wm.tmdb_movie_id = s.id AND s.media_type = 'movie'
+        LEFT JOIN reviews r ON r.media_id = wm.tmdb_movie_id 
+            AND r.media_type = 'movie' 
+            AND r.season_num IS NULL 
+            AND r.episode_num IS NULL
+        WHERE wm.sync_status != 'DELETED'
+    """)
+    fun observeAllWatchedMovieActivity(): Flow<List<dev.sequel.app.data.local.entity.RecentActivityItem>>
+
     // ── Queries (suspend) ─────────────────────────────────────────
 
     @Query("SELECT * FROM watched_movies WHERE sync_status = :status")
