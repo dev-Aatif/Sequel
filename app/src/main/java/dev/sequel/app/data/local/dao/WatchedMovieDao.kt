@@ -121,11 +121,17 @@ interface WatchedMovieDao {
     @Query("SELECT * FROM watched_movies WHERE sync_status = :status")
     suspend fun getByStatus(status: SyncStatus): List<WatchedMovieEntity>
 
+    @Query("SELECT * FROM watched_movies WHERE sync_status != 'DELETED'")
+    suspend fun getAllWatchedMovies(): List<WatchedMovieEntity>
+
     @Query("SELECT * FROM watched_movies WHERE sync_status IN ('PENDING', 'DELETED')")
     suspend fun getUnsynced(): List<WatchedMovieEntity>
 
     @Query("SELECT EXISTS(SELECT 1 FROM watched_movies WHERE tmdb_movie_id = :movieId AND sync_status != 'DELETED')")
     suspend fun isMovieWatched(movieId: Int): Boolean
+
+    @Query("SELECT * FROM watched_movies WHERE tmdb_movie_id = :movieId AND sync_status != 'DELETED' LIMIT 1")
+    suspend fun getWatchedMovie(movieId: Int): WatchedMovieEntity?
 
     @Query("SELECT EXISTS(SELECT 1 FROM watched_movies WHERE tmdb_movie_id = :movieId AND sync_status != 'DELETED')")
     fun observeIsMovieWatched(movieId: Int): Flow<Boolean>

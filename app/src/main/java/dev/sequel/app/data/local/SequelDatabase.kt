@@ -44,7 +44,7 @@ import dev.sequel.app.data.local.dao.WatchedMovieDao
         dev.sequel.app.data.local.entity.TrendingShowEntity::class,
         MountRushmoreEntity::class
     ],
-    version = 18,
+    version = 20,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -218,7 +218,7 @@ abstract class SequelDatabase : RoomDatabase() {
                         ) WHERE rn = 1
                     )
                 """)
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `idx_reviews_movie_unique` ON `reviews` (`media_id`, `media_type`) WHERE season_num IS NULL AND episode_num IS NULL")
+                db.execSQL("DROP INDEX IF EXISTS `idx_reviews_movie_unique`")
             }
         }
 
@@ -240,6 +240,55 @@ abstract class SequelDatabase : RoomDatabase() {
                         PRIMARY KEY(`slot_index`)
                     )
                 """.trimIndent())
+            }
+        }
+
+        /**
+         * Migration 18→19: Migrate review ratings to REAL (Float) for 0.5-to-10.0 Red Pill scale.
+         */
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `reviews_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `media_id` INTEGER NOT NULL,
+                        `media_type` TEXT NOT NULL,
+                        `season_num` INTEGER,
+                        `episode_num` INTEGER,
+                        `review_text` TEXT,
+                        `rating` REAL,
+                        `is_spoiler` INTEGER NOT NULL,
+                        `is_rating_only` INTEGER NOT NULL,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        `sync_status` TEXT NOT NULL,
+                        `supabase_id` TEXT,
+                        FOREIGN KEY(`media_id`, `media_type`) REFERENCES `shows`(`id`, `media_type`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    INSERT INTO `reviews_new` (`id`, `media_id`, `media_type`, `season_num`, `episode_num`, `review_text`, `rating`, `is_spoiler`, `is_rating_only`, `created_at`, `updated_at`, `sync_status`, `supabase_id`)
+                    SELECT `id`, `media_id`, `media_type`, `season_num`, `episode_num`, `review_text`, CAST(`rating` AS REAL), `is_spoiler`, `is_rating_only`, `created_at`, `updated_at`, `sync_status`, `supabase_id`
+                    FROM `reviews`
+                """.trimIndent())
+
+                db.execSQL("DROP TABLE `reviews`")
+                db.execSQL("ALTER TABLE `reviews_new` RENAME TO `reviews`")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reviews_media_id_media_type_season_num_episode_num` ON `reviews` (`media_id`, `media_type`, `season_num`, `episode_num`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_sync_status` ON `reviews` (`sync_status`)")
+                db.execSQL("DROP INDEX IF EXISTS `idx_reviews_movie_unique`")
+            }
+        }
+
+        /**
+         * Migration 19→20: Clean up rogue partial index `idx_reviews_movie_unique` on reviews.
+         * Room does not support partial WHERE clauses in entity Index definitions and
+         * validates strict equality between entity indices and SQLite indices.
+         */
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX IF EXISTS `idx_reviews_movie_unique`")
             }
         }
     }

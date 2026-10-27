@@ -35,7 +35,7 @@ data class SupabaseReviewDto(
     val reviewText: String? = null,
 
     @SerialName("rating")
-    val rating: Int? = null,
+    val rating: Float? = null,
 
     @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("is_spoiler")

@@ -3,7 +3,7 @@
 ## 1. Overview
 
 Sequel employs a dual-database architecture:
-1. **Local Database**: **Room Database (SQLite)** embedded in the Android client (current version: **v17**). It acts as the authoritative single source of truth for all UI reads.
+1. **Local Database**: **Room Database (SQLite)** embedded in the Android client (current version: **v20**). It acts as the authoritative single source of truth for all UI reads.
 2. **Cloud Database**: **Supabase (PostgreSQL 15+)** providing multi-device cloud persistence, authentication identity, and Row-Level Security (RLS).
 
 ---
@@ -242,28 +242,46 @@ CREATE INDEX IF NOT EXISTS `index_watchlist_sync_status` ON `watchlist` (`sync_s
 ---
 
 ### 3.7 `reviews` Table
-Stores user ratings (1-10) and markdown review text.
+Stores user Red Pill ratings (0.5–10.0 scale, REAL) and markdown review text. Scoped strictly per-movie and per-season (`episode_num` is NULL for ratings).
 
 ```sql
 CREATE TABLE IF NOT EXISTS `reviews` (
-    `id` TEXT NOT NULL,
+    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     `media_id` INTEGER NOT NULL,
     `media_type` TEXT NOT NULL,
     `season_num` INTEGER,
     `episode_num` INTEGER,
-    `rating` INTEGER DEFAULT NULL,
     `review_text` TEXT,
-    `is_rating_only` INTEGER NOT NULL DEFAULT 0,
+    `rating` REAL,
+    `is_spoiler` INTEGER NOT NULL,
+    `is_rating_only` INTEGER NOT NULL,
+    `created_at` INTEGER NOT NULL,
     `updated_at` INTEGER NOT NULL,
     `sync_status` TEXT NOT NULL,
     `supabase_id` TEXT,
-    PRIMARY KEY(`id`)
+    FOREIGN KEY(`media_id`, `media_type`) REFERENCES `shows`(`id`, `media_type`) ON UPDATE NO ACTION ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS `index_reviews_media_id_media_type` ON `reviews` (`media_id`, `media_type`);
--- Partial unique index preventing duplicate movie reviews
-CREATE UNIQUE INDEX IF NOT EXISTS `idx_reviews_movie_unique` 
-ON `reviews` (`media_id`, `media_type`) 
-WHERE season_num IS NULL AND episode_num IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS `index_reviews_media_id_media_type_season_num_episode_num` ON `reviews` (`media_id`, `media_type`, `season_num`, `episode_num`);
+CREATE INDEX IF NOT EXISTS `index_reviews_sync_status` ON `reviews` (`sync_status`);
+```
+
+---
+
+### 3.8 `mount_rushmore` Table
+Stores user top-4 pinned cinephile favorites (added in v18).
+
+```sql
+CREATE TABLE IF NOT EXISTS `mount_rushmore` (
+    `slot_index` INTEGER NOT NULL,
+    `media_id` INTEGER NOT NULL,
+    `media_type` TEXT NOT NULL,
+    `title` TEXT NOT NULL,
+    `poster_path` TEXT,
+    `year` TEXT,
+    `rating` REAL,
+    `updated_at` INTEGER NOT NULL,
+    PRIMARY KEY(`slot_index`)
+);
 ```
 
 ---
@@ -401,11 +419,13 @@ CREATE TABLE IF NOT EXISTS public.reviews (
     media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'movie')),
     season_num INTEGER,
     episode_num INTEGER,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 10),
+    rating REAL CHECK (rating >= 0.5 AND rating <= 10.0),
     review_text TEXT,
+    is_spoiler BOOLEAN NOT NULL DEFAULT FALSE,
     is_rating_only BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at BIGINT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT reviews_user_media_season_ep_unique UNIQUE NULLS NOT DISTINCT (user_id, media_id, media_type, season_num, episode_num)
 );
 
 -- Partial unique index for movies (where season and episode are null)

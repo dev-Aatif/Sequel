@@ -123,6 +123,12 @@ interface ShowDao {
     @Query("SELECT * FROM shows WHERE id = :showId AND media_type = :mediaType")
     suspend fun getShowById(showId: Int, mediaType: String): ShowEntity?
 
+    @Query("SELECT * FROM shows")
+    suspend fun getAllShows(): List<ShowEntity>
+
+    @Query("SELECT * FROM shows WHERE title = :title AND media_type = :mediaType LIMIT 1")
+    suspend fun findShowByTitle(title: String, mediaType: String): ShowEntity?
+
     // ── Deletes ───────────────────────────────────────────────────
 
     @Query("DELETE FROM shows WHERE id = :showId AND media_type = :mediaType")

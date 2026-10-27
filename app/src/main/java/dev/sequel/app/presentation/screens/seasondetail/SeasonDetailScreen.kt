@@ -21,10 +21,17 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import dev.sequel.app.presentation.components.RatingModalBottomSheet
 import dev.sequel.app.presentation.screens.showdetail.EpisodeRow
+import dev.sequel.app.presentation.util.TestTags
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +40,7 @@ fun SeasonDetailScreen(
     onBackClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showRatingSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -55,8 +63,20 @@ fun SeasonDetailScreen(
                 },
                 actions = {
                     if (uiState is SeasonDetailUiState.Success) {
-                        val season = (uiState as SeasonDetailUiState.Success).season
+                        val success = uiState as SeasonDetailUiState.Success
+                        val season = success.season
                         val allWatched = season.episodes.all { it.isWatched }
+
+                        IconButton(
+                            modifier = Modifier.testTag(TestTags.BTN_RATE_PILL),
+                            onClick = { showRatingSheet = true }
+                        ) {
+                            Text(
+                                text = "💊",
+                                fontSize = 18.sp
+                            )
+                        }
+
                         IconButton(onClick = {
                             if (allWatched) {
                                 viewModel.unwatchSeason(season.seasonNumber)
@@ -111,5 +131,23 @@ fun SeasonDetailScreen(
                 }
             }
         }
+    }
+
+    if (showRatingSheet && uiState is SeasonDetailUiState.Success) {
+        val success = uiState as SeasonDetailUiState.Success
+        RatingModalBottomSheet(
+            initialRating = success.userRating,
+            title = success.season.name,
+            seasonNumber = success.season.seasonNumber,
+            onDismissRequest = { showRatingSheet = false },
+            onSaveRating = { rating ->
+                viewModel.rateSeason(rating)
+                showRatingSheet = false
+            },
+            onClearRating = {
+                viewModel.clearSeasonRating()
+                showRatingSheet = false
+            }
+        )
     }
 }

@@ -1,14 +1,18 @@
 package dev.sequel.app.presentation.screens.profile
 
 import app.cash.turbine.test
+import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.data.local.entity.MediaType
+import dev.sequel.app.data.local.entity.ProfileReviewItem
 import dev.sequel.app.data.local.entity.RecentActivityItem
+import dev.sequel.app.domain.model.TasteIdentity
 import dev.sequel.app.domain.repository.AuthRepository
 import dev.sequel.app.domain.repository.SearchRepository
 import dev.sequel.app.domain.usecase.ClearMountRushmoreSlotUseCase
+import dev.sequel.app.domain.usecase.GenerateTasteIdentityUseCase
 import dev.sequel.app.domain.usecase.GetMountRushmoreUseCase
 import dev.sequel.app.domain.usecase.SetMountRushmoreSlotUseCase
 import io.mockk.every
@@ -38,9 +42,13 @@ class ProfileViewModelTest {
     private val getMountRushmoreUseCase: GetMountRushmoreUseCase = mockk(relaxed = true)
     private val setMountRushmoreSlotUseCase: SetMountRushmoreSlotUseCase = mockk(relaxed = true)
     private val clearMountRushmoreSlotUseCase: ClearMountRushmoreSlotUseCase = mockk(relaxed = true)
+    private val reviewDao: ReviewDao = mockk(relaxed = true)
+    private val generateTasteIdentityUseCase: GenerateTasteIdentityUseCase = mockk(relaxed = true)
 
     private val tvHistoryFlow = MutableStateFlow<List<RecentActivityItem>>(emptyList())
     private val movieHistoryFlow = MutableStateFlow<List<RecentActivityItem>>(emptyList())
+    private val reviewsFlow = MutableStateFlow<List<ProfileReviewItem>>(emptyList())
+    private val tasteIdentityFlow = MutableStateFlow<TasteIdentity?>(null)
 
     @Before
     fun setUp() {
@@ -56,6 +64,8 @@ class ProfileViewModelTest {
 
         every { watchedEpisodeDao.observeAllWatchedTvActivity() } returns tvHistoryFlow
         every { watchedMovieDao.observeAllWatchedMovieActivity() } returns movieHistoryFlow
+        every { reviewDao.observeUserReviews() } returns reviewsFlow
+        every { generateTasteIdentityUseCase.invoke() } returns tasteIdentityFlow
     }
 
     @After
@@ -71,7 +81,9 @@ class ProfileViewModelTest {
         searchRepository = searchRepository,
         getMountRushmoreUseCase = getMountRushmoreUseCase,
         setMountRushmoreSlotUseCase = setMountRushmoreSlotUseCase,
-        clearMountRushmoreSlotUseCase = clearMountRushmoreSlotUseCase
+        clearMountRushmoreSlotUseCase = clearMountRushmoreSlotUseCase,
+        reviewDao = reviewDao,
+        generateTasteIdentityUseCase = generateTasteIdentityUseCase
     )
 
     @Test
@@ -85,7 +97,7 @@ class ProfileViewModelTest {
             posterPath = "/bb.jpg",
             seasonNumber = 1,
             episodeNumber = 1,
-            userRating = 10,
+            userRating = 10f,
             runtime = 50
         )
         val movieItem = RecentActivityItem(
@@ -97,7 +109,7 @@ class ProfileViewModelTest {
             posterPath = "/fc.jpg",
             seasonNumber = null,
             episodeNumber = null,
-            userRating = 9,
+            userRating = 9f,
             runtime = 139
         )
 
@@ -149,7 +161,7 @@ class ProfileViewModelTest {
             showId = 101,
             showTitle = "Film Low Rating Long Runtime",
             posterPath = null,
-            userRating = 6,
+            userRating = 6f,
             runtime = 180
         )
         val item2 = RecentActivityItem(
@@ -159,7 +171,7 @@ class ProfileViewModelTest {
             showId = 102,
             showTitle = "Film High Rating Short Runtime",
             posterPath = null,
-            userRating = 10,
+            userRating = 10f,
             runtime = 85
         )
         val item3 = RecentActivityItem(
@@ -169,7 +181,7 @@ class ProfileViewModelTest {
             showId = 103,
             showTitle = "Film Mid Rating Mid Runtime",
             posterPath = null,
-            userRating = 8,
+            userRating = 8f,
             runtime = 120
         )
 
@@ -199,7 +211,7 @@ class ProfileViewModelTest {
             while (state.historyFilter.sortOrder != HistorySortOrder.RATING_DESC) {
                 state = awaitItem()
             }
-            assertEquals(listOf(10, 8, 6), state.watchHistoryItems.map { it.userRating })
+            assertEquals(listOf(10f, 8f, 6f), state.watchHistoryItems.map { it.userRating })
 
             // Sort: RUNTIME_DESC
             viewModel.setSortOrder(HistorySortOrder.RUNTIME_DESC)
@@ -208,6 +220,145 @@ class ProfileViewModelTest {
                 state = awaitItem()
             }
             assertEquals(listOf(180, 120, 85), state.watchHistoryItems.map { it.runtime })
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun userReviews_filtersByMediaTypeCorrectly() = runTest(testDispatcher) {
+        val movieReview = ProfileReviewItem(
+            id = 101L,
+            mediaId = 550,
+            mediaType = "movie",
+            title = "Fight Club",
+            posterPath = "/fc.jpg",
+            firstAirDate = "1999-10-15",
+            reviewText = "First rule of Fight Club is you do not talk about Fight Club.",
+            rating = 10f,
+            isSpoiler = false,
+            primaryEmotion = "Absolute Cinema",
+            reactionCount = 42
+        )
+        val tvReview = ProfileReviewItem(
+            id = 102L,
+            mediaId = 1396,
+            mediaType = "tv",
+            title = "Breaking Bad",
+            posterPath = "/bb.jpg",
+            firstAirDate = "2008-01-20",
+            seasonNum = 5,
+            episodeNum = 14,
+            reviewText = "Ozymandias is the peak of television drama.",
+            rating = 10f,
+            isSpoiler = true,
+            primaryEmotion = "Mindfuck",
+            reactionCount = 99
+        )
+
+        reviewsFlow.value = listOf(movieReview, tvReview)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            // Initial state: Filter is ALL, both reviews present
+            var state = awaitItem()
+            while (state.userReviews.isEmpty()) {
+                state = awaitItem()
+            }
+            assertEquals(2, state.userReviews.size)
+            assertEquals("Fight Club", state.userReviews[0].title)
+            assertEquals("Breaking Bad", state.userReviews[1].title)
+
+            // Switch filter to MOVIE
+            viewModel.setReviewFilter(ReviewMediaTypeFilter.MOVIE)
+            state = awaitItem()
+            while (state.reviewFilter != ReviewMediaTypeFilter.MOVIE) {
+                state = awaitItem()
+            }
+            assertEquals(1, state.userReviews.size)
+            assertEquals("movie", state.userReviews[0].mediaType)
+            assertEquals("Fight Club", state.userReviews[0].title)
+
+            // Switch filter to TV
+            viewModel.setReviewFilter(ReviewMediaTypeFilter.TV)
+            state = awaitItem()
+            while (state.reviewFilter != ReviewMediaTypeFilter.TV) {
+                state = awaitItem()
+            }
+            assertEquals(1, state.userReviews.size)
+            assertEquals("tv", state.userReviews[0].mediaType)
+            assertEquals("Breaking Bad", state.userReviews[0].title)
+
+            // Switch filter back to ALL
+            viewModel.setReviewFilter(ReviewMediaTypeFilter.ALL)
+            state = awaitItem()
+            while (state.reviewFilter != ReviewMediaTypeFilter.ALL) {
+                state = awaitItem()
+            }
+            assertEquals(2, state.userReviews.size)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun selectedTab_switchesBetweenWatchHistoryAndReviews() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            // Initial state: WATCH_HISTORY
+            var state = awaitItem()
+            assertEquals(ProfileTab.WATCH_HISTORY, state.selectedTab)
+
+            // Switch to REVIEWS
+            viewModel.setSelectedTab(ProfileTab.REVIEWS)
+            state = awaitItem()
+            while (state.selectedTab != ProfileTab.REVIEWS) {
+                state = awaitItem()
+            }
+            assertEquals(ProfileTab.REVIEWS, state.selectedTab)
+
+            // Switch back to WATCH_HISTORY
+            viewModel.setSelectedTab(ProfileTab.WATCH_HISTORY)
+            state = awaitItem()
+            while (state.selectedTab != ProfileTab.WATCH_HISTORY) {
+                state = awaitItem()
+            }
+            assertEquals(ProfileTab.WATCH_HISTORY, state.selectedTab)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun tasteIdentity_updatesUiStateWhenGenerated() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            org.junit.Assert.assertNull(state.tasteIdentity)
+
+            val mockIdentity = TasteIdentity(
+                handle = "@cinephile",
+                archetype = "Neon Auteurist",
+                primaryObsession = "Cyberpunk & Sci-Fi",
+                primaryObsessionHours = 42,
+                topAuteur = "Denis Villeneuve",
+                topAuteurWatchedCount = 5,
+                totalHoursLogged = 120
+            )
+
+            tasteIdentityFlow.value = mockIdentity
+            state = awaitItem()
+            while (state.tasteIdentity == null) {
+                state = awaitItem()
+            }
+
+            assertEquals("Neon Auteurist", state.tasteIdentity?.archetype)
+            assertEquals("Cyberpunk & Sci-Fi", state.tasteIdentity?.primaryObsession)
+            assertEquals("Denis Villeneuve", state.tasteIdentity?.topAuteur)
+            assertEquals(42, state.tasteIdentity?.primaryObsessionHours)
 
             cancelAndIgnoreRemainingEvents()
         }

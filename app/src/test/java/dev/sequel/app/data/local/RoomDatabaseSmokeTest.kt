@@ -6,7 +6,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.entity.MountRushmoreEntity
+import dev.sequel.app.data.local.entity.ReviewEntity
 import dev.sequel.app.data.local.entity.ShowEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -127,5 +129,73 @@ class RoomDatabaseSmokeTest {
         assertEquals(dummyShow.mediaType, retrieved?.mediaType)
         assertEquals(dummyShow.voteAverage, retrieved?.voteAverage ?: 0.0, 0.001)
         assertEquals(dummyShow.isFavorite, retrieved?.isFavorite)
+    }
+
+    @Test
+    fun reviewDao_persistsAndObservesUserReviewsCleanly() = runBlocking {
+        val testMovie = ShowEntity(
+            id = 550,
+            title = "Fight Club",
+            overview = "An insomniac office worker and a devil-may-care soap maker form an underground fight club.",
+            posterPath = "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+            backdropPath = "/hZkgoQYus5vegHoetLkCJzb17zJ.jpg",
+            mediaType = "movie",
+            firstAirDate = "1999-10-15",
+            voteAverage = 8.4,
+            genreIds = "[18, 53]",
+            numberOfSeasons = null,
+            numberOfEpisodes = null,
+            status = "Released",
+            runtime = 139,
+            lastUpdated = System.currentTimeMillis()
+        )
+        showDao.insertShow(testMovie)
+
+        val reviewDao = database.reviewDao()
+        reviewDao.upsertReviewText(
+            mediaId = 550,
+            mediaType = "movie",
+            seasonNum = null,
+            episodeNum = null,
+            text = "Absolute masterpiece of modern cinema.",
+            isSpoiler = false
+        )
+        reviewDao.upsertRating(
+            mediaId = 550,
+            mediaType = "movie",
+            seasonNum = null,
+            episodeNum = null,
+            rating = 10.0f
+        )
+
+        val reviews = reviewDao.observeUserReviews().first()
+        assertEquals(1, reviews.size)
+        val userReview = reviews[0]
+        assertEquals(550, userReview.mediaId)
+        assertEquals("movie", userReview.mediaType)
+        assertEquals("Fight Club", userReview.title)
+        assertEquals("Absolute masterpiece of modern cinema.", userReview.reviewText)
+        assertEquals(10.0f, userReview.rating)
+        assertEquals("1999", userReview.year)
+        assertEquals("Absolute Cinema", userReview.displayEmotion)
+    }
+
+    @Test
+    fun migration19To20_dropsRogueIndexCleanly() {
+        val sqliteDb = database.openHelper.writableDatabase
+        sqliteDb.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `idx_reviews_movie_unique` ON `reviews` (`media_id`, `media_type`) WHERE season_num IS NULL AND episode_num IS NULL")
+
+        SequelDatabase.MIGRATION_19_20.migrate(sqliteDb)
+
+        val cursor = sqliteDb.query("PRAGMA index_list('reviews')")
+        var foundRogueIndex = false
+        while (cursor.moveToNext()) {
+            val indexName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+            if (indexName == "idx_reviews_movie_unique") {
+                foundRogueIndex = true
+            }
+        }
+        cursor.close()
+        org.junit.Assert.assertFalse("idx_reviews_movie_unique should have been dropped", foundRogueIndex)
     }
 }

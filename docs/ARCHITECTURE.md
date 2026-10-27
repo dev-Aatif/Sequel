@@ -85,7 +85,9 @@ Pure Kotlin layer with zero Android framework dependencies (except system Uri ab
 - **Repository Contracts (`domain/repository`)**: Interfaces defining data access (`ShowRepository`, `SeasonRepository`, `WatchedEpisodeRepository`, `WatchlistRepository`, `AuthRepository`).
 - **Use Cases (`domain/usecase`)**: Encapsulates complex reusable business logic spanning multiple repositories. For example, `GetNextEpisodeUseCase` determines the chronological "Up Next" episode by evaluating watched history, skipped status, season numbering, and air dates.
 - **Domain Errors (`domain/error/AppError.kt`)**: Sealed hierarchy mapping low-level network, HTTP, SQLite, and Supabase exceptions into user-friendly domain types (`NoInternet`, `Timeout`, `AuthFailed`, `NotFound`, `InvalidCredentials`, `Validation`).
-- **Data Importers (`domain/importer`)**: Parsing engines for TV Time CSV and Trakt JSON/CSV formats with fuzzy title matching.
+- **Data Portability & Importers (`domain/importer`)**: Modular 10-responsibility pipeline for zero-data-loss import from TV Time, Trakt, Letterboxd, and Sequel backups. Includes streaming parsers, ZIP archive safety extractors, canonical normalizers, confidence-scored identity resolvers, and conflict analyzers.
+- **Export Subsystem (`domain/export`)**: Destination-specific export engines (`SequelNativeBackupExporter`, `LetterboxdDataExporter`, `TraktDataExporter`) managed by `ExportCoordinator`.
+- **Backup & Restore (`domain/backup`)**: Schema-versioned (`SequelBackupModel` v1) complete database serialization and atomic transactional restoration.
 
 ---
 
@@ -107,6 +109,65 @@ Configured using **Google Hilt**:
 - `NetworkModule`: Configures OkHttp with logging interceptors, Retrofit with `kotlinx.serialization.converter`, and `TmdbApiService`.
 - `SupabaseModule`: Instantiates and configures the unified `SupabaseClient` with Auth, Postgrest, and Realtime plugins.
 - `WorkerModule`: Configures Hilt WorkManager integration (`@HiltWorkerFactory`) enabling constructor injection in background workers.
+
+---
+
+### 2.5 Data Portability, Import & Export Subsystem
+Sequel features an enterprise-grade, zero-data-loss import/export architecture designed to seamlessly replace services like TV Time, Trakt, and Letterboxd while providing native versioned backup and restore:
+
+```mermaid
+flowchart TD
+    subgraph Inputs ["External Input Files / Streams"]
+        TVTime[TV Time GDPR / Legacy CSV]
+        Trakt[Trakt History CSV / JSON]
+        LBoxd[Letterboxd CSV / ZIP]
+        SeqBackup[Sequel v1 JSON Backup]
+    end
+
+    subgraph Pipeline ["10-Stage Ingestion Pipeline"]
+        Detector[1. SourceDetector: Magic bytes & header sniffing]
+        Extractor[2. ZipArchiveExtractor: ZipSlip & Bomb Defense]
+        Adapters[3. Source Adapters: TvTime / Trakt / Letterboxd / Backup]
+        Normalizer[4. ImportNormalizer: Title sanitization & 0.5-step rating clamping]
+        Resolver[5. IdentityResolver: Local Cache First -> TMDB Rate-Limited Fallback]
+        Conflict[6. ConflictAnalyzer: Diff local DB -> ImportPreview]
+        Policy[7. ConflictResolutionPolicy: Skip / Overwrite / KeepHigher / KeepNewer]
+        Coordinator[8. ImportCoordinator: Transactional Batch Applier]
+    end
+
+    subgraph Persistence ["Room SQLite & Sync"]
+        RoomDB[(Room Local DB / SQLite)]
+        SyncMgr[SyncManager: Push to Supabase]
+    end
+
+    subgraph ExportSubsystem ["Export Engine"]
+        ExpCoord[ExportCoordinator]
+        ExpSeq[SequelNativeBackupExporter: JSON v1]
+        ExpLBoxd[LetterboxdDataExporter: CSV ZIP]
+        ExpTrakt[TraktDataExporter: History CSV]
+    end
+
+    Inputs --> Detector --> Extractor --> Adapters --> Normalizer --> Resolver --> Conflict --> Policy --> Coordinator
+    Coordinator -->|Chunked DB Transactions| RoomDB
+    RoomDB -->|Triggers Background Sync| SyncMgr
+
+    RoomDB --> ExpCoord
+    ExpCoord --> ExpSeq
+    ExpCoord --> ExpLBoxd
+    ExpCoord --> ExpTrakt
+```
+
+#### Pipeline Responsibilities
+1. **Source Detection & Input Validation (`detector/SourceDetector.kt`)**: Sniffs magic bytes, headers, JSON root keys, and ZIP entries without consuming streams. Protects against corrupted or mismatched archives.
+2. **Archive Safety Extraction (`archive/ZipArchiveExtractor.kt`)**: Defends against Zip Slip path traversal and decompression bombs (100MB / 10,000 entries threshold) and ignores macOS hidden files (`__MACOSX/`, `.DS_Store`).
+3. **Format-Specific Source Adapters (`adapter/SourceAdapter.kt`)**: Decouples external formats from the domain by streaming into unified `CanonicalImportRecord` instances.
+4. **Canonical Normalization (`normalizer/ImportNormalizer.kt`)**: Strips embedded release years, standardizes ratings to Sequel's 0.5–10.0 scale, validates ISO-8601 timestamps, and deduplicates records.
+5. **Identity Resolution (`resolver/IdentityResolver.kt`)**: Scores candidate media matches (`EXACT_ID`, `EXACT_TITLE_YEAR`, `LOCAL_CACHE_MATCH`, `FUZZY_MATCH`, `AMBIGUOUS`, `UNRESOLVED`). Checks local Room DB first (reducing network requests by >90%) with exponential backoff on TMDB HTTP 429 rate limits.
+6. **Conflict Analysis & Preview (`conflict/ConflictAnalyzer.kt`)**: Compares incoming records against existing local watches, ratings, reviews, and watchlists to generate non-destructive `ImportPreview` summaries.
+7. **Conflict Resolution Policy (`core/MatchConfidence.kt`)**: Configurable resolution rules (`SKIP_EXISTING`, `OVERWRITE_EXISTING`, `KEEP_HIGHER_RATING`, `KEEP_NEWER_TIMESTAMP`, `MERGE_PREFER_EXISTING`).
+8. **Reliable Import Coordinator (`coordinator/ImportCoordinator.kt` & `ImportApplier.kt`)**: Executes batch mutations within `database.withTransaction`, guarantees foreign key parent-show insertion, segregates movies to `WatchedMovieDao` and episodes to `WatchedEpisodeDao`, and triggers `syncManager.syncAllNow()`.
+9. **Versioned Backup Serialization & Restoration (`backup/SequelBackupService.kt`)**: Generates schema-versioned v1 JSON backups with transactional restore and integrity verification.
+10. **Portable Destination Exporters (`export/ExportCoordinator.kt`)**: Produces platform-compliant native JSON backups, Letterboxd 4-CSV zip archives, and Trakt history CSVs.
 
 ---
 

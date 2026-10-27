@@ -19,6 +19,9 @@ interface MountRushmoreDao {
     @Query("SELECT * FROM mount_rushmore WHERE slot_index = :slotIndex")
     suspend fun getSlot(slotIndex: Int): MountRushmoreEntity?
 
+    @Query("SELECT * FROM mount_rushmore ORDER BY slot_index ASC")
+    suspend fun getAllSlots(): List<MountRushmoreEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSlot(slot: MountRushmoreEntity)
 

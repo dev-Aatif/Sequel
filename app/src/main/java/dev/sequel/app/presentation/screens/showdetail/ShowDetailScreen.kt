@@ -32,9 +32,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
+import dev.sequel.app.domain.model.RedPillRatingUtil
+import dev.sequel.app.presentation.components.RatingModalBottomSheet
 import dev.sequel.app.presentation.components.glassmorphicBackground
 import dev.sequel.app.presentation.components.hapticClickable
 import dev.sequel.app.presentation.components.spoilerShield
@@ -135,6 +138,7 @@ fun ShowDetailScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShowDetailContent(
     state: DetailUiState.Success,
@@ -148,7 +152,7 @@ private fun ShowDetailContent(
     onRecommendationClick: (Int, String) -> Unit,
     onPostReview: (String, Boolean) -> Unit,
     onEditReview: (String, String, Boolean) -> Unit,
-    onSubmitRating: (Int) -> Unit,
+    onSubmitRating: (Float) -> Unit,
     onDeleteReview: (String) -> Unit,
     onRetryReviews: () -> Unit,
     modifier: Modifier = Modifier
@@ -343,10 +347,13 @@ private fun ShowDetailContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(if (state.userRating != null) Icons.Filled.Star else Icons.Outlined.Star, "Rate", tint = Color(0xFFFFD700), modifier = Modifier.size(20.dp))
+                        Text(
+                            text = "💊",
+                            fontSize = 16.sp
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (state.userRating != null) "${state.userRating}/10" else "Rate", 
+                            if (state.userRating != null) "${RedPillRatingUtil.formatScore(state.userRating)}/10" else "Rate", 
                             style = MaterialTheme.typography.labelLarge, 
                             fontWeight = FontWeight.Black, 
                             color = if (state.userRating != null) MaterialTheme.colorScheme.primary else Color.White
@@ -541,7 +548,7 @@ private fun ShowDetailContent(
             confirmButton = {
                 Button(
                     onClick = { 
-                        onSubmitRating(0)
+                        onSubmitRating(0f)
                         showRemoveRatingDialog = false 
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -571,11 +578,17 @@ private fun ShowDetailContent(
     }
 
     if (showRatingDialog) {
-        RatingDialog(
-            currentRating = state.userRating,
-            onDismiss = { showRatingDialog = false },
-            onSubmit = { rating ->
+        RatingModalBottomSheet(
+            initialRating = state.userRating,
+            title = state.show.title,
+            seasonNumber = null,
+            onDismissRequest = { showRatingDialog = false },
+            onSaveRating = { rating ->
                 onSubmitRating(rating)
+                showRatingDialog = false
+            },
+            onClearRating = {
+                onSubmitRating(0f)
                 showRatingDialog = false
             }
         )
@@ -663,7 +676,7 @@ fun ReviewCard(
     review: dev.sequel.app.data.remote.supabase.dto.SupabaseReviewDto, 
     isWatched: Boolean,
     isMyReview: Boolean,
-    currentUserRating: Int?,
+    currentUserRating: Float?,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -678,9 +691,9 @@ fun ReviewCard(
                     Text(if (isMyReview) "You" else "Community Member", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isMyReview && currentUserRating != null) {
-                            Icon(Icons.Filled.Star, "Rating", tint = Color(0xFFFFD700), modifier = Modifier.size(12.dp))
+                            Text("💊", fontSize = 12.sp)
                             Spacer(Modifier.width(4.dp))
-                            Text("$currentUserRating/10", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(0.8f), fontWeight = FontWeight.Bold)
+                            Text("${RedPillRatingUtil.formatScore(currentUserRating)}/10", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(0.8f), fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(8.dp))
                         }
                         if (review.isSpoiler) Text("SPOILER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -755,156 +768,3 @@ fun ReviewInputBar(
     }
 }
 
-@Composable
-fun RatingDialog(currentRating: Int?, onDismiss: () -> Unit, onSubmit: (Int) -> Unit) {
-    var selectedRating by remember { mutableIntStateOf(currentRating ?: 0) }
-
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .glassmorphicBackground(
-                    RoundedCornerShape(32.dp), 
-                    surfaceTint = Color(0xCC1A1D24), 
-                    borderColor = Color.White.copy(0.1f)
-                )
-                .padding(32.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Emoji Feedback
-                val ratingEmoji = when(selectedRating) {
-                    0 -> "🤔"
-                    in 1..2 -> "🗑️"
-                    in 3..4 -> "🥱"
-                    in 5..6 -> "😐"
-                    in 7..8 -> "🤩"
-                    in 9..10 -> "🤯"
-                    else -> "🤔"
-                }
-                
-                Text(
-                    text = ratingEmoji,
-                    style = MaterialTheme.typography.displayMedium
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Dynamic Large Number
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = if (selectedRating > 0) "$selectedRating" else "-",
-                        style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Black,
-                        color = if (selectedRating > 0) MaterialTheme.colorScheme.primary else Color.White.copy(0.3f)
-                    )
-                    Text(
-                        text = " / 10",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(0.3f),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                }
-
-                val ratingText = when(selectedRating) {
-                    0 -> "Unrated"
-                    in 1..2 -> "Terrible"
-                    in 3..4 -> "Poor"
-                    in 5..6 -> "Average"
-                    in 7..8 -> "Great"
-                    in 9..10 -> "Masterpiece"
-                    else -> ""
-                }
-                
-                Text(
-                    text = ratingText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // The Segmented Rating Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    for (i in 1..10) {
-                        val isSelected = selectedRating == i
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(0.65f)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(0.1f))
-                                .clickable {
-                                    if (isSelected) selectedRating = 0 else selectedRating = i
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = i.toString(),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White
-                            )
-                        }
-                    }
-                }
-                
-                if (selectedRating > 0) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextButton(onClick = { selectedRating = 0 }) {
-                        Text("Clear Rating", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.2f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.Bold)
-                    }
-                    
-                    Button(
-                        onClick = { onSubmit(selectedRating) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Text("Submit", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}

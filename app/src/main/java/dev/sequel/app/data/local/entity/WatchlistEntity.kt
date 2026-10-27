@@ -16,7 +16,7 @@ data class WatchlistEntity(
     val title: String,
 
     @ColumnInfo(name = "poster_path")
-    val posterPath: String?,
+    val posterPath: String? = null,
 
     @ColumnInfo(name = "added_at")
     val addedAt: Long = System.currentTimeMillis(),

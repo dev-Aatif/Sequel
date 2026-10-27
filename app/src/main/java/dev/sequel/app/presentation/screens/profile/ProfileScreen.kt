@@ -28,8 +28,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import dev.sequel.app.data.local.entity.RecentActivityItem
 import dev.sequel.app.data.local.entity.MountRushmoreEntity
+import dev.sequel.app.data.local.entity.ProfileReviewItem
 import dev.sequel.app.data.local.entity.ShowEntity
 import dev.sequel.app.data.remote.tmdb.TmdbImageUtil
+import dev.sequel.app.presentation.components.glassmorphicBackground
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
@@ -39,6 +41,9 @@ import androidx.compose.ui.platform.testTag
 import dev.sequel.app.presentation.util.TestTags
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import dev.sequel.app.presentation.screens.profile.components.TasteIdentityCard
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +60,7 @@ fun ProfileScreen(
     val pickerQuery by viewModel.pickerQuery.collectAsState()
     val pickerSearching by viewModel.pickerSearching.collectAsState()
     val pickerResults by viewModel.pickerResults.collectAsState()
+    val context = LocalContext.current
 
     var selectedFilledSlot by remember { mutableStateOf<Pair<Int, MountRushmoreEntity>?>(null) }
 
@@ -80,6 +86,33 @@ fun ProfileScreen(
                 )
             }
 
+            uiState.tasteIdentity?.let { identity ->
+                item {
+                    TasteIdentityCard(
+                        identity = identity,
+                        onShareClick = { dna ->
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    buildString {
+                                        appendLine("🧬 CINEPHILE DNA (${dna.handle})")
+                                        appendLine("Archetype: ${dna.archetype}")
+                                        appendLine("Primary Obsession: ${dna.primaryObsession} (${dna.primaryObsessionHours}h)")
+                                        appendLine("Top Auteur: ${dna.topAuteur}")
+                                        appendLine("Total Watch Time: ${dna.totalHoursLogged} hrs logged")
+                                        appendLine("Tracked on Sequel 💊")
+                                    }
+                                )
+                                type = "text/plain"
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, "Share Cinephile DNA")
+                            context.startActivity(shareIntent)
+                        }
+                    )
+                }
+            }
+
             item {
                 MountRushmoreSection(
                     slots = uiState.mountRushmore,
@@ -101,138 +134,224 @@ fun ProfileScreen(
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Watch History",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                ProfileTabSwitcher(
+                    selectedTab = uiState.selectedTab,
+                    onTabSelected = { viewModel.setSelectedTab(it) }
+                )
+            }
 
-                    var sortMenuExpanded by remember { mutableStateOf(false) }
+            if (uiState.selectedTab == ProfileTab.WATCH_HISTORY) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Watch History",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
 
-                    Box {
-                        IconButton(
-                            modifier = Modifier.testTag(TestTags.BTN_SORT_HISTORY),
-                            onClick = { sortMenuExpanded = true }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Sort,
-                                contentDescription = "Sort watch history",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        var sortMenuExpanded by remember { mutableStateOf(false) }
 
-                        DropdownMenu(
-                            expanded = sortMenuExpanded,
-                            onDismissRequest = { sortMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                modifier = Modifier.testTag(TestTags.SORT_OPTION_DATE_DESC),
-                                text = { Text("Recently Logged") },
-                                onClick = {
-                                    viewModel.setSortOrder(HistorySortOrder.DATE_DESC)
-                                    sortMenuExpanded = false
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Schedule, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                modifier = Modifier.testTag(TestTags.SORT_OPTION_DATE_ASC),
-                                text = { Text("Oldest Logged") },
-                                onClick = {
-                                    viewModel.setSortOrder(HistorySortOrder.DATE_ASC)
-                                    sortMenuExpanded = false
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.History, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                modifier = Modifier.testTag(TestTags.SORT_OPTION_RATING_DESC),
-                                text = { Text("Highest Rated") },
-                                onClick = {
-                                    viewModel.setSortOrder(HistorySortOrder.RATING_DESC)
-                                    sortMenuExpanded = false
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700))
-                                }
-                            )
-                            DropdownMenuItem(
-                                modifier = Modifier.testTag(TestTags.SORT_OPTION_RUNTIME_DESC),
-                                text = { Text("Runtime (Longest)") },
-                                onClick = {
-                                    viewModel.setSortOrder(HistorySortOrder.RUNTIME_DESC)
-                                    sortMenuExpanded = false
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Timer, contentDescription = null)
-                                }
-                            )
+                        Box {
+                            IconButton(
+                                modifier = Modifier.testTag(TestTags.BTN_SORT_HISTORY),
+                                onClick = { sortMenuExpanded = true }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sort,
+                                    contentDescription = "Sort watch history",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = sortMenuExpanded,
+                                onDismissRequest = { sortMenuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    modifier = Modifier.testTag(TestTags.SORT_OPTION_DATE_DESC),
+                                    text = { Text("Recently Logged") },
+                                    onClick = {
+                                        viewModel.setSortOrder(HistorySortOrder.DATE_DESC)
+                                        sortMenuExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Schedule, contentDescription = null)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    modifier = Modifier.testTag(TestTags.SORT_OPTION_DATE_ASC),
+                                    text = { Text("Oldest Logged") },
+                                    onClick = {
+                                        viewModel.setSortOrder(HistorySortOrder.DATE_ASC)
+                                        sortMenuExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.History, contentDescription = null)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    modifier = Modifier.testTag(TestTags.SORT_OPTION_RATING_DESC),
+                                    text = { Text("Highest Rated") },
+                                    onClick = {
+                                        viewModel.setSortOrder(HistorySortOrder.RATING_DESC)
+                                        sortMenuExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700))
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    modifier = Modifier.testTag(TestTags.SORT_OPTION_RUNTIME_DESC),
+                                    text = { Text("Runtime (Longest)") },
+                                    onClick = {
+                                        viewModel.setSortOrder(HistorySortOrder.RUNTIME_DESC)
+                                        sortMenuExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Timer, contentDescription = null)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        modifier = Modifier.testTag(TestTags.FILTER_HISTORY_ALL),
-                        selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.ALL,
-                        onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.ALL) },
-                        label = { Text("All") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                    FilterChip(
-                        modifier = Modifier.testTag(TestTags.FILTER_HISTORY_MOVIES),
-                        selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.MOVIE,
-                        onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.MOVIE) },
-                        label = { Text("Movies") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                    FilterChip(
-                        modifier = Modifier.testTag(TestTags.FILTER_HISTORY_SHOWS),
-                        selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.TV,
-                        onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.TV) },
-                        label = { Text("TV Shows") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                }
-            }
-
-            if (uiState.watchHistoryItems.isEmpty()) {
                 item {
-                    ZeroWatchHistoryCard(
-                        onImportClick = onNavigateToImport,
-                        onDiscoverClick = onNavigateToSearch
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            modifier = Modifier.testTag(TestTags.FILTER_HISTORY_ALL),
+                            selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.ALL,
+                            onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.ALL) },
+                            label = { Text("All") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                        FilterChip(
+                            modifier = Modifier.testTag(TestTags.FILTER_HISTORY_MOVIES),
+                            selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.MOVIE,
+                            onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.MOVIE) },
+                            label = { Text("Movies") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                        FilterChip(
+                            modifier = Modifier.testTag(TestTags.FILTER_HISTORY_SHOWS),
+                            selected = uiState.historyFilter.mediaType == HistoryMediaTypeFilter.TV,
+                            onClick = { viewModel.setMediaTypeFilter(HistoryMediaTypeFilter.TV) },
+                            label = { Text("TV Shows") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
+                }
+
+                if (uiState.watchHistoryItems.isEmpty()) {
+                    item {
+                        ZeroWatchHistoryCard(
+                            onImportClick = onNavigateToImport,
+                            onDiscoverClick = onNavigateToSearch
+                        )
+                    }
+                } else {
+                    items(uiState.watchHistoryItems, key = { "${it.mediaType.name}_${it.historyId}" }) { activity ->
+                        RecentActivityCard(
+                            item = activity,
+                            onClick = {
+                                onMediaClick(activity.showId, activity.mediaType.name)
+                            }
+                        )
+                    }
                 }
             } else {
-                items(uiState.watchHistoryItems, key = { "${it.mediaType.name}_${it.historyId}" }) { activity ->
-                    RecentActivityCard(
-                        item = activity,
-                        onClick = {
-                            onMediaClick(activity.showId, activity.mediaType.name)
-                        }
-                    )
+                // ProfileTab.REVIEWS
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "My Reviews",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+
+                        Text(
+                            text = "${uiState.userReviews.size} ${if (uiState.userReviews.size == 1) "Review" else "Reviews"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            modifier = Modifier.testTag(TestTags.FILTER_REVIEWS_ALL),
+                            selected = uiState.reviewFilter == ReviewMediaTypeFilter.ALL,
+                            onClick = { viewModel.setReviewFilter(ReviewMediaTypeFilter.ALL) },
+                            label = { Text("All") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                        FilterChip(
+                            modifier = Modifier.testTag(TestTags.FILTER_REVIEWS_MOVIES),
+                            selected = uiState.reviewFilter == ReviewMediaTypeFilter.MOVIE,
+                            onClick = { viewModel.setReviewFilter(ReviewMediaTypeFilter.MOVIE) },
+                            label = { Text("Movies") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                        FilterChip(
+                            modifier = Modifier.testTag(TestTags.FILTER_REVIEWS_SHOWS),
+                            selected = uiState.reviewFilter == ReviewMediaTypeFilter.TV,
+                            onClick = { viewModel.setReviewFilter(ReviewMediaTypeFilter.TV) },
+                            label = { Text("TV Shows") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
+                }
+
+                if (uiState.userReviews.isEmpty()) {
+                    item {
+                        ZeroReviewsCard(
+                            onDiscoverClick = onNavigateToSearch
+                        )
+                    }
+                } else {
+                    items(uiState.userReviews, key = { it.id }) { review ->
+                        ProfileReviewCard(
+                            review = review,
+                            onClick = {
+                                onMediaClick(review.mediaId, review.mediaType)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -676,7 +795,7 @@ fun RecentActivityCard(
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
-                                    text = "${item.userRating}/10",
+                                    text = "${if (item.userRating % 1f == 0f) item.userRating.toInt().toString() else "%.1f".format(item.userRating)}/10",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -1050,6 +1169,321 @@ fun MountRushmorePickerContent(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+// ── Profile Tabs & Review Components ──────────────────────────────────────────
+
+@Composable
+fun ProfileTabSwitcher(
+    selectedTab: ProfileTab,
+    onTabSelected: (ProfileTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .glassmorphicBackground(RoundedCornerShape(16.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        val tabs = listOf(
+            ProfileTab.WATCH_HISTORY to ("Watch History" to TestTags.TAB_WATCH_HISTORY),
+            ProfileTab.REVIEWS to ("My Reviews" to TestTags.TAB_MY_REVIEWS)
+        )
+        tabs.forEach { (tab, labelAndTag) ->
+            val isSelected = selectedTab == tab
+            val (label, tag) = labelAndTag
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        else Color.Transparent
+                    )
+                    .then(
+                        if (isSelected) Modifier.border(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        ) else Modifier
+                    )
+                    .clickable { onTabSelected(tab) }
+                    .testTag(tag)
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfileReviewCard(
+    review: ProfileReviewItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val relativeTime = DateUtils.getRelativeTimeSpanString(
+        review.updatedAt,
+        System.currentTimeMillis(),
+        DateUtils.MINUTE_IN_MILLIS
+    ).toString()
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(TestTags.CARD_PROFILE_REVIEW),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                AsyncImage(
+                    model = TmdbImageUtil.posterUrl(review.posterPath),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(52.dp)
+                        .height(78.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = review.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        review.year?.let { y ->
+                            Text(
+                                text = y,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        val mediaBadge = if (review.mediaType.equals("movie", ignoreCase = true)) {
+                            "Movie"
+                        } else if (review.seasonNum != null && review.episodeNum != null) {
+                            "S${review.seasonNum} · E${review.episodeNum}"
+                        } else {
+                            "TV Series"
+                        }
+
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Text(
+                            text = mediaBadge,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Chips Row: Red Pill Rating + Emotion Chip + Spoiler Tag
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Red Pill Rating Badge
+                        if (review.rating != null) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(percent = 50))
+                                    .background(Color(0xFFE11D48).copy(alpha = 0.2f))
+                                    .border(1.dp, Color(0xFFE11D48).copy(alpha = 0.5f), RoundedCornerShape(percent = 50))
+                                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "💊 ${if (review.rating % 1f == 0f) review.rating.toInt().toString() else "%.1f".format(review.rating)}/10",
+                                    modifier = Modifier.testTag(TestTags.BADGE_RED_PILL),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFFB7185)
+                                )
+                            }
+                        }
+
+                        // Primary Emotion Chip
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(percent = 50))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                .padding(horizontal = 7.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${review.emotionEmoji} ${review.displayEmotion}",
+                                modifier = Modifier.testTag(TestTags.CHIP_EMOTION),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+
+                        // Spoiler Tag if applicable
+                        if (review.isSpoiler) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(percent = 50))
+                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "SPOILER",
+                                    modifier = Modifier.testTag(TestTags.TAG_SPOILER),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Review text snippet
+            if (!review.reviewText.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = review.reviewText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(TestTags.TEXT_REVIEW_SNIPPET)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Footer Row: Relative time + Reactions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = relativeTime,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "🔥 ${review.reactionCount}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ZeroReviewsCard(
+    onDiscoverClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "No Reviews Yet",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Share your hot takes and Red Pill scores on films and shows you've experienced.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onDiscoverClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Explore Titles")
             }
         }
     }

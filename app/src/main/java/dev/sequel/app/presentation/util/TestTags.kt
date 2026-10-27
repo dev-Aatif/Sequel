@@ -29,6 +29,18 @@ object TestTags {
     const val SORT_OPTION_RATING_DESC = "sort_option_rating_desc"
     const val SORT_OPTION_RUNTIME_DESC = "sort_option_runtime_desc"
 
+    // ── Profile Reviews & Tabs ───────────────────────────────────────────
+    const val TAB_WATCH_HISTORY = "tab_watch_history"
+    const val TAB_MY_REVIEWS = "tab_my_reviews"
+    const val FILTER_REVIEWS_ALL = "filter_reviews_all"
+    const val FILTER_REVIEWS_MOVIES = "filter_reviews_movies"
+    const val FILTER_REVIEWS_SHOWS = "filter_reviews_shows"
+    const val CARD_PROFILE_REVIEW = "card_profile_review"
+    const val CHIP_EMOTION = "chip_emotion"
+    const val BADGE_RED_PILL = "badge_red_pill"
+    const val TAG_SPOILER = "tag_spoiler"
+    const val TEXT_REVIEW_SNIPPET = "text_review_snippet"
+
     // ── Elements ─────────────────────────────────────────────────────────
     const val INPUT_SEARCH = "input_search"
     const val CARD_MEDIA_POSTER = "card_media_poster"
@@ -51,4 +63,21 @@ object TestTags {
 
     fun rushSlotEmpty(slot: Int) = "rush_slot_empty_$slot"
     fun rushSlotFilled(slot: Int) = "rush_slot_filled_$slot"
+
+    // ── Taste Identity Card ──────────────────────────────────────────────
+    const val CARD_TASTE_IDENTITY = "card_taste_identity"
+    const val BTN_SHARE_TASTE_CARD = "btn_share_taste_card"
+    const val TEXT_TASTE_ARCHETYPE = "text_taste_archetype"
+    const val TEXT_TASTE_PRIMARY_OBSESSION = "text_taste_primary_obsession"
+    const val TEXT_TASTE_TOP_AUTEUR = "text_taste_top_auteur"
+    const val TEXT_TASTE_HOURS = "text_taste_hours"
+
+    // ── Red Pill Rating (Task 05) ────────────────────────────────────────
+    const val SHEET_RATING = "sheet_rating"
+    const val SLIDER_RED_PILL = "slider_red_pill"
+    const val BTN_SAVE_RATING = "btn_save_rating"
+    const val BTN_CLEAR_RATING = "btn_clear_rating"
+    const val TEXT_RATING_SCORE = "text_rating_score"
+    const val TEXT_RATING_STATUS = "text_rating_status"
+    const val TEXT_RATING_VIBE = "text_rating_vibe"
 }

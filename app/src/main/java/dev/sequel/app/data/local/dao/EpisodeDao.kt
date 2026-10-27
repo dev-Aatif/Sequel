@@ -25,6 +25,9 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE id = :episodeId")
     suspend fun getEpisodeById(episodeId: Int): EpisodeEntity?
 
+    @Query("SELECT * FROM episodes WHERE show_id = :showId AND season_number = :seasonNumber AND episode_number = :episodeNumber LIMIT 1")
+    suspend fun getEpisodeBySeasonAndEpisodeNumber(showId: Int, seasonNumber: Int, episodeNumber: Int): EpisodeEntity?
+
     @Query("SELECT COUNT(*) FROM episodes WHERE show_id = :showId")
     suspend fun getEpisodeCountForShow(showId: Int): Int
 

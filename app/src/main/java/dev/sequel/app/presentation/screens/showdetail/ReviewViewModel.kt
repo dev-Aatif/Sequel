@@ -88,26 +88,26 @@ class ReviewViewModel @Inject constructor(
     }
 
     /**
-     * Submit a rating (1-10) for the current media. This is completely separate from reviews.
-     * Rating is stored as a rating-only row in the reviews table.
+     * Submit a signature 0.5–10.0 Red Pill rating for the current media (movie or season).
+     * Rating is stored as a rating-only row in the reviews table with episodeNum = null.
      */
-    fun submitRating(rating: Int) {
-        if (rating == 0) {
-            deleteRating()
+    fun submitRating(rating: Float, seasonNum: Int? = currentSeasonNum) {
+        if (rating <= 0f) {
+            deleteRating(seasonNum)
             return
         }
         viewModelScope.launch {
-            reviewDao.upsertRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum, rating)
+            reviewDao.upsertRating(currentMediaId, currentMediaType, seasonNum, null, rating)
             scheduleSync()
         }
     }
 
     /**
-     * Delete the user's rating for the current media.
+     * Delete the user's rating for the current media or season.
      */
-    fun deleteRating() {
+    fun deleteRating(seasonNum: Int? = currentSeasonNum) {
         viewModelScope.launch {
-            val localReview = reviewDao.getReviewForMediaAndEpisode(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+            val localReview = reviewDao.getReviewForMediaAndEpisode(currentMediaId, currentMediaType, seasonNum, null)
             var needsSync = false
             if (localReview != null) {
                 if (localReview.reviewText.isNullOrBlank()) {
@@ -120,12 +120,12 @@ class ReviewViewModel @Inject constructor(
                     } else {
                         currentUserId?.let { uid ->
                             try {
-                                supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                                supabaseSyncService.deleteReviewForMedia(uid, currentMediaId, currentMediaType, seasonNum, null)
                             } catch (e: Exception) {}
                         }
                     }
                 } else {
-                    reviewDao.deleteRating(currentMediaId, currentMediaType, currentSeasonNum, currentEpisodeNum)
+                    reviewDao.deleteRating(currentMediaId, currentMediaType, seasonNum, null)
                     needsSync = true
                 }
             }

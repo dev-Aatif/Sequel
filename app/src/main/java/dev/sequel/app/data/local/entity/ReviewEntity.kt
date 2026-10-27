@@ -7,11 +7,17 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * User review or rating for a show.
+ * User review or rating for a show, movie, or season.
+ *
+ * Scoped strictly per-movie (seasonNum = null, episodeNum = null) and
+ * per-season (seasonNum != null, episodeNum = null).
+ * Individual episode ratings are omitted by design (binary watched toggle only).
+ *
+ * Rating scale is the signature 0.5–10.0 Red Pill scale (20 discrete half-pill steps).
  *
  * Two types of rows:
  * - **Rating row**: `is_rating_only = true`, `rating != null`, `reviewText = null`.
- *   One per show per user (enforced in DAO code, not DB constraint).
+ *   One per show/season per user.
  * - **Review row**: `is_rating_only = false`, `reviewText != null`.
  *   Multiple allowed per user per show.
  */
@@ -51,7 +57,7 @@ data class ReviewEntity(
     val reviewText: String?,
 
     @ColumnInfo(name = "rating")
-    val rating: Int? = null, // 1-10 rating
+    val rating: Float? = null, // 0.5 - 10.0 Red Pill rating scale
 
     @ColumnInfo(name = "is_spoiler")
     val isSpoiler: Boolean = false,

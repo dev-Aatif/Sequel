@@ -125,6 +125,9 @@ android {
                 "/META-INF/INDEX.LIST"
             )
         }
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 
@@ -215,14 +218,13 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
 
-    // Android / Instrumentation Testing (Hilt, Compose UI, MockK Android)
+    // Android / Instrumentation Testing (Hilt, Compose UI)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.turbine)
-    androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.mockwebserver)
     androidTestImplementation(libs.hilt.android.testing)

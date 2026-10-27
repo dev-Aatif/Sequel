@@ -6,6 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.sequel.app.data.local.SequelDatabase
 import dev.sequel.app.data.remote.supabase.SupabaseAuthService
 import dev.sequel.app.data.sync.SyncManager
+import dev.sequel.app.domain.backup.SequelBackupService
+import dev.sequel.app.domain.export.ExportCoordinator
+import dev.sequel.app.domain.export.ExportDestination
+import dev.sequel.app.domain.export.ExportPackage
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,11 +21,16 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val authService: SupabaseAuthService,
     private val appDatabase: SequelDatabase,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val backupService: SequelBackupService,
+    private val exportCoordinator: ExportCoordinator
 ) : ViewModel() {
 
     private val _isDeleting = MutableStateFlow(false)
     val isDeleting: StateFlow<Boolean> = _isDeleting
+
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting: StateFlow<Boolean> = _isExporting
 
     private val _errorMessage = kotlinx.coroutines.flow.MutableSharedFlow<String>()
     val errorMessage: kotlinx.coroutines.flow.SharedFlow<String> = _errorMessage
@@ -84,6 +93,54 @@ class SettingsViewModel @Inject constructor(
                 appDatabase.clearAllTables()
             }
             _navigateEvent.send(Unit)
+        }
+    }
+
+    fun exportBackup(onExportReady: (String) -> Unit) {
+        viewModelScope.launch {
+            _isExporting.value = true
+            try {
+                val json = backupService.exportJsonBackup()
+                onExportReady(json)
+                _errorMessage.emit("Backup generated successfully.")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _errorMessage.emit("Failed to generate backup: ${e.message}")
+            } finally {
+                _isExporting.value = false
+            }
+        }
+    }
+
+    fun exportCsvArchive(onArchiveReady: (ByteArray) -> Unit) {
+        viewModelScope.launch {
+            _isExporting.value = true
+            try {
+                val zip = backupService.exportCsvZip()
+                onArchiveReady(zip)
+                _errorMessage.emit("CSV archive generated successfully.")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _errorMessage.emit("Failed to export CSVs: ${e.message}")
+            } finally {
+                _isExporting.value = false
+            }
+        }
+    }
+
+    fun exportDestination(destination: ExportDestination, onReady: (ExportPackage) -> Unit) {
+        viewModelScope.launch {
+            _isExporting.value = true
+            try {
+                val pkg = exportCoordinator.export(destination)
+                onReady(pkg)
+                _errorMessage.emit("${destination.displayName} exported successfully.")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _errorMessage.emit("Failed to export: ${e.message}")
+            } finally {
+                _isExporting.value = false
+            }
         }
     }
 

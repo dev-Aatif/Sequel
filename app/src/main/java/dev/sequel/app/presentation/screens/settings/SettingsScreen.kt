@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.saveable.rememberSaveable
 
+import dev.sequel.app.domain.export.ExportDestination
+import dev.sequel.app.domain.export.ExportPackage
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -35,11 +40,29 @@ fun SettingsScreen(
     onNavigateToPrivacyPolicy: () -> Unit
 ) {
     val isDeleting by viewModel.isDeleting.collectAsState()
+    val isExporting by viewModel.isExporting.collectAsState()
     val context = LocalContext.current
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showSignOutDialog by rememberSaveable { mutableStateOf(false) }
+    var showExportDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingExportPackage by remember { mutableStateOf<ExportPackage?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val exportFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("*/*")
+    ) { uri ->
+        if (uri != null) {
+            val pkg = pendingExportPackage
+            if (pkg != null) {
+                try {
+                    context.contentResolver.openOutputStream(uri)?.use { os ->
+                        os.write(pkg.bytes)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.errorMessage.collectLatest { message ->
@@ -92,9 +115,17 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = { Icon(Icons.Outlined.FileDownload, contentDescription = null) },
                     title = "Import Data",
-                    subtitle = "Migrate history from TV Time or Trakt",
+                    subtitle = "Migrate history from TV Time, Trakt, Letterboxd, or Backup",
                     trailingIcon = { Icon(Icons.Outlined.ChevronRight, contentDescription = null) },
                     onClick = onImportClick
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsItem(
+                    icon = { Icon(Icons.Outlined.FileUpload, contentDescription = null) },
+                    title = "Export Library",
+                    subtitle = "Export to Sequel Backup, Letterboxd, or Trakt formats",
+                    trailingIcon = { Icon(Icons.Outlined.ChevronRight, contentDescription = null) },
+                    onClick = { showExportDialog = true }
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem(
@@ -157,6 +188,54 @@ fun SettingsScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    // Export Format Selection Dialog
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            icon = { Icon(Icons.Outlined.FileUpload, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Export Library") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Select a destination export format:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ExportDestination.values().forEach { destination ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showExportDialog = false
+                                    viewModel.exportDestination(destination) { pkg ->
+                                        pendingExportPackage = pkg
+                                        exportFileLauncher.launch(pkg.suggestedFileName)
+                                    }
+                                },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = destination.displayName,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = "File extension: .${destination.extension}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     // Sign Out Dialog

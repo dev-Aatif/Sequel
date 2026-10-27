@@ -87,7 +87,7 @@ sealed interface DetailUiState {
         val watchedEpisodeKeys: Set<String> = emptySet(),
         val isMovieWatched: Boolean = false,
         val isInWatchlist: Boolean = false,
-        val userRating: Int? = null,
+        val userRating: Float? = null,
         val dropOffInsight: String? = null,
         val recommendations: List<RecommendationUi> = emptyList()
     ) : DetailUiState

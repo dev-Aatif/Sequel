@@ -3,15 +3,19 @@ package dev.sequel.app.presentation.screens.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.data.local.entity.MountRushmoreEntity
+import dev.sequel.app.data.local.entity.ProfileReviewItem
 import dev.sequel.app.data.local.entity.RecentActivityItem
 import dev.sequel.app.data.local.entity.ShowEntity
+import dev.sequel.app.domain.model.TasteIdentity
 import dev.sequel.app.domain.repository.AuthRepository
 import dev.sequel.app.domain.repository.SearchRepository
 import dev.sequel.app.domain.usecase.ClearMountRushmoreSlotUseCase
+import dev.sequel.app.domain.usecase.GenerateTasteIdentityUseCase
 import dev.sequel.app.domain.usecase.GetMountRushmoreUseCase
 import dev.sequel.app.domain.usecase.SetMountRushmoreSlotUseCase
 import kotlinx.coroutines.Job
@@ -35,6 +39,14 @@ enum class HistorySortOrder {
     DATE_DESC, DATE_ASC, RATING_DESC, RUNTIME_DESC
 }
 
+enum class ProfileTab {
+    WATCH_HISTORY, REVIEWS
+}
+
+enum class ReviewMediaTypeFilter {
+    ALL, MOVIE, TV
+}
+
 data class WatchHistoryFilter(
     val mediaType: HistoryMediaTypeFilter = HistoryMediaTypeFilter.ALL,
     val sortOrder: HistorySortOrder = HistorySortOrder.DATE_DESC
@@ -55,7 +67,11 @@ data class ProfileUiState(
     val recentActivity: List<RecentActivityItem> = emptyList(),
     val watchHistoryItems: List<RecentActivityItem> = emptyList(),
     val historyFilter: WatchHistoryFilter = WatchHistoryFilter(),
-    val mountRushmore: List<MountRushmoreSlotUi> = (0..3).map { MountRushmoreSlotUi(it) }
+    val mountRushmore: List<MountRushmoreSlotUi> = (0..3).map { MountRushmoreSlotUi(it) },
+    val selectedTab: ProfileTab = ProfileTab.WATCH_HISTORY,
+    val reviewFilter: ReviewMediaTypeFilter = ReviewMediaTypeFilter.ALL,
+    val userReviews: List<ProfileReviewItem> = emptyList(),
+    val tasteIdentity: TasteIdentity? = null
 ) {
     val watchTimeFormatted: String
         get() {
@@ -90,8 +106,17 @@ class ProfileViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
     private val getMountRushmoreUseCase: GetMountRushmoreUseCase,
     private val setMountRushmoreSlotUseCase: SetMountRushmoreSlotUseCase,
-    private val clearMountRushmoreSlotUseCase: ClearMountRushmoreSlotUseCase
+    private val clearMountRushmoreSlotUseCase: ClearMountRushmoreSlotUseCase,
+    private val reviewDao: ReviewDao,
+    private val generateTasteIdentityUseCase: GenerateTasteIdentityUseCase
 ) : ViewModel() {
+
+    val tasteIdentity: StateFlow<TasteIdentity?> = generateTasteIdentityUseCase()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            null
+        )
 
     val mountRushmore: StateFlow<List<MountRushmoreSlotUi>> = getMountRushmoreUseCase()
         .map { list ->
@@ -132,7 +157,7 @@ class ProfileViewModel @Inject constructor(
             HistorySortOrder.DATE_DESC -> filtered.sortedByDescending { it.watchedAt }
             HistorySortOrder.DATE_ASC -> filtered.sortedBy { it.watchedAt }
             HistorySortOrder.RATING_DESC -> filtered.sortedWith(
-                compareByDescending<RecentActivityItem> { it.userRating ?: -1 }
+                compareByDescending<RecentActivityItem> { it.userRating ?: -1f }
                     .thenByDescending { it.watchedAt }
             )
             HistorySortOrder.RUNTIME_DESC -> filtered.sortedWith(
@@ -174,21 +199,62 @@ class ProfileViewModel @Inject constructor(
         stats to rushSlots
     }
 
+    private val _selectedTab = MutableStateFlow(ProfileTab.WATCH_HISTORY)
+    val selectedTab: StateFlow<ProfileTab> = _selectedTab.asStateFlow()
+
+    private val _reviewFilter = MutableStateFlow(ReviewMediaTypeFilter.ALL)
+    val reviewFilter: StateFlow<ReviewMediaTypeFilter> = _reviewFilter.asStateFlow()
+
+    private val reviewsDataFlow = combine(
+        reviewDao.observeUserReviews(),
+        _reviewFilter
+    ) { allReviews, filter ->
+        val filtered = when (filter) {
+            ReviewMediaTypeFilter.ALL -> allReviews
+            ReviewMediaTypeFilter.MOVIE -> allReviews.filter { it.mediaType.equals("movie", ignoreCase = true) }
+            ReviewMediaTypeFilter.TV -> allReviews.filter { it.mediaType.equals("tv", ignoreCase = true) }
+        }
+        filtered to filter
+    }
+
+    val userReviews: StateFlow<List<ProfileReviewItem>> = reviewsDataFlow
+        .map { it.first }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
     val uiState: StateFlow<ProfileUiState> = combine(
         statsAndRushmoreFlow,
-        historyDataFlow
-    ) { (stats, rushSlots), (historyItems, filter) ->
+        historyDataFlow,
+        reviewsDataFlow,
+        _selectedTab,
+        tasteIdentity
+    ) { (stats, rushSlots), (historyItems, historyFilter), (reviews, reviewFilter), selectedTab, identity ->
         stats.copy(
             mountRushmore = rushSlots,
             watchHistoryItems = historyItems,
             recentActivity = historyItems,
-            historyFilter = filter
+            historyFilter = historyFilter,
+            selectedTab = selectedTab,
+            reviewFilter = reviewFilter,
+            userReviews = reviews,
+            tasteIdentity = identity
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         ProfileUiState(email = authRepository.currentUserEmail)
     )
+
+    fun setSelectedTab(tab: ProfileTab) {
+        _selectedTab.value = tab
+    }
+
+    fun setReviewFilter(filter: ReviewMediaTypeFilter) {
+        _reviewFilter.value = filter
+    }
 
     fun setMediaTypeFilter(filter: HistoryMediaTypeFilter) {
         _historyFilter.value = _historyFilter.value.copy(mediaType = filter)

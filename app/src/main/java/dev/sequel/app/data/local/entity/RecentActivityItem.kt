@@ -9,6 +9,6 @@ data class RecentActivityItem(
     val posterPath: String?,
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
-    val userRating: Int? = null,
+    val userRating: Float? = null,
     val runtime: Int? = null
 )

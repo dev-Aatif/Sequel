@@ -28,6 +28,9 @@ interface SeasonDao {
     @Query("SELECT * FROM seasons WHERE show_id = :showId ORDER BY season_number ASC")
     suspend fun getSeasonsByShow(showId: Int): List<SeasonEntity>
 
+    @Query("SELECT * FROM seasons WHERE show_id = :showId AND season_number = :seasonNumber LIMIT 1")
+    suspend fun getSeasonByNumber(showId: Int, seasonNumber: Int): SeasonEntity?
+
     @Query("DELETE FROM seasons WHERE show_id = :showId")
     suspend fun deleteSeasonsByShow(showId: Int)
 }

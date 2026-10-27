@@ -190,6 +190,13 @@ Requirements:
 * **Priority:** P1
 * **Goal:** A dedicated profile tab to browse all user-authored reviews, filterable by movie vs. TV show, displaying Red Pill scores and reactions.
 
+#### Acceptance Criteria
+- [x] Dedicated profile tab switcher between "Watch History" and "My Reviews".
+- [x] Query and display all user-authored reviews (`is_rating_only == 0` or non-empty `review_text`), sorted by `updated_at` DESC.
+- [x] Filter reviews by `[All]`, `[Movies]`, and `[TV Shows]` chips without network calls.
+- [x] Review card displays media poster, title, year, Red Pill score badge (💊 rating/10), Primary Emotion chip, spoiler tag (if spoiler), review text snippet, and reactions.
+- [x] JVM unit tests in `ProfileViewModelTest` & `RoomDatabaseSmokeTest`, and Compose UI tests in `ProfileReviewCardComposeTest`.
+
 #### Copy-Paste AI Agent Prompt
 ```text
 Task: Implement Task 03 — Profile Reviews Tab with Movie/Show Segregation for Sequel.
@@ -212,6 +219,14 @@ Requirements:
 ### Task 04: Taste Identity Card (Idea 16)
 * **Priority:** P2
 * **Goal:** Automatically generate an algorithmic cinephile identity card from local Room DB history (Primary Obsession, Top Auteur, Controversial Takes).
+
+#### Acceptance Criteria
+- [x] Room watch history and reviews dynamically analyzed for top genre, top auteur, and controversial hot takes.
+- [x] Primary Obsession accurately maps highest watch-time genres to cultured cinephile tags (e.g. "Cyberpunk & Sci-Fi", "Prestige Drama").
+- [x] Top Auteur aggregated by watched titles count.
+- [x] Controversial Hot Takes detected when user rating deviates significantly from TMDB vote average.
+- [x] TasteIdentityCard renders cyberpunk luxury UI with `#161920` background, `#A855F7` neon accents, archetype badge, and "Share DNA" action button.
+- [x] Unit and Compose UI tests verify algorithmic calculation and UI rendering.
 
 #### Copy-Paste AI Agent Prompt
 ```text
@@ -242,6 +257,16 @@ Requirements:
 ### Task 05: 0.5-to-10.0 Red Pill Rating System (Per-Movie & Per-Season Scope) (Ideas 9, 21, 22)
 * **Priority:** P0 (Core Signature Feature)
 * **Goal:** Replace standard 5-star ratings with a 0.5–10.0 Red Pill rating scale (20 discrete half-pill steps) scoped exclusively to Movies and TV Seasons.
+
+#### Acceptance Criteria
+- [x] Rating scale updated from 5-star / integer to 0.5–10.0 Red Pill scale (20 discrete half-pill steps).
+- [x] Rating scope strictly restricted to Movies and TV Seasons (`episodeNum = null`).
+- [x] Room migration `MIGRATION_18_19` updates `reviews` schema with REAL column affinity.
+- [x] `RedPillRatingSlider` renders 10 pill icons with FULL, HALF, and EMPTY states.
+- [x] Dynamic score tiers, status phrases, and cultural vibe translations mapped across all 8 tiers.
+- [x] Haptic feedback triggered on each 0.5 step change.
+- [x] `RatingModalBottomSheet` provides Save and Clear actions with `TestTags.BTN_SAVE_RATING`.
+- [x] Unit and Compose UI tests verify clamping, snapping, status phrase resolution, and UI interactions.
 
 #### Technical Scope
 1. **Scope Boundary**:

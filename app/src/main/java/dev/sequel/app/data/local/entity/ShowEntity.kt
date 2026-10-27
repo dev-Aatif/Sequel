@@ -23,34 +23,34 @@ data class ShowEntity(
     val overview: String,
 
     @ColumnInfo(name = "poster_path")
-    val posterPath: String?,
+    val posterPath: String? = null,
 
     @ColumnInfo(name = "backdrop_path")
-    val backdropPath: String?,
+    val backdropPath: String? = null,
 
     /** "tv" or "movie" */
     @ColumnInfo(name = "media_type")
     val mediaType: String,
 
     @ColumnInfo(name = "first_air_date")
-    val firstAirDate: String?,
+    val firstAirDate: String? = null,
 
     @ColumnInfo(name = "vote_average")
     val voteAverage: Double,
 
     /** Stored as JSON string, e.g. "[18,10765]" */
     @ColumnInfo(name = "genre_ids")
-    val genreIds: String,
+    val genreIds: String = "[]",
 
     @ColumnInfo(name = "number_of_seasons")
-    val numberOfSeasons: Int?,
+    val numberOfSeasons: Int? = null,
 
     @ColumnInfo(name = "number_of_episodes")
-    val numberOfEpisodes: Int?,
+    val numberOfEpisodes: Int? = null,
 
     /** e.g. "Returning Series", "Ended", "Released" */
     @ColumnInfo(name = "status")
-    val status: String?,
+    val status: String? = null,
 
     @ColumnInfo(name = "is_favorite", defaultValue = "0")
     val isFavorite: Boolean = false,

@@ -151,11 +151,17 @@ interface WatchedEpisodeDao {
     @Query("SELECT * FROM watched_episodes WHERE sync_status = :status")
     suspend fun getByStatus(status: SyncStatus): List<WatchedEpisodeEntity>
 
+    @Query("SELECT * FROM watched_episodes WHERE sync_status != 'DELETED'")
+    suspend fun getAllWatchedEpisodes(): List<WatchedEpisodeEntity>
+
     @Query("SELECT * FROM watched_episodes WHERE sync_status IN ('PENDING', 'DELETED')")
     suspend fun getUnsynced(): List<WatchedEpisodeEntity>
 
     @Query("SELECT EXISTS(SELECT 1 FROM watched_episodes WHERE tmdb_episode_id = :tmdbEpisodeId AND sync_status != 'DELETED')")
     suspend fun isEpisodeWatched(tmdbEpisodeId: Int): Boolean
+
+    @Query("SELECT * FROM watched_episodes WHERE show_id = :showId AND season_number = :seasonNumber AND episode_number = :episodeNumber AND sync_status != 'DELETED' LIMIT 1")
+    suspend fun getWatchedEpisode(showId: Int, seasonNumber: Int, episodeNumber: Int): WatchedEpisodeEntity?
 
     @Query("SELECT COUNT(*) FROM watched_episodes WHERE show_id = :showId AND sync_status != 'DELETED'")
     suspend fun getWatchedCountForShow(showId: Int): Int

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import dev.sequel.app.data.local.entity.ProfileReviewItem
 import dev.sequel.app.data.local.entity.ReviewEntity
 import dev.sequel.app.data.local.entity.SyncStatus
 import kotlinx.coroutines.flow.Flow
@@ -20,10 +21,10 @@ interface ReviewDao {
     // ── Unified Operations ─────────────────────────
 
     @Query("UPDATE reviews SET rating = :rating, updated_at = :updatedAt, sync_status = 'PENDING' WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
-    suspend fun updateRatingOnly(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, rating: Int, updatedAt: Long): Int
+    suspend fun updateRatingOnly(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, rating: Float, updatedAt: Long): Int
 
     @androidx.room.Transaction
-    suspend fun upsertRating(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?, rating: Int) {
+    suspend fun upsertRating(mediaId: Int, mediaType: String, seasonNum: Int? = null, episodeNum: Int? = null, rating: Float) {
         val updatedRows = updateRatingOnly(mediaId, mediaType, seasonNum, episodeNum, rating, System.currentTimeMillis())
         if (updatedRows == 0) {
             val id = insertReviewInternal(
@@ -34,7 +35,7 @@ interface ReviewDao {
                     episodeNum = episodeNum,
                     reviewText = null,
                     rating = rating,
-                    isRatingOnly = false,
+                    isRatingOnly = true,
                     syncStatus = SyncStatus.PENDING
                 )
             )
@@ -70,14 +71,14 @@ interface ReviewDao {
         }
     }
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num IS NULL AND episode_num IS NULL AND sync_status != 'DELETED' LIMIT 1")
-    suspend fun getRatingRow(mediaId: Int, mediaType: String): ReviewEntity?
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND episode_num IS NULL AND sync_status != 'DELETED' LIMIT 1")
+    suspend fun getRatingRow(mediaId: Int, mediaType: String, seasonNum: Int? = null): ReviewEntity?
 
-    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num IS NULL AND episode_num IS NULL AND sync_status != 'DELETED' LIMIT 1")
-    fun observeRatingForMedia(mediaId: Int, mediaType: String): Flow<ReviewEntity?>
+    @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND episode_num IS NULL AND sync_status != 'DELETED' LIMIT 1")
+    fun observeRatingForMedia(mediaId: Int, mediaType: String, seasonNum: Int? = null): Flow<ReviewEntity?>
 
     @Query("UPDATE reviews SET rating = NULL, sync_status = 'PENDING' WHERE media_id = :mediaId AND media_type = :mediaType AND COALESCE(season_num, -1) = COALESCE(:seasonNum, -1) AND COALESCE(episode_num, -1) = COALESCE(:episodeNum, -1)")
-    suspend fun deleteRating(mediaId: Int, mediaType: String, seasonNum: Int?, episodeNum: Int?)
+    suspend fun deleteRating(mediaId: Int, mediaType: String, seasonNum: Int? = null, episodeNum: Int? = null)
 
     @Query("UPDATE reviews SET rating = NULL, updated_at = :updatedAt WHERE media_id = :mediaId AND media_type = :mediaType")
     suspend fun clearRating(mediaId: Int, mediaType: String, updatedAt: Long = System.currentTimeMillis())
@@ -149,10 +150,66 @@ interface ReviewDao {
     @Query("SELECT * FROM reviews WHERE sync_status != 'DELETED' ORDER BY updated_at DESC")
     fun observeAllReviews(): Flow<List<ReviewEntity>>
 
+    @Query("""
+        SELECT 
+            r.id as id,
+            r.media_id as mediaId,
+            r.media_type as mediaType,
+            COALESCE(s.title, 'Unknown Title') as title,
+            s.poster_path as posterPath,
+            s.first_air_date as firstAirDate,
+            r.season_num as seasonNum,
+            r.episode_num as episodeNum,
+            r.review_text as reviewText,
+            r.rating as rating,
+            r.is_spoiler as isSpoiler,
+            r.is_rating_only as isRatingOnly,
+            r.created_at as createdAt,
+            r.updated_at as updatedAt,
+            NULL as primaryEmotion,
+            0 as reactionCount
+        FROM reviews r
+        LEFT JOIN shows s ON r.media_id = s.id AND r.media_type = s.media_type
+        WHERE r.sync_status != 'DELETED' 
+          AND (r.is_rating_only = 0 OR (r.review_text IS NOT NULL AND r.review_text != ''))
+        ORDER BY r.updated_at DESC
+    """)
+    fun observeUserReviews(): Flow<List<ProfileReviewItem>>
+
+    @Query("""
+        SELECT 
+            r.id as id,
+            r.media_id as mediaId,
+            r.media_type as mediaType,
+            COALESCE(s.title, 'Unknown Title') as title,
+            s.poster_path as posterPath,
+            s.first_air_date as firstAirDate,
+            r.season_num as seasonNum,
+            r.episode_num as episodeNum,
+            r.review_text as reviewText,
+            r.rating as rating,
+            r.is_spoiler as isSpoiler,
+            r.is_rating_only as isRatingOnly,
+            r.created_at as createdAt,
+            r.updated_at as updatedAt,
+            NULL as primaryEmotion,
+            0 as reactionCount
+        FROM reviews r
+        LEFT JOIN shows s ON r.media_id = s.id AND r.media_type = s.media_type
+        WHERE r.sync_status != 'DELETED' 
+          AND (r.is_rating_only = 0 OR (r.review_text IS NOT NULL AND r.review_text != ''))
+          AND r.media_type = :mediaType
+        ORDER BY r.updated_at DESC
+    """)
+    fun observeUserReviewsByMediaType(mediaType: String): Flow<List<ProfileReviewItem>>
+
     // ── Queries (suspend) ─────────────────────────────────────────
 
     @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND sync_status != 'DELETED'")
     suspend fun getReviewForMedia(mediaId: Int, mediaType: String): ReviewEntity?
+
+    @Query("SELECT * FROM reviews WHERE sync_status != 'DELETED'")
+    suspend fun getAllReviews(): List<ReviewEntity>
 
     @Query("SELECT * FROM reviews WHERE media_id = :mediaId AND media_type = :mediaType AND season_num = :seasonNum AND episode_num = :episodeNum AND sync_status != 'DELETED'")
     suspend fun getReviewForEpisode(mediaId: Int, mediaType: String, seasonNum: Int, episodeNum: Int): ReviewEntity?

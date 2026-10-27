@@ -26,7 +26,10 @@ import dev.sequel.app.domain.error.toAppError
 
 sealed interface SeasonDetailUiState {
     data object Loading : SeasonDetailUiState
-    data class Success(val season: SeasonUi) : SeasonDetailUiState
+    data class Success(
+        val season: SeasonUi,
+        val userRating: Float? = null
+    ) : SeasonDetailUiState
     data class Error(val error: AppError) : SeasonDetailUiState
 }
 
@@ -36,7 +39,8 @@ class SeasonDetailViewModel @Inject constructor(
     private val episodeDao: EpisodeDao,
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val tmdbApiService: TmdbApiService,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val reviewDao: dev.sequel.app.data.local.dao.ReviewDao
 ) : ViewModel() {
 
     private val showId: Int = savedStateHandle.get<Int>("showId") ?: -1
@@ -47,8 +51,9 @@ class SeasonDetailViewModel @Inject constructor(
     val uiState: StateFlow<SeasonDetailUiState> = combine(
         episodeDao.observeEpisodesBySeason(showId, seasonNumber),
         watchedEpisodeDao.observeWatchedByShow(showId),
+        reviewDao.observeRatingForMedia(showId, "tv", seasonNumber),
         _loadingError
-    ) { episodes, watchedList, error ->
+    ) { episodes, watchedList, myRating, error ->
         if (error != null) {
             SeasonDetailUiState.Error(error)
         } else if (episodes.isEmpty()) {
@@ -75,7 +80,7 @@ class SeasonDetailViewModel @Inject constructor(
                     )
                 }
             )
-            SeasonDetailUiState.Success(seasonUi)
+            SeasonDetailUiState.Success(seasonUi, userRating = myRating?.rating)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeasonDetailUiState.Loading)
 
@@ -164,6 +169,33 @@ class SeasonDetailViewModel @Inject constructor(
         viewModelScope.launch {
             watchedEpisodeDao.unwatchSeason(showId, seasonNumber)
             syncManager.syncWatchedEpisodesNow()
+        }
+    }
+
+    /**
+     * Submit a signature 0.5–10.0 Red Pill rating for this TV Season.
+     * Stored as a rating-only row with seasonNum = seasonNumber and episodeNum = null.
+     */
+    fun rateSeason(rating: Float) {
+        if (showId == -1 || seasonNumber == -1) return
+        if (rating <= 0f) {
+            clearSeasonRating()
+            return
+        }
+        viewModelScope.launch {
+            reviewDao.upsertRating(showId, "tv", seasonNumber, null, rating)
+            syncManager.syncReviewsNow(showId)
+        }
+    }
+
+    /**
+     * Delete the rating for this TV Season.
+     */
+    fun clearSeasonRating() {
+        if (showId == -1 || seasonNumber == -1) return
+        viewModelScope.launch {
+            reviewDao.deleteRating(showId, "tv", seasonNumber, null)
+            syncManager.syncReviewsNow(showId)
         }
     }
 }
