@@ -29,8 +29,25 @@ data class TasteIdentity(
     val topAuteur: String,
     val topAuteurWatchedCount: Int,
     val totalHoursLogged: Int,
-    val controversialTakes: List<ControversialTake> = emptyList()
+    val controversialTakes: List<ControversialTake> = emptyList(),
+    val topAuteurTitles: List<String> = emptyList(),
+    val totalTitlesWatched: Int = 0
 )
+
+/**
+ * Returns a human-readable narrative explanation of the cinephile archetype.
+ */
+fun getArchetypeDescription(archetype: String): String = when (archetype) {
+    "Neon Auteurist" -> "You gravitate towards atmospheric, visionary worldbuilding with high aesthetic discipline, neon melancholia, and existential depth."
+    "The Noir Realist" -> "Drawn to shadowy morality, urban grit, high-stakes cynicism, and razor-sharp crime thrillers."
+    "The Prestige Purist" -> "You revere meticulous craft, Oscar-tier performances, historical scale, and deeply human character studies."
+    "The Cynical Visionary" -> "Unapologetically contrarian. You call out critical consensus slop and elevate misunderstood masterpieces."
+    "The Midnight Hedonist" -> "Chasing macabre atmospheres, psychological tension, primal fears, and boundary-pushing genre cinema."
+    "The Worldbuilder" -> "Immersed in sprawling mythologies, hand-crafted animation, and visionary speculative universes."
+    "The Adrenaline Purist" -> "Kinetic spectacle, breathless choreography, and relentless momentum are your cinematic fuel."
+    "The Aspiring Cinephile" -> "Your journey into cinema has just begun. Log more titles to unveil your deeper cinematic archetype."
+    else -> "An omnivorous, curious palate exploring across borders, decades, and genres without limits."
+}
 
 /**
  * Normalized record representing a watched title for algorithmic taste analysis.

@@ -287,7 +287,8 @@ class TvTimeCsvParser : MediaDataParser {
             val title = line.getOrNull(titleIdx)?.trim() ?: ""
             if (title.isNotEmpty()) {
                 val dateStr = if (dateIdx != -1) line.getOrNull(dateIdx)?.trim() else null
-                val addedAt = parseTimestamp(dateStr) ?: System.currentTimeMillis()
+                val dateResult = ImportDateParser.parse(dateStr)
+                val addedAt = dateResult.epochMillis ?: System.currentTimeMillis()
 
                 rows.add(
                     ImportedMediaItem(
@@ -296,8 +297,12 @@ class TvTimeCsvParser : MediaDataParser {
                         seasonNumber = null,
                         episodeNumber = null,
                         watchedAt = addedAt,
+                        watchDate = dateResult.dateOnlyString,
+                        rawDateString = dateStr,
+                        isDateOnly = dateResult.isDateOnly,
                         mediaType = "tv",
-                        recordType = ImportRecordType.WATCHLIST
+                        recordType = ImportRecordType.WATCHLIST,
+                        isExplicitShowLevel = true
                     )
                 )
             }

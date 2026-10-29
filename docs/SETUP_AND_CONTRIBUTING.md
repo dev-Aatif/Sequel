@@ -53,6 +53,36 @@ In your Supabase project dashboard:
    sequel://login-callback
    ```
 
+### 2.4 Local Supabase with Docker & Safe Test-Data Cleanup
+For offline or local integration testing without impacting production cloud projects:
+
+1. **Start Local Docker Containers**:
+   ```bash
+   supabase start
+   supabase status
+   ```
+2. **Point `local.properties` to Local Emulator Host**:
+   ```properties
+   SUPABASE_URL=http://10.0.2.2:54321
+   SUPABASE_ANON_KEY=<anon-key-from-supabase-status>
+   ```
+3. **Safe Test-Data Cleanup**:
+   To clear test records without dropping user accounts or migrations, run the following in Supabase Studio (`http://localhost:54323` SQL Editor):
+   ```sql
+   BEGIN;
+   TRUNCATE TABLE 
+       public.watched_movies, 
+       public.watched_episodes, 
+       public.reviews, 
+       public.user_watchlist 
+   CASCADE;
+   COMMIT;
+   ```
+4. **Stop Local Containers**:
+   ```bash
+   supabase stop
+   ```
+
 ---
 
 ## 3. Building & Testing
@@ -66,8 +96,19 @@ To prevent long build and test execution cycles on every minor change, use the a
   # Test a single class
   ./gradlew testDebugUnitTest --tests "dev.sequel.app.presentation.MainViewModelTurbineTest"
 
-  # Test a specific method
-  ./gradlew testDebugUnitTest --tests "dev.sequel.app.data.local.RoomDatabaseSmokeTest.insertAndQueryShowEntity_returnsExpectedEntity"
+  # Test Phase 8 Performance & Correctness Gates
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.domain.importer.gate.PerformanceAndCorrectnessGateTest"
+
+  # Test Data Importer Adapters
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.domain.importer.adapter.SourceAdapterTest"
+
+  # Test Synthetic Stress Datasets by Profile
+  # Profile 1 (Smoke, 50 rows)
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.domain.importer.ImportStressAndScalabilityTest.profile1_smokeSyntheticDataset_50Rows"
+  # Profile 2 (Standard, 1,000 rows)
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.domain.importer.ImportStressAndScalabilityTest.profile2_standardSyntheticDataset_1000Rows"
+  # Profile 3 (Large, 5,000 rows)
+  ./gradlew testDebugUnitTest --tests "dev.sequel.app.domain.importer.ImportStressAndScalabilityTest.profile3_largeSyntheticDataset_5000Rows"
   ```
 
 * **Level 2 — Before Committing a Meaningful Change**:

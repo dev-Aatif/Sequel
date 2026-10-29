@@ -2,6 +2,51 @@ package dev.sequel.app.domain.backup
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Defines the database restoration strategy.
+ */
+enum class RestoreMode {
+    /**
+     * Completely wipes existing local user data tables (in foreign-key safe order)
+     * inside an atomic transaction before restoring backup records.
+     * If an error occurs, the entire transaction rolls back.
+     */
+    REPLACE_CLEAN,
+
+    /**
+     * Merges backup data into the existing local database using upsert semantics.
+     * Existing items not present in the backup are preserved.
+     */
+    MERGE_EXISTING
+}
+
+/**
+ * High-level summary of record counts and metadata in a backup.
+ */
+data class BackupSummary(
+    val schemaVersion: Int,
+    val exportedAt: Long,
+    val appVersion: String,
+    val showsCount: Int,
+    val moviesCount: Int,
+    val episodesCount: Int,
+    val watchlistCount: Int,
+    val reviewsCount: Int,
+    val mountRushmoreCount: Int,
+    val totalRecords: Int
+)
+
+/**
+ * Result of validating a Sequel backup file or model before restoration.
+ */
+data class BackupValidationReport(
+    val isValid: Boolean,
+    val schemaVersion: Int,
+    val summary: BackupSummary? = null,
+    val errors: List<String> = emptyList(),
+    val warnings: List<String> = emptyList()
+)
+
 @Serializable
 data class SequelBackupModel(
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
@@ -14,6 +59,19 @@ data class SequelBackupModel(
     val reviews: List<ReviewBackupDto> = emptyList(),
     val mountRushmore: List<MountRushmoreBackupDto> = emptyList()
 ) {
+    fun toSummary(): BackupSummary = BackupSummary(
+        schemaVersion = schemaVersion,
+        exportedAt = exportedAt,
+        appVersion = appVersion,
+        showsCount = shows.size,
+        moviesCount = watchedMovies.size,
+        episodesCount = watchedEpisodes.size,
+        watchlistCount = watchlist.size,
+        reviewsCount = reviews.size,
+        mountRushmoreCount = mountRushmore.size,
+        totalRecords = shows.size + watchedMovies.size + watchedEpisodes.size + watchlist.size + reviews.size + mountRushmore.size
+    )
+
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1
     }

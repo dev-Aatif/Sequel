@@ -41,7 +41,7 @@ Whether you're offline on a subway commute or managing a watchlist of 5,000+ tit
 - 🏛️ **Top 4 "Mount Rushmore" Pinned Favorites**: Letterboxd-style showcase pinning your all-time top 4 favorite movies and TV shows to the top of your profile with Roman numeral slots (I–IV), gold border highlights, and seamless search selection.
 - 🔄 **Pragmatic Background Sync Engine**: Intelligent WorkManager pipeline (`SyncManager`) featuring `APPEND_OR_REPLACE` concurrency protection, exponential backoff, and Last-Write-Wins (LWW) conflict resolution.
 - 🎬 **Comprehensive Media Catalog**: Complete TMDB integration for trending feeds, multi-search, episode air dates, content certifications, cast details, and high-res imagery.
-- 📥 **Zero-Lockin Data Importers**: Seamlessly migrate your entire viewing history from **TV Time CSV** and **Trakt CSV/JSON** with background title matching and progress notifications.
+- 📥 **Zero-Lockin Data Importers & Lossless Backups**: Seamlessly migrate your entire viewing history, ratings, and reviews from **TV Time (GDPR/CSV)**, **Trakt (CSV/JSON)**, and **Letterboxd (ZIP/CSV)** with background title matching, conflict previews, and deterministic resolution. Includes full-fidelity versioned **Sequel Backup & Restore**.
 - 🎨 **Minimalistic Luxury & Micro-Engineered UI**: Custom interactive 3-chapter onboarding experience with gesture-driven showcase cards, live rating reflections, glowing pill indicators, and haptic feedback. Modern Material 3 dark-purple visual identity (`#A855F7`, `#03DAC6`, `#0F1115`), edge-to-edge Compose architecture, predictive back gestures, and ambient glassmorphic elevations.
 - 🔐 **Privacy by Design, Google Sign-In & RLS**: Streamlined Google Sign-In and email authentication with segmented tab switching. No advertising SDKs, no behavioral trackers, and no third-party telemetry. Cloud data is isolated at the PostgreSQL kernel level using Supabase Row-Level Security (RLS).
 - 🔗 **Deep-Link Authentication**: Built-in Google OAuth redirects, password reset, and magic link verification handled via custom intent filters (`sequel://login-callback`).
@@ -145,10 +145,13 @@ sequel://login-callback
 # Assemble and install debug build on connected device/emulator
 ./gradlew installDebug
 
-# Run unit tests (JVM, Robolectric, Turbine, Room in-memory)
+# Level 1: Run focused unit test class (micro-iteration)
+./gradlew testDebugUnitTest --tests "dev.sequel.app.domain.importer.gate.PerformanceAndCorrectnessGateTest"
+
+# Level 2: Run complete unit test suite (JVM, Robolectric, Turbine, Room in-memory)
 ./gradlew testDebugUnitTest
 
-# Run instrumentation tests (Compose UI, Hilt)
+# Level 2: Run instrumentation tests (Compose UI, Hilt)
 ./gradlew connectedDebugAndroidTest
 ```
 
@@ -189,10 +192,11 @@ Explore our comprehensive technical guides:
 - 🔄 [**Offline-First Sync Engine**](docs/SYNC_ENGINE.md) — WorkManager orchestration, `APPEND_OR_REPLACE` policy, and Last-Write-Wins conflict resolution.
 - 🗄️ [**Database Architecture & Schema**](docs/DATABASE_SCHEMA.md) — Room v17 schema, migration history (v1→v17), and copy-paste Supabase PostgreSQL DDL.
 - 🌐 [**API Integrations & Services**](docs/API_INTEGRATIONS.md) — TMDB API v3 endpoints, image CDN dimensions, Supabase PostgREST & GoTrue auth.
-- 📦 [**Data Portability & Import Pipelines**](docs/DATA_PORTABILITY_AND_IMPORTS.md) — TV Time CSV and Trakt export parsers with fuzzy title resolution.
+- 📦 [**Data Portability & Import Pipelines**](docs/DATA_PORTABILITY_AND_IMPORTS.md) — Multi-source parsers (TV Time, Trakt, Letterboxd, Sequel Backup v1), 10-stage ingestion pipeline, synthetic generator, and performance gates.
 
 ### Operations, Compliance & Governance
 - 🛠️ [**Developer Setup & Contributor Guide**](docs/SETUP_AND_CONTRIBUTING.md) — Development environment, coding standards, and PR workflows.
+- 🎨 [**Play Store Showcase & Screenshots**](docs/playstore_screenshots/README.md) — Ultra-minimalistic, luxury Play Store phone screenshots and Canva cloud assets.
 - 🚀 [**Release & Deployment Playbook**](docs/RELEASE_AND_DEPLOYMENT.md) — Automated keystore signing, ProGuard keep rules, and Play Store checklist.
 - 🔒 [**Security, Privacy & Data Governance**](docs/SECURITY_AND_PRIVACY.md) — Zero-tracking pledge, Supabase RLS, and GDPR Right to Erasure.
 - 📜 [**Privacy Policy Document**](docs/privacy.html) — Official standalone HTML privacy policy.

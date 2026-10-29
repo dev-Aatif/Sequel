@@ -25,7 +25,7 @@ import dev.sequel.app.domain.importer.resolver.ResolvedMediaRecord
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -439,7 +439,7 @@ class IdempotentImportAndRecoveryTest {
             callCount++
             when (callCount) {
                 1 -> {
-                    val errorBody = ResponseBody.create(null, "Rate limited")
+                    val errorBody = "Rate limited".toResponseBody(null)
                     val response = Response.error<TmdbPagedResponse<TmdbShowDto>>(429, errorBody)
                     throw HttpException(response)
                 }

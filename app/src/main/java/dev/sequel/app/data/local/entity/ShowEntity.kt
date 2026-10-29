@@ -20,7 +20,7 @@ data class ShowEntity(
     val title: String,
 
     @ColumnInfo(name = "overview")
-    val overview: String,
+    val overview: String = "",
 
     @ColumnInfo(name = "poster_path")
     val posterPath: String? = null,
@@ -36,7 +36,7 @@ data class ShowEntity(
     val firstAirDate: String? = null,
 
     @ColumnInfo(name = "vote_average")
-    val voteAverage: Double,
+    val voteAverage: Double = 0.0,
 
     /** Stored as JSON string, e.g. "[18,10765]" */
     @ColumnInfo(name = "genre_ids")

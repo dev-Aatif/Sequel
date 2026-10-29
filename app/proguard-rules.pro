@@ -54,6 +54,10 @@
 -dontwarn java.lang.management.**
 
 # ── Room ─────────────────────────────────────────────────────────────────
+# Keep RoomDatabase and generated _Impl classes
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class dev.sequel.app.data.local.SequelDatabase { *; }
+
 # Keep Entity classes (Room reflects on constructors and fields).
 -keep class dev.sequel.app.data.local.entity.** { *; }
 
@@ -68,14 +72,26 @@
 -keep class dev.sequel.app.data.sync.** extends androidx.work.ListenableWorker { *; }
 -keep class dev.sequel.app.data.worker.** extends androidx.work.ListenableWorker { *; }
 
-# ── API DTOs (TMDB / Supabase) ───────────────────────────────────────────
+# ── API & Domain DTOs (TMDB / Supabase / Backup / Importer) ───────────────
 # These data classes are deserialized from JSON; field names must survive.
 -keep class dev.sequel.app.data.remote.tmdb.dto.** { *; }
 -keep class dev.sequel.app.data.remote.supabase.dto.** { *; }
+-keep class dev.sequel.app.domain.backup.** { *; }
+-keep class dev.sequel.app.domain.importer.checkpoint.** { *; }
+-keep class dev.sequel.app.domain.importer.core.** { *; }
 
-# Catch-all for any *Dto class elsewhere under remote/.
+# Catch-all for any *Dto class elsewhere.
 -keep class dev.sequel.app.data.remote.supabase.**Dto { *; }
 -keep class dev.sequel.app.data.remote.tmdb.**Dto { *; }
+-keep class dev.sequel.app.**.*Dto { *; }
+
+# Generic keep rule for Kotlinx Serialization data classes across the app.
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable <fields>;
+}
+-keepclassmembers class * {
+    @kotlinx.serialization.SerialName <fields>;
+}
 
 # ── Enums used by Room / Serialization ───────────────────────────────────
 -keepclassmembers enum dev.sequel.app.data.local.entity.** {

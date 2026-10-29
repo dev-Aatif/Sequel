@@ -3,6 +3,8 @@ package dev.sequel.app.domain.export
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedEpisodeDao
 import dev.sequel.app.data.local.dao.WatchedMovieDao
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.ByteArrayOutputStream
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
@@ -12,6 +14,17 @@ import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Trakt Data Exporter.
+ *
+ * Produces a Trakt-compatible CSV watch history export:
+ * `Title,Year,Season,Episode,Type,WatchedAt`
+ *
+ * Destination Constraints & Lossy Behavior:
+ * - Trakt CSV watch history format strictly models chronological watch events.
+ * - Written reviews, 10-point ratings, watchlist items, and Mount Rushmore favorites
+ *   are not supported in this format and are omitted.
+ */
 @Singleton
 class TraktDataExporter @Inject constructor(
     private val showDao: ShowDao,
@@ -34,6 +47,7 @@ class TraktDataExporter @Inject constructor(
         // 1. Movies
         val movies = watchedMovieDao.getAllWatchedMovies()
         for (m in movies) {
+            currentCoroutineContext().ensureActive()
             val show = showDao.getShowById(m.tmdbMovieId, "movie")
             val year = show?.firstAirDate?.take(4) ?: ""
             val dateStr = isoFormat.format(m.watchedAt)
@@ -44,6 +58,7 @@ class TraktDataExporter @Inject constructor(
         // 2. Episodes
         val episodes = watchedEpisodeDao.getAllWatchedEpisodes()
         for (e in episodes) {
+            currentCoroutineContext().ensureActive()
             val show = showDao.getShowById(e.showId, "tv")
             val year = show?.firstAirDate?.take(4) ?: ""
             val dateStr = isoFormat.format(e.watchedAt)

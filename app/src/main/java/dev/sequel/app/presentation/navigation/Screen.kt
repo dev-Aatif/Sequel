@@ -16,6 +16,7 @@ sealed class Screen(val route: String) {
     data object Search : Screen("search")
     data object Watchlist : Screen("watchlist")
     data object Profile : Screen("profile")
+    data object CinephileDna : Screen("cinephile_dna")
 
     // ── Detail ────────────────────────────────────────────────────
     data object ShowDetail : Screen("show_detail/{showId}/{mediaType}") {

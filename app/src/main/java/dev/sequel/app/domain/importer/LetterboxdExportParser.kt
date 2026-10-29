@@ -212,7 +212,9 @@ class LetterboxdExportParser : MediaDataParser {
             if (title.isNotEmpty()) {
                 val year = if (yearIdx != -1) row.getOrNull(yearIdx)?.trim()?.toIntOrNull() else null
                 val uri = if (uriIdx != -1) row.getOrNull(uriIdx)?.trim() else null
-                val addedAt = if (dateIdx != -1) parseDate(row.getOrNull(dateIdx)?.trim()) ?: System.currentTimeMillis() else System.currentTimeMillis()
+                val dateStr = if (dateIdx != -1) row.getOrNull(dateIdx)?.trim() else null
+                val dateResult = ImportDateParser.parse(dateStr)
+                val addedAt = dateResult.epochMillis ?: System.currentTimeMillis()
 
                 list.add(
                     ImportedMediaItem(
@@ -221,6 +223,9 @@ class LetterboxdExportParser : MediaDataParser {
                         seasonNumber = null,
                         episodeNumber = null,
                         watchedAt = addedAt,
+                        watchDate = dateResult.dateOnlyString,
+                        rawDateString = dateStr,
+                        isDateOnly = dateResult.isDateOnly,
                         mediaType = "movie",
                         recordType = ImportRecordType.WATCHLIST,
                         externalId = uri,

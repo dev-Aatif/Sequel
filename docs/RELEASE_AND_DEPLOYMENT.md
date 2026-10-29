@@ -62,22 +62,33 @@ To prevent runtime serialization failures when obfuscated, the following rules p
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
 -keepclassmembers class * {
     @kotlinx.serialization.SerialName <fields>;
+    @kotlinx.serialization.Serializable <fields>;
     *** Companion;
 }
 -keep,allowobfuscation,allowshrinking class * {
     @kotlinx.serialization.Serializable class *;
 }
 
-# Preserve Room Database Entities and DAOs
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--keep @androidx.room.Dao interface * { *; }
+# Preserve Room Database and Generated Implementations
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class dev.sequel.app.data.local.SequelDatabase { *; }
+-keep class dev.sequel.app.data.local.entity.** { *; }
+-keep interface dev.sequel.app.data.local.dao.** { *; }
+-keep class dev.sequel.app.data.local.converter.** { *; }
 
-# Preserve Supabase PostgREST DTOs
+# Preserve Supabase PostgREST & Auth DTOs
 -keep class dev.sequel.app.data.remote.supabase.dto.** { *; }
+-keep class dev.sequel.app.data.remote.supabase.**Dto { *; }
 
 # Preserve TMDB Retrofit DTOs
 -keep class dev.sequel.app.data.remote.tmdb.dto.** { *; }
+-keep class dev.sequel.app.data.remote.tmdb.**Dto { *; }
+
+# Preserve Domain Backup, Import Checkpoint & Core Data Models
+-keep class dev.sequel.app.domain.backup.** { *; }
+-keep class dev.sequel.app.domain.importer.checkpoint.** { *; }
+-keep class dev.sequel.app.domain.importer.core.** { *; }
+-keep class dev.sequel.app.**.*Dto { *; }
 ```
 
 ---
@@ -108,11 +119,11 @@ For GitHub releases, internal testing, or sideloading:
 | ---- | ----------- | ---------------- | ------ |
 | 1 | **High-Res App Icon** | 512 × 512 PNG, 32-bit color, no transparency | `docs/assets/playstore_icon.png` |
 | 2 | **Feature Graphic** | 1024 × 500 PNG, 24-bit RGB | `docs/assets/playstore_feature_graphic.png` |
-| 3 | **Privacy Policy URL** | Live accessible HTTPS web URL | `https://dev-aatif.github.io/Sequel/privacy.html` |
-
-| 4 | **Target SDK** | Android 15 (API level 35) | `compileSdk = 35`, `targetSdk = 35` |
-| 5 | **Data Safety Form** | User library storage, email authentication, Crashlytics diagnostics | Fully documented in `docs/SECURITY_AND_PRIVACY.md` and `docs/privacy.html` |
-| 6 | **App Permissions** | `INTERNET`, `ACCESS_NETWORK_STATE`, `POST_NOTIFICATIONS` | Minimal runtime permissions |
+| 3 | **Phone Screenshots** | 1080 × 2400 PNG, 24-bit RGB (Min 4, Max 8) | `docs/assets/playstore_screenshots/` |
+| 4 | **Privacy Policy URL** | Live accessible HTTPS web URL | `https://dev-aatif.github.io/Sequel/privacy.html` |
+| 5 | **Target SDK** | Android 15 (API level 35) | `compileSdk = 35`, `targetSdk = 35` |
+| 6 | **Data Safety Form** | User library storage, email authentication, Crashlytics diagnostics | Fully documented in `docs/SECURITY_AND_PRIVACY.md` and `docs/privacy.html` |
+| 7 | **App Permissions** | `INTERNET`, `ACCESS_NETWORK_STATE`, `POST_NOTIFICATIONS` | Minimal runtime permissions |
 
 
 ---

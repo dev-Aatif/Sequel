@@ -223,10 +223,12 @@ Requirements:
 #### Acceptance Criteria
 - [x] Room watch history and reviews dynamically analyzed for top genre, top auteur, and controversial hot takes.
 - [x] Primary Obsession accurately maps highest watch-time genres to cultured cinephile tags (e.g. "Cyberpunk & Sci-Fi", "Prestige Drama").
-- [x] Top Auteur aggregated by watched titles count.
-- [x] Controversial Hot Takes detected when user rating deviates significantly from TMDB vote average.
-- [x] TasteIdentityCard renders cyberpunk luxury UI with `#161920` background, `#A855F7` neon accents, archetype badge, and "Share DNA" action button.
-- [x] Unit and Compose UI tests verify algorithmic calculation and UI rendering.
+- [x] Top Auteur aggregated by watched titles count with supporting titles breakdown and expanded ~170+ auteur catalog.
+- [x] Controversial Hot Takes detected when user rating deviates significantly from TMDB vote average with delta difference indicators.
+- [x] Dedicated sanctuary screen (`CinephileDnaScreen` / `Screen.CinephileDna`) declutters profile while providing full data authenticity transparency.
+- [x] Profile screen features compact `CinephileDnaBanner` entry point keeping Mount Rushmore prominent.
+- [x] Viral CTA share utility (`CinephileDnaShareUtil`) includes Google Play Store download call-to-action (`https://play.google.com/store/apps/details?id=dev.sequel.app`) to drive app discovery and downloads.
+- [x] Unit and Compose UI tests verify algorithmic calculation, share formatting, and UI rendering.
 
 #### Copy-Paste AI Agent Prompt
 ```text

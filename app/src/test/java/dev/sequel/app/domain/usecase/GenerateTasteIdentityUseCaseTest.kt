@@ -123,6 +123,8 @@ class GenerateTasteIdentityUseCaseTest {
 
         assertEquals("Denis Villeneuve", identity.topAuteur)
         assertEquals(3, identity.topAuteurWatchedCount)
+        assertEquals(listOf("Blade Runner 2049", "Dune", "Arrival"), identity.topAuteurTitles)
+        assertEquals(4, identity.totalTitlesWatched)
         assertEquals("Cyberpunk & Sci-Fi", identity.primaryObsession)
         assertEquals("Neon Auteurist", identity.archetype)
     }
@@ -207,5 +209,47 @@ class GenerateTasteIdentityUseCaseTest {
         assertEquals(0, identity.topAuteurWatchedCount)
         assertEquals(0, identity.totalHoursLogged)
         assertTrue(identity.controversialTakes.isEmpty())
+        assertTrue(identity.topAuteurTitles.isEmpty())
+        assertEquals(0, identity.totalTitlesWatched)
+    }
+
+    @Test
+    fun calculate_resolvesExpandedKnownDirectors() {
+        val records = listOf(
+            TasteWatchRecord(
+                mediaId = 501,
+                mediaType = "movie",
+                title = "The Prestige",
+                genres = listOf("Drama", "Mystery"),
+                runtimeMinutes = 130,
+                watchCount = 1
+            ),
+            TasteWatchRecord(
+                mediaId = 502,
+                mediaType = "movie",
+                title = "Whiplash",
+                genres = listOf("Drama", "Music"),
+                runtimeMinutes = 107,
+                watchCount = 1
+            ),
+            TasteWatchRecord(
+                mediaId = 503,
+                mediaType = "movie",
+                title = "No Country for Old Men",
+                genres = listOf("Crime", "Drama", "Thriller"),
+                runtimeMinutes = 122,
+                watchCount = 1
+            )
+        )
+
+        val identity = useCase.calculate(
+            email = "cinephile@sequel.dev",
+            records = records
+        )
+
+        assertEquals(3, identity.totalTitlesWatched)
+        assertTrue(identity.topAuteur in listOf("Christopher Nolan", "Damien Chazelle", "Joel and Ethan Coen"))
+        assertEquals(1, identity.topAuteurWatchedCount)
+        assertTrue(identity.topAuteurTitles.isNotEmpty())
     }
 }

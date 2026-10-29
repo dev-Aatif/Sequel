@@ -9,7 +9,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
+import dev.sequel.app.presentation.theme.SequelTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,5 +42,13 @@ fun PrivacyPolicyScreen(
                 }
             }
         )
+    }
+}
+
+@Preview(name = "Privacy Policy Screen", showBackground = true)
+@Composable
+fun PrivacyPolicyScreenPreview() {
+    SequelTheme {
+        PrivacyPolicyScreen(onNavigateBack = {})
     }
 }

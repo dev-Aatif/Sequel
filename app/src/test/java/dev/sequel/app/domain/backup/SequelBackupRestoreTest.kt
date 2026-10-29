@@ -7,6 +7,9 @@ import androidx.test.core.app.ApplicationProvider
 import dev.sequel.app.data.local.SequelDatabase
 import dev.sequel.app.data.local.dao.*
 import dev.sequel.app.data.local.entity.*
+import dev.sequel.app.domain.export.ExportDestination
+import dev.sequel.app.domain.export.LetterboxdDataExporter
+import dev.sequel.app.domain.export.TraktDataExporter
 import dev.sequel.app.domain.importer.ImportRecordType
 import dev.sequel.app.domain.importer.SequelBackupParser
 import dev.sequel.app.domain.importer.archive.ZipArchiveExtractor
@@ -14,15 +17,22 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.ByteArrayInputStream
+import java.io.File
+import java.util.zip.ZipInputStream
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class SequelBackupRestoreTest {
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
 
     private lateinit var database: SequelDatabase
     private lateinit var showDao: ShowDao
@@ -32,8 +42,13 @@ class SequelBackupRestoreTest {
     private lateinit var reviewDao: ReviewDao
     private lateinit var mountRushmoreDao: MountRushmoreDao
 
+    private lateinit var backupValidator: BackupValidator
+    private lateinit var backupMigrator: BackupMigrator
     private lateinit var backupService: SequelBackupService
     private lateinit var backupParser: SequelBackupParser
+
+    private lateinit var letterboxdExporter: LetterboxdDataExporter
+    private lateinit var traktExporter: TraktDataExporter
 
     @Before
     fun setUp() {
@@ -49,6 +64,9 @@ class SequelBackupRestoreTest {
         reviewDao = database.reviewDao()
         mountRushmoreDao = database.mountRushmoreDao()
 
+        backupValidator = BackupValidator()
+        backupMigrator = BackupMigrator()
+
         backupService = SequelBackupService(
             database = database,
             showDao = showDao,
@@ -56,10 +74,25 @@ class SequelBackupRestoreTest {
             watchedEpisodeDao = watchedEpisodeDao,
             watchlistDao = watchlistDao,
             reviewDao = reviewDao,
-            mountRushmoreDao = mountRushmoreDao
+            mountRushmoreDao = mountRushmoreDao,
+            backupValidator = backupValidator,
+            backupMigrator = backupMigrator
         )
 
         backupParser = SequelBackupParser()
+
+        letterboxdExporter = LetterboxdDataExporter(
+            showDao = showDao,
+            watchedMovieDao = watchedMovieDao,
+            watchlistDao = watchlistDao,
+            reviewDao = reviewDao
+        )
+
+        traktExporter = TraktDataExporter(
+            showDao = showDao,
+            watchedMovieDao = watchedMovieDao,
+            watchedEpisodeDao = watchedEpisodeDao
+        )
     }
 
     @After
@@ -212,16 +245,324 @@ class SequelBackupRestoreTest {
         assertTrue(parsedItems.any { it.title == "Severance" && it.recordType == ImportRecordType.WATCHED })
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun restoreInvalidJson_throwsIllegalArgumentException() = runBlocking {
-        backupService.restoreJsonBackup("{ not valid json }")
-        Unit
+    @Test
+    fun restoreWithCleanMode_wipesExistingDataBeforeRestoring() = runBlocking {
+        // Pre-seed an existing movie
+        watchedMovieDao.upsertWatchedMovie(
+            movieId = 999,
+            title = "Existing Old Movie",
+            posterPath = null,
+            watchedAt = 1000L
+        )
+        assertEquals(1, watchedMovieDao.getAllWatchedMovies().size)
+
+        val backupJson = """
+        {
+            "schemaVersion": 1,
+            "exportedAt": 1690000000000,
+            "appVersion": "1.0.0",
+            "shows": [
+                {
+                    "id": 100,
+                    "title": "New Movie",
+                    "mediaType": "movie"
+                }
+            ],
+            "watchedMovies": [
+                {
+                    "tmdbMovieId": 100,
+                    "title": "New Movie",
+                    "watchedAt": 2000
+                }
+            ]
+        }
+        """.trimIndent()
+
+        // Restore with REPLACE_CLEAN
+        val result = backupService.restoreJsonBackup(backupJson, mode = RestoreMode.REPLACE_CLEAN)
+        assertEquals(1, result.moviesCount)
+
+        val currentMovies = watchedMovieDao.getAllWatchedMovies()
+        assertEquals(1, currentMovies.size)
+        assertEquals(100, currentMovies.first().tmdbMovieId)
+        assertEquals("New Movie", currentMovies.first().title)
+        assertFalse(currentMovies.any { it.tmdbMovieId == 999 })
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun restoreFutureSchemaVersion_throwsIllegalArgumentException() = runBlocking {
+    @Test
+    fun restoreWithMergeMode_preservesNonConflictingExistingData() = runBlocking {
+        // Pre-seed an existing movie
+        watchedMovieDao.upsertWatchedMovie(
+            movieId = 999,
+            title = "Existing Movie",
+            posterPath = null,
+            watchedAt = 1000L
+        )
+
+        val backupJson = """
+        {
+            "schemaVersion": 1,
+            "exportedAt": 1690000000000,
+            "appVersion": "1.0.0",
+            "shows": [
+                {
+                    "id": 100,
+                    "title": "Added Movie",
+                    "mediaType": "movie"
+                }
+            ],
+            "watchedMovies": [
+                {
+                    "tmdbMovieId": 100,
+                    "title": "Added Movie",
+                    "watchedAt": 2000
+                }
+            ]
+        }
+        """.trimIndent()
+
+        // Restore with MERGE_EXISTING (default)
+        val result = backupService.restoreJsonBackup(backupJson, mode = RestoreMode.MERGE_EXISTING)
+        assertEquals(1, result.moviesCount)
+
+        val currentMovies = watchedMovieDao.getAllWatchedMovies()
+        assertEquals(2, currentMovies.size)
+        assertTrue(currentMovies.any { it.tmdbMovieId == 999 && it.title == "Existing Movie" })
+        assertTrue(currentMovies.any { it.tmdbMovieId == 100 && it.title == "Added Movie" })
+    }
+
+    @Test
+    fun restoreCorruptEntities_failsPreRestorationValidation() = runBlocking {
+        // Invalid rating: 15.0f (must be 0.5..10.0)
+        val invalidRatingBackup = """
+        {
+            "schemaVersion": 1,
+            "exportedAt": 1690000000000,
+            "shows": [{"id": 100, "title": "Test Show", "mediaType": "tv"}],
+            "reviews": [
+                {
+                    "mediaId": 100,
+                    "mediaType": "tv",
+                    "rating": 15.0
+                }
+            ]
+        }
+        """.trimIndent()
+
+        try {
+            backupService.restoreJsonBackup(invalidRatingBackup)
+            fail("Should have thrown IllegalArgumentException due to invalid rating")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("out-of-range rating") == true)
+        }
+
+        // Invalid Mount Rushmore slot: 5 (must be 0..3)
+        val invalidRushmoreBackup = """
+        {
+            "schemaVersion": 1,
+            "exportedAt": 1690000000000,
+            "mountRushmore": [
+                {
+                    "slotIndex": 5,
+                    "mediaId": 100,
+                    "mediaType": "movie",
+                    "title": "Test"
+                }
+            ]
+        }
+        """.trimIndent()
+
+        try {
+            backupService.restoreJsonBackup(invalidRushmoreBackup)
+            fail("Should have thrown IllegalArgumentException due to invalid slotIndex")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("invalid slotIndex") == true)
+        }
+    }
+
+    @Test
+    fun restoreFutureSchemaVersion_throwsActionableError() = runBlocking {
         val futureJson = """{"schemaVersion": 999, "exportedAt": 12345}"""
-        backupService.restoreJsonBackup(futureJson)
-        Unit
+        try {
+            backupService.restoreJsonBackup(futureJson)
+            fail("Should have thrown IllegalArgumentException for future schema version")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("is newer than current supported version") == true)
+        }
+    }
+
+    @Test
+    fun restoreInvalidJson_throwsDescriptiveIllegalArgumentException() = runBlocking {
+        try {
+            backupService.restoreJsonBackup("{ not valid json }")
+            fail("Should have thrown IllegalArgumentException for malformed json")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("Malformed JSON") == true || e.message?.contains("Invalid Sequel backup") == true)
+        }
+    }
+
+    @Test
+    fun restoreV0UnversionedBackup_migratesSuccessfullyToV1() = runBlocking {
+        // v0 unversioned backup (missing schemaVersion, legacy 5-star rating)
+        val legacyV0Json = """
+        {
+            "shows": [
+                {
+                    "id": 550,
+                    "title": "Fight Club",
+                    "mediaType": "movie"
+                }
+            ],
+            "reviews": [
+                {
+                    "mediaId": 550,
+                    "mediaType": "movie",
+                    "rating": 4.5,
+                    "originalRatingScale": 5.0
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val result = backupService.restoreJsonBackup(legacyV0Json, mode = RestoreMode.REPLACE_CLEAN)
+        assertEquals(1, result.showsCount)
+        assertEquals(1, result.reviewsCount)
+
+        val restoredReview = reviewDao.getAllReviews().firstOrNull()
+        assertNotNull(restoredReview)
+        assertEquals(550, restoredReview?.mediaId)
+        // 4.5 on 5.0 scale scaled to 9.0 on 10.0 scale
+        assertEquals(9.0f, restoredReview?.rating ?: 0f, 0.01f)
+    }
+
+    @Test
+    fun atomicRollback_onRestoreFailure_leavesExistingDatabaseUntouched() = runBlocking {
+        // 1. Pre-seed database
+        val originalShow = ShowEntity(
+            id = 50,
+            title = "Original Show",
+            mediaType = "tv"
+        )
+        showDao.insertShow(originalShow)
+
+        watchedMovieDao.upsertWatchedMovie(
+            movieId = 500,
+            title = "Original Movie",
+            posterPath = null,
+            watchedAt = 5000L
+        )
+
+        // 2. Prepare backup with valid show and watched movie, but failing entity that triggers DB constraint violation or exception
+        // E.g. Watched episode referencing non-existent show under strict FK
+        val corruptBackupJson = """
+        {
+            "schemaVersion": 1,
+            "exportedAt": 1690000000000,
+            "shows": [
+                {"id": 1, "title": "Valid Show", "mediaType": "tv"}
+            ],
+            "watchedEpisodes": [
+                {
+                    "showId": 99999,
+                    "tmdbEpisodeId": 1234,
+                    "seasonNumber": 1,
+                    "episodeNumber": 1,
+                    "watchedAt": 1000
+                }
+            ]
+        }
+        """.trimIndent()
+
+        try {
+            backupService.restoreJsonBackup(corruptBackupJson, mode = RestoreMode.REPLACE_CLEAN)
+            fail("Expected restore to fail due to foreign key constraint")
+        } catch (e: Exception) {
+            // Expected failure (FOREIGN KEY constraint)
+        }
+
+        // 3. Verify that atomic rollback kept original data intact despite REPLACE_CLEAN
+        val currentMovies = watchedMovieDao.getAllWatchedMovies()
+        assertEquals(1, currentMovies.size)
+        assertEquals(500, currentMovies.first().tmdbMovieId)
+        assertEquals("Original Movie", currentMovies.first().title)
+
+        val currentShows = showDao.getAllShows()
+        assertEquals(1, currentShows.size)
+        assertEquals(50, currentShows.first().id)
+    }
+
+    @Test
+    fun exportJsonBackupToFile_stagesToTempFile_andCleansUpOnFailure() = runBlocking {
+        val targetFile = File(tempFolder.root, "test_backup.json")
+        val exported = backupService.exportJsonBackupToFile(targetFile)
+
+        assertTrue(exported.exists())
+        assertEquals(targetFile.absolutePath, exported.absolutePath)
+        assertTrue(exported.length() > 0)
+
+        // Verify no leftover .tmp files
+        val tmpFiles = tempFolder.root.listFiles { _, name -> name.endsWith(".tmp") } ?: emptyArray()
+        assertEquals(0, tmpFiles.size)
+    }
+
+    @Test
+    fun exportJsonBackup_containsNoSecretsOrUserAccountData() = runBlocking {
+        showDao.insertShow(ShowEntity(id = 10, title = "Test", mediaType = "movie"))
+        watchedMovieDao.upsertWatchedMovie(movieId = 10, title = "Test", posterPath = null, watchedAt = 1000L)
+
+        val json = backupService.exportJsonBackup()
+
+        // Audit for sensitive patterns
+        val forbiddenKeys = listOf(
+            "access_token",
+            "refresh_token",
+            "client_secret",
+            "password",
+            "supabase_id",
+            "user_id"
+        )
+        for (forbidden in forbiddenKeys) {
+            assertFalse("Export should not contain '$forbidden'", json.contains("\"$forbidden\""))
+        }
+    }
+
+    @Test
+    fun destinationExporters_letterboxdAndTrakt_produceExpectedFormats() = runBlocking {
+        // Seed movie and episode
+        showDao.insertShow(ShowEntity(id = 101, title = "Oppenheimer", firstAirDate = "2023-07-21", mediaType = "movie"))
+        watchedMovieDao.upsertWatchedMovie(movieId = 101, title = "Oppenheimer", posterPath = null, watchedAt = 1690000000000L)
+        reviewDao.upsertRating(mediaId = 101, mediaType = "movie", seasonNum = null, episodeNum = null, rating = 9.0f)
+
+        showDao.insertShow(ShowEntity(id = 202, title = "Succession", firstAirDate = "2018-06-03", mediaType = "tv"))
+        watchedEpisodeDao.upsertWatchedEpisode(showId = 202, tmdbEpisodeId = 999, seasonNumber = 4, episodeNumber = 10, watchedAt = 1690005000000L)
+
+        // 1. Test Letterboxd export
+        val letterboxdPackage = letterboxdExporter.export()
+        assertEquals(ExportDestination.LETTERBOXD_ZIP, letterboxdPackage.destination)
+        assertTrue(letterboxdPackage.suggestedFileName.endsWith(".zip"))
+
+        // Verify Letterboxd ZIP contents
+        val entries = mutableListOf<String>()
+        ZipInputStream(ByteArrayInputStream(letterboxdPackage.bytes)).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                entries.add(entry.name)
+                entry = zip.nextEntry
+            }
+        }
+        assertTrue(entries.contains("watched.csv"))
+        assertTrue(entries.contains("ratings.csv"))
+        assertTrue(entries.contains("reviews.csv"))
+        assertTrue(entries.contains("watchlist.csv"))
+
+        // 2. Test Trakt export
+        val traktPackage = traktExporter.export()
+        assertEquals(ExportDestination.TRAKT_CSV, traktPackage.destination)
+        assertTrue(traktPackage.suggestedFileName.endsWith(".csv"))
+
+        val traktCsvString = String(traktPackage.bytes, Charsets.UTF_8)
+        assertTrue(traktCsvString.startsWith("Title,Year,Season,Episode,Type,WatchedAt"))
+        assertTrue(traktCsvString.contains("Oppenheimer,2023,,,movie,"))
+        assertTrue(traktCsvString.contains("Succession,2018,4,10,episode,"))
     }
 }

@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sequel.app.domain.model.ControversialTake
 import dev.sequel.app.domain.model.TasteIdentity
+import dev.sequel.app.domain.model.getArchetypeDescription
 import dev.sequel.app.presentation.util.TestTags
 
 /**
@@ -159,7 +160,55 @@ fun TasteIdentityCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Archetype Narrative Summary
+            Text(
+                text = getArchetypeDescription(identity.archetype),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFA1A1AA),
+                lineHeight = 16.sp
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ── Real Data Verification Badge ──────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(neonPurple.copy(alpha = 0.08f))
+                    .border(
+                        width = 1.dp,
+                        color = neonPurple.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .testTag(TestTags.TEXT_DNA_REAL_DATA_BADGE),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = neonPurple,
+                    modifier = Modifier.size(12.dp)
+                )
+                Text(
+                    text = if (identity.totalTitlesWatched > 0) {
+                        "⚡ 100% Real On-Device History • Synthesized from ${identity.totalTitlesWatched} logged titles"
+                    } else {
+                        "⚡ 100% Real On-Device History • Derived from local watch database"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFD8B4FE),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // ── Metrics Grid (Primary Obsession, Top Auteur, Hours Logged) ──
             Row(
@@ -178,11 +227,16 @@ fun TasteIdentityCard(
                 )
 
                 // Top Auteur
+                val auteurSubtitle = when {
+                    identity.topAuteurTitles.isNotEmpty() -> "${identity.topAuteurWatchedCount} logged • ${identity.topAuteurTitles.take(2).joinToString(", ")}"
+                    identity.topAuteurWatchedCount > 0 -> "${identity.topAuteurWatchedCount} logged"
+                    else -> "Diverse"
+                }
                 TasteMetricBox(
                     modifier = Modifier.weight(1f),
                     label = "TOP AUTEUR",
                     value = identity.topAuteur,
-                    subtitle = if (identity.topAuteurWatchedCount > 0) "${identity.topAuteurWatchedCount} logged" else "Diverse",
+                    subtitle = auteurSubtitle,
                     icon = Icons.Default.Person,
                     accentColor = neonIndigo,
                     valueTestTag = TestTags.TEXT_TASTE_TOP_AUTEUR
@@ -381,8 +435,9 @@ private fun HotTakeItem(take: ControversialTake) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val delta = String.format(java.util.Locale.US, "%+.1f", take.userRating - take.criticRating)
             Text(
-                text = if (take.isHotTake) "Defended vs Consensus" else "Rejected Consensus Hype",
+                text = if (take.isHotTake) "Defended vs Consensus ($delta pts)" else "Rejected Consensus Hype ($delta pts)",
                 style = MaterialTheme.typography.labelSmall,
                 color = if (take.isHotTake) Color(0xFF34D399) else Color(0xFFF87171),
                 fontWeight = FontWeight.SemiBold

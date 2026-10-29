@@ -71,6 +71,12 @@ object TestTags {
     const val TEXT_TASTE_PRIMARY_OBSESSION = "text_taste_primary_obsession"
     const val TEXT_TASTE_TOP_AUTEUR = "text_taste_top_auteur"
     const val TEXT_TASTE_HOURS = "text_taste_hours"
+    const val BANNER_CINEPHILE_DNA = "banner_cinephile_dna"
+    const val SCREEN_CINEPHILE_DNA = "screen_cinephile_dna"
+    const val BTN_DNA_DATA_INFO = "btn_dna_data_info"
+    const val SHEET_DNA_DATA_INFO = "sheet_dna_data_info"
+    const val TEXT_DNA_AUTEUR_TITLES = "text_dna_auteur_titles"
+    const val TEXT_DNA_REAL_DATA_BADGE = "text_dna_real_data_badge"
 
     // ── Red Pill Rating (Task 05) ────────────────────────────────────────
     const val SHEET_RATING = "sheet_rating"

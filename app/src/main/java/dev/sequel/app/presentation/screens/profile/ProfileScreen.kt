@@ -43,7 +43,7 @@ import dev.sequel.app.presentation.util.TestTags
 import android.annotation.SuppressLint
 import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
-import dev.sequel.app.presentation.screens.profile.components.TasteIdentityCard
+import dev.sequel.app.presentation.screens.profile.components.CinephileDnaBanner
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +52,7 @@ fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToImport: () -> Unit,
+    onNavigateToCinephileDna: () -> Unit = {},
     onMediaClick: (showId: Int, mediaType: String) -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -86,33 +87,6 @@ fun ProfileScreen(
                 )
             }
 
-            uiState.tasteIdentity?.let { identity ->
-                item {
-                    TasteIdentityCard(
-                        identity = identity,
-                        onShareClick = { dna ->
-                            val sendIntent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    buildString {
-                                        appendLine("🧬 CINEPHILE DNA (${dna.handle})")
-                                        appendLine("Archetype: ${dna.archetype}")
-                                        appendLine("Primary Obsession: ${dna.primaryObsession} (${dna.primaryObsessionHours}h)")
-                                        appendLine("Top Auteur: ${dna.topAuteur}")
-                                        appendLine("Total Watch Time: ${dna.totalHoursLogged} hrs logged")
-                                        appendLine("Tracked on Sequel 💊")
-                                    }
-                                )
-                                type = "text/plain"
-                            }
-                            val shareIntent = Intent.createChooser(sendIntent, "Share Cinephile DNA")
-                            context.startActivity(shareIntent)
-                        }
-                    )
-                }
-            }
-
             item {
                 MountRushmoreSection(
                     slots = uiState.mountRushmore,
@@ -130,6 +104,13 @@ fun ProfileScreen(
                     watchTime = uiState.watchTimeFormatted,
                     episodes = uiState.totalEpisodesWatched,
                     movies = uiState.totalMoviesWatched
+                )
+            }
+
+            item {
+                CinephileDnaBanner(
+                    identity = uiState.tasteIdentity,
+                    onClick = onNavigateToCinephileDna
                 )
             }
 

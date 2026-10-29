@@ -209,11 +209,14 @@ When viewing another user's profile, Sequel dynamically calculates a **Taste Com
   3. Alignment of Mount Rushmore genres and director affinities.
 * **Display Banner:** `🔥 84% Taste Match with @alex — You both crowned 14 titles "Absolute Cinema".`
 
-### 5.4 Taste Identity Card
-An automated, algorithmic persona dossier generated from local Room DB history:
-* **Primary Obsession:** Algorithmic cluster (e.g., *"90s Neo-Noir & Cyberpunk (38 titles logged)"*).
-* **Top Auteur / Showrunner:** Most-watched director with catalog completion rate (e.g., *"Denis Villeneuve — 92% Watched"*).
-* **Controversial Hot Takes:** Highlights movies where the user rated $\ge 8.5$ ("Absolute Cinema") while community consensus was $\le 6.0$ ("Mid"), and vice versa.
+### 5.4 Taste Identity Card & Cinephile DNA Sanctuary
+An automated, algorithmic persona dossier generated deterministically from local Room DB history:
+* **Dedicated Sanctuary Screen (`Screen.CinephileDna`):** Uncrowds the main profile feed by providing a dedicated, edge-to-edge cinematic destination accessed via a sleek profile entry banner (`CinephileDnaBanner`).
+* **Data Authenticity & Transparency:** 100% on-device synthesis computed from `watched_movies`, `watched_episodes`, and user `reviews` without telemetry or simulated data. Displays contributing titles and exact metric sources.
+* **Primary Obsession:** Algorithmic cluster based on exact runtime minutes logged per genre (e.g., *"Cyberpunk & Sci-Fi (48h logged)"*).
+* **Top Auteur / Showrunner:** Most-watched director with contributing titles breakdown (e.g., *"Denis Villeneuve • 3 titles logged (Dune, Blade Runner 2049, Arrival)"*).
+* **Controversial Hot Takes:** Highlights movies where the user's Red Pill score diverges by $\ge 2.0$ points from the global TMDB consensus, showing explicit divergence deltas.
+* **Viral CTA Sharing (`CinephileDnaShareUtil`):** Generates viral share cards with rich metadata, hot takes, and a direct Google Play Store CTA (`https://play.google.com/store/apps/details?id=dev.sequel.app`) asking users to try out and download the app.
 
 ### 5.5 Social Profiles & Customization
 * **Public Profile Components:** Custom handle (`@username`), bio, avatar, profile banner, VIP badges, and custom theme accent color.

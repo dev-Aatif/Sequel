@@ -5,10 +5,13 @@ import dev.sequel.app.data.local.SequelDatabase
 import dev.sequel.app.data.local.dao.*
 import dev.sequel.app.data.local.entity.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.util.zip.ZipEntry
@@ -24,7 +27,9 @@ class SequelBackupService @Inject constructor(
     private val watchedEpisodeDao: WatchedEpisodeDao,
     private val watchlistDao: WatchlistDao,
     private val reviewDao: ReviewDao,
-    private val mountRushmoreDao: MountRushmoreDao
+    private val mountRushmoreDao: MountRushmoreDao,
+    private val backupValidator: BackupValidator = BackupValidator(),
+    private val backupMigrator: BackupMigrator = BackupMigrator()
 ) {
 
     private val json = Json {
@@ -36,9 +41,12 @@ class SequelBackupService @Inject constructor(
 
     /**
      * Generates a complete, schema-versioned JSON backup of all local Sequel user data.
+     * Backups contain zero secrets, access tokens, passwords, or remote user UUIDs.
+     * Supports cooperative coroutine cancellation.
      */
     suspend fun exportJsonBackup(): String = withContext(Dispatchers.IO) {
         val shows = showDao.getAllShows().map { s ->
+            currentCoroutineContext().ensureActive()
             ShowBackupDto(
                 id = s.id,
                 title = s.title,
@@ -60,6 +68,7 @@ class SequelBackupService @Inject constructor(
         }
 
         val watchedMovies = watchedMovieDao.getAllWatchedMovies().map { m ->
+            currentCoroutineContext().ensureActive()
             WatchedMovieBackupDto(
                 tmdbMovieId = m.tmdbMovieId,
                 title = m.title,
@@ -70,6 +79,7 @@ class SequelBackupService @Inject constructor(
         }
 
         val watchedEpisodes = watchedEpisodeDao.getAllWatchedEpisodes().map { e ->
+            currentCoroutineContext().ensureActive()
             WatchedEpisodeBackupDto(
                 showId = e.showId,
                 mediaType = e.mediaType.name.lowercase(),
@@ -83,6 +93,7 @@ class SequelBackupService @Inject constructor(
         }
 
         val watchlist = watchlistDao.getAllWatchlist().map { w ->
+            currentCoroutineContext().ensureActive()
             WatchlistBackupDto(
                 tmdbId = w.tmdbId,
                 mediaType = w.mediaType.name.lowercase(),
@@ -93,6 +104,7 @@ class SequelBackupService @Inject constructor(
         }
 
         val reviews = reviewDao.getAllReviews().map { r ->
+            currentCoroutineContext().ensureActive()
             ReviewBackupDto(
                 mediaId = r.mediaId,
                 mediaType = r.mediaType,
@@ -103,11 +115,14 @@ class SequelBackupService @Inject constructor(
                 isSpoiler = r.isSpoiler,
                 isRatingOnly = r.isRatingOnly,
                 createdAt = r.createdAt,
-                updatedAt = r.updatedAt
+                updatedAt = r.updatedAt,
+                originalRating = r.rating,
+                originalRatingScale = 10.0f
             )
         }
 
         val rushmore = mountRushmoreDao.getAllSlots().map { m ->
+            currentCoroutineContext().ensureActive()
             MountRushmoreBackupDto(
                 slotIndex = m.slotIndex,
                 mediaId = m.mediaId,
@@ -136,6 +151,40 @@ class SequelBackupService @Inject constructor(
     }
 
     /**
+     * Safely exports backup JSON to a file by writing to a temporary file first (.tmp)
+     * and atomically renaming on completion. In case of failure or cancellation,
+     * the temporary file is deleted so corrupt/incomplete files are never exposed.
+     */
+    suspend fun exportJsonBackupToFile(targetFile: File): File = withContext(Dispatchers.IO) {
+        val parentDir = targetFile.parentFile ?: File(".")
+        if (!parentDir.exists()) {
+            parentDir.mkdirs()
+        }
+        val tempFile = File(parentDir, "${targetFile.name}.${System.currentTimeMillis()}.tmp")
+        try {
+            val jsonContent = exportJsonBackup()
+            tempFile.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
+                writer.write(jsonContent)
+                writer.flush()
+            }
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+            val renamed = tempFile.renameTo(targetFile)
+            if (!renamed) {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
+            }
+            targetFile
+        } catch (e: Exception) {
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            throw e
+        }
+    }
+
+    /**
      * Generates a ZIP archive containing standard CSV exports for interoperability
      * with spreadsheets, Trakt, and Letterboxd.
      */
@@ -147,6 +196,7 @@ class SequelBackupService @Inject constructor(
             val movieWriter = OutputStreamWriter(zip, StandardCharsets.UTF_8)
             movieWriter.write("tmdb_id,title,watched_at\n")
             watchedMovieDao.getAllWatchedMovies().forEach { m ->
+                currentCoroutineContext().ensureActive()
                 val escapedTitle = escapeCsv(m.title)
                 movieWriter.write("${m.tmdbMovieId},$escapedTitle,${m.watchedAt}\n")
             }
@@ -158,6 +208,7 @@ class SequelBackupService @Inject constructor(
             val epWriter = OutputStreamWriter(zip, StandardCharsets.UTF_8)
             epWriter.write("show_id,season_number,episode_number,tmdb_episode_id,watched_at,is_skipped\n")
             watchedEpisodeDao.getAllWatchedEpisodes().forEach { e ->
+                currentCoroutineContext().ensureActive()
                 epWriter.write("${e.showId},${e.seasonNumber},${e.episodeNumber},${e.tmdbEpisodeId},${e.watchedAt},${if (e.isSkipped) 1 else 0}\n")
             }
             epWriter.flush()
@@ -168,6 +219,7 @@ class SequelBackupService @Inject constructor(
             val wlWriter = OutputStreamWriter(zip, StandardCharsets.UTF_8)
             wlWriter.write("tmdb_id,media_type,title,added_at\n")
             watchlistDao.getAllWatchlist().forEach { w ->
+                currentCoroutineContext().ensureActive()
                 val escapedTitle = escapeCsv(w.title)
                 wlWriter.write("${w.tmdbId},${w.mediaType.name.lowercase()},$escapedTitle,${w.addedAt}\n")
             }
@@ -179,6 +231,7 @@ class SequelBackupService @Inject constructor(
             val revWriter = OutputStreamWriter(zip, StandardCharsets.UTF_8)
             revWriter.write("media_id,media_type,season_number,episode_number,rating,review,is_spoiler,updated_at\n")
             reviewDao.getAllReviews().forEach { r ->
+                currentCoroutineContext().ensureActive()
                 val escapedReview = escapeCsv(r.reviewText ?: "")
                 val spoilerInt = if (r.isSpoiler) 1 else 0
                 revWriter.write("${r.mediaId},${r.mediaType},${r.seasonNum ?: ""},${r.episodeNum ?: ""},${r.rating ?: ""},$escapedReview,$spoilerInt,${r.updatedAt}\n")
@@ -190,17 +243,60 @@ class SequelBackupService @Inject constructor(
     }
 
     /**
-     * Restores user data from a versioned Sequel JSON backup into Room within a clean transaction.
+     * Safely exports CSV ZIP to a file using temporary file staging.
      */
-    suspend fun restoreJsonBackup(jsonString: String): BackupRestoreResult = withContext(Dispatchers.IO) {
-        val backup = try {
-            json.decodeFromString<SequelBackupModel>(jsonString)
+    suspend fun exportCsvZipToFile(targetFile: File): File = withContext(Dispatchers.IO) {
+        val parentDir = targetFile.parentFile ?: File(".")
+        if (!parentDir.exists()) {
+            parentDir.mkdirs()
+        }
+        val tempFile = File(parentDir, "${targetFile.name}.${System.currentTimeMillis()}.tmp")
+        try {
+            val zipBytes = exportCsvZip()
+            tempFile.outputStream().use { stream ->
+                stream.write(zipBytes)
+                stream.flush()
+            }
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+            val renamed = tempFile.renameTo(targetFile)
+            if (!renamed) {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
+            }
+            targetFile
         } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid Sequel backup format: ${e.message}")
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            throw e
+        }
+    }
+
+    /**
+     * Restores user data from a versioned Sequel JSON backup into Room within a clean transaction.
+     * Validates schema version and entity contracts before modifying the database.
+     * Supports [RestoreMode.REPLACE_CLEAN] (full replace) and [RestoreMode.MERGE_EXISTING] (additive merge).
+     * Automatically rolls back on any transaction failure.
+     */
+    suspend fun restoreJsonBackup(
+        jsonString: String,
+        mode: RestoreMode = RestoreMode.MERGE_EXISTING
+    ): BackupRestoreResult = withContext(Dispatchers.IO) {
+        // 1. Migrate raw JSON to CURRENT_SCHEMA_VERSION if legacy
+        val migratedJson = backupMigrator.migrate(jsonString)
+
+        // 2. Validate JSON syntax and structure before executing DB changes
+        val validationReport = backupValidator.validateJson(migratedJson)
+        if (!validationReport.isValid) {
+            throw IllegalArgumentException("Backup validation failed: ${validationReport.errors.joinToString("; ")}")
         }
 
-        if (backup.schemaVersion > SequelBackupModel.CURRENT_SCHEMA_VERSION) {
-            throw IllegalArgumentException("Backup was created with a newer version of Sequel (Schema v${backup.schemaVersion}). Please update Sequel to restore this file.")
+        val backup = try {
+            json.decodeFromString<SequelBackupModel>(migratedJson)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid Sequel backup format: ${e.message}")
         }
 
         var showsCount = 0
@@ -211,6 +307,16 @@ class SequelBackupService @Inject constructor(
         var rushmoreCount = 0
 
         database.withTransaction {
+            if (mode == RestoreMode.REPLACE_CLEAN) {
+                val db = database.openHelper.writableDatabase
+                db.execSQL("DELETE FROM mount_rushmore")
+                db.execSQL("DELETE FROM reviews")
+                db.execSQL("DELETE FROM watchlist")
+                db.execSQL("DELETE FROM watched_episodes")
+                db.execSQL("DELETE FROM watched_movies")
+                db.execSQL("DELETE FROM shows")
+            }
+
             // 1. Shows must be inserted first to satisfy Foreign Key constraints
             if (backup.shows.isNotEmpty()) {
                 val showEntities = backup.shows.map { s ->

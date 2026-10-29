@@ -14,6 +14,7 @@ import androidx.navigation.navArgument
 import dev.sequel.app.presentation.screens.home.HomeScreen
 import dev.sequel.app.presentation.screens.login.LoginScreen
 import dev.sequel.app.presentation.screens.profile.ProfileScreen
+import dev.sequel.app.presentation.screens.profile.dna.CinephileDnaScreen
 import dev.sequel.app.presentation.screens.search.SearchScreen
 import dev.sequel.app.presentation.screens.showdetail.ShowDetailScreen
 import dev.sequel.app.presentation.screens.seasondetail.SeasonDetailScreen
@@ -141,6 +142,18 @@ fun SequelNavGraph(
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
+                onNavigateToCinephileDna = {
+                    navController.navigate(Screen.CinephileDna.route)
+                },
+                onMediaClick = { showId, mediaType ->
+                    navController.navigate(Screen.ShowDetail.createRoute(showId, mediaType))
+                }
+            )
+        }
+
+        composable(Screen.CinephileDna.route) {
+            CinephileDnaScreen(
+                onBackClick = { navController.popBackStack() },
                 onMediaClick = { showId, mediaType ->
                     navController.navigate(Screen.ShowDetail.createRoute(showId, mediaType))
                 }

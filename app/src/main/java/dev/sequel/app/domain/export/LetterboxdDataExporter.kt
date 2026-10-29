@@ -4,6 +4,8 @@ import dev.sequel.app.data.local.dao.ReviewDao
 import dev.sequel.app.data.local.dao.ShowDao
 import dev.sequel.app.data.local.dao.WatchedMovieDao
 import dev.sequel.app.data.local.dao.WatchlistDao
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.ByteArrayOutputStream
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
@@ -15,6 +17,22 @@ import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Letterboxd Data Exporter.
+ *
+ * Produces a ZIP archive containing standard Letterboxd CSV files:
+ * 1. `watched.csv`: Date,Name,Year,Letterboxd URI
+ * 2. `ratings.csv`: Date,Name,Year,Letterboxd URI,Rating (scaled to 0.5 - 5.0)
+ * 3. `reviews.csv`: Date,Name,Year,Letterboxd URI,Rating,Review,Spoiler
+ * 4. `watchlist.csv`: Date,Name,Year,Letterboxd URI
+ *
+ * Destination Constraints & Lossy Behavior:
+ * - Letterboxd is strictly a film tracking platform. TV shows, seasons, and episodes are unsupported
+ *   by Letterboxd's importer and are omitted from this export.
+ * - Mount Rushmore selections are not supported by Letterboxd and are omitted.
+ * - Sequel's signature 10-point Red Pill rating scale (0.5 - 10.0) is divided by 2.0 to conform
+ *   to Letterboxd's 5-star scale (0.5 - 5.0).
+ */
 @Singleton
 class LetterboxdDataExporter @Inject constructor(
     private val showDao: ShowDao,
@@ -38,6 +56,7 @@ class LetterboxdDataExporter @Inject constructor(
             wWriter.write("Date,Name,Year,Letterboxd URI\n")
             val watchedMovies = watchedMovieDao.getAllWatchedMovies()
             for (m in watchedMovies) {
+                currentCoroutineContext().ensureActive()
                 val show = showDao.getShowById(m.tmdbMovieId, "movie")
                 val year = show?.firstAirDate?.take(4) ?: ""
                 val dateStr = dateFormat.format(m.watchedAt)
@@ -53,6 +72,7 @@ class LetterboxdDataExporter @Inject constructor(
             rWriter.write("Date,Name,Year,Letterboxd URI,Rating\n")
             val movieRatings = reviewDao.getAllReviews().filter { it.mediaType == "movie" && it.rating != null }
             for (r in movieRatings) {
+                currentCoroutineContext().ensureActive()
                 val show = showDao.getShowById(r.mediaId, "movie")
                 val year = show?.firstAirDate?.take(4) ?: ""
                 val dateStr = dateFormat.format(r.updatedAt)
@@ -69,6 +89,7 @@ class LetterboxdDataExporter @Inject constructor(
             revWriter.write("Date,Name,Year,Letterboxd URI,Rating,Review,Spoiler\n")
             val movieReviews = reviewDao.getAllReviews().filter { it.mediaType == "movie" && !it.reviewText.isNullOrBlank() }
             for (rev in movieReviews) {
+                currentCoroutineContext().ensureActive()
                 val show = showDao.getShowById(rev.mediaId, "movie")
                 val year = show?.firstAirDate?.take(4) ?: ""
                 val dateStr = dateFormat.format(rev.updatedAt)
@@ -87,6 +108,7 @@ class LetterboxdDataExporter @Inject constructor(
             wlWriter.write("Date,Name,Year,Letterboxd URI\n")
             val movieWatchlist = watchlistDao.getAllWatchlist().filter { it.mediaType.name.equals("movie", true) }
             for (w in movieWatchlist) {
+                currentCoroutineContext().ensureActive()
                 val show = showDao.getShowById(w.tmdbId, "movie")
                 val year = show?.firstAirDate?.take(4) ?: ""
                 val dateStr = dateFormat.format(w.addedAt)

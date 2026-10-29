@@ -20,6 +20,7 @@ import dev.sequel.app.domain.importer.core.ImportPreview
 import dev.sequel.app.domain.importer.core.ImportReport
 import dev.sequel.app.domain.importer.core.ImportSource
 import dev.sequel.app.domain.importer.detector.SourceDetector
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,8 @@ class MediaImportViewModel @Inject constructor(
     private val importCoordinator: ImportCoordinator,
     private val sourceDetector: SourceDetector
 ) : ViewModel() {
+
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     private val workManager = WorkManager.getInstance(context)
 
@@ -72,7 +75,7 @@ class MediaImportViewModel @Inject constructor(
         pendingUri = uri
         pendingSource = source
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _isPreparing.value = true
             _prepareError.value = null
             _backupRestoreSuccess.value = null
@@ -109,12 +112,10 @@ class MediaImportViewModel @Inject constructor(
                 if (previewResult != null) {
                     _preview.value = previewResult
                 } else {
-                    // Fallback directly to WorkManager import
-                    enqueueWorkManagerImport(uri, source)
+                    _prepareError.value = "Failed to parse import preview from selected file."
                 }
             } catch (e: Exception) {
-                // If preview fails, fallback to standard WorkManager pipeline
-                enqueueWorkManagerImport(uri, source)
+                _prepareError.value = e.message ?: "Failed to process import file"
             } finally {
                 _isPreparing.value = false
             }
@@ -125,7 +126,7 @@ class MediaImportViewModel @Inject constructor(
         val uri = pendingUri ?: return
         val source = pendingSource
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _isPreparing.value = true
             try {
                 val sourceEnum = when (source) {

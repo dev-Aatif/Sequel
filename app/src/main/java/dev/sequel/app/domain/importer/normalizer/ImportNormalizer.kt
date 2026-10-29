@@ -38,7 +38,7 @@ class ImportNormalizer @Inject constructor() {
             }
 
             val validWatchedAt = rec.watchedAt?.let { ts ->
-                if (ts <= 0L || ts > futureThreshold) now else ts
+                if (ts <= 0L || ts > futureThreshold) null else ts
             }
 
             val normalizedRating = rec.rating?.let { raw ->

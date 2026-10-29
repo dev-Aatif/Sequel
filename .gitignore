@@ -115,9 +115,28 @@ desktop.ini
 /Dump.kt
 /install.cmd
 *.py
+/sequel-img/
+/docs/playstore_screenshots/
+
 
 # ── Web Development / Node ──────────────────────────────────
 node_modules/
 .npm/
 dist/
 .cache/
+
+# ── Data Portability, Backups, Checkpoints & Test Fixtures ──
+# Protect developers from accidentally committing personal exports or backups
+*.backup.json
+*.export.zip
+*.export.csv
+*.tmp.json
+*.tmp.csv
+*.tmp.zip
+/import_checkpoints/
+/backups/
+/exports/
+/fixtures/generated/
+/test_exports/
+/personal_exports/
+

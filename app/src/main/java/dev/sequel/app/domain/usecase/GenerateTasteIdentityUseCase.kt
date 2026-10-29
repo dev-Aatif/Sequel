@@ -100,7 +100,9 @@ class GenerateTasteIdentityUseCase @Inject constructor(
                 topAuteur = "Eclectic",
                 topAuteurWatchedCount = 0,
                 totalHoursLogged = 0,
-                controversialTakes = emptyList()
+                controversialTakes = emptyList(),
+                topAuteurTitles = emptyList(),
+                totalTitlesWatched = 0
             )
         }
 
@@ -132,16 +134,19 @@ class GenerateTasteIdentityUseCase @Inject constructor(
 
         // 2. Top Director / Showrunner by watched count
         val directorCounts = mutableMapOf<String, Int>()
+        val directorTitles = mutableMapOf<String, MutableList<String>>()
         for (record in records) {
             val auteur = record.director?.trim() ?: resolveDirector(record.title)
             if (!auteur.isNullOrBlank()) {
                 directorCounts[auteur] = (directorCounts[auteur] ?: 0) + record.watchCount
+                directorTitles.getOrPut(auteur) { mutableListOf() }.add(record.title)
             }
         }
 
         val topDirectorEntry = directorCounts.maxByOrNull { it.value }
         val topAuteur = topDirectorEntry?.key ?: "Eclectic"
         val topAuteurWatchedCount = topDirectorEntry?.value ?: 0
+        val topAuteurTitles = topDirectorEntry?.key?.let { directorTitles[it]?.distinct() } ?: emptyList()
 
         // 3. Controversial Hot Takes
         val controversialTakes = records.mapNotNull { record ->
@@ -175,7 +180,9 @@ class GenerateTasteIdentityUseCase @Inject constructor(
             topAuteur = topAuteur,
             topAuteurWatchedCount = topAuteurWatchedCount,
             totalHoursLogged = totalHoursLogged,
-            controversialTakes = controversialTakes
+            controversialTakes = controversialTakes,
+            topAuteurTitles = topAuteurTitles,
+            totalTitlesWatched = records.size
         )
     }
 
@@ -260,42 +267,190 @@ class GenerateTasteIdentityUseCase @Inject constructor(
         )
 
         private val KNOWN_DIRECTORS: Map<String, String> = mapOf(
+            // Denis Villeneuve
             "blade runner 2049" to "Denis Villeneuve",
             "dune" to "Denis Villeneuve",
             "dune: part two" to "Denis Villeneuve",
             "arrival" to "Denis Villeneuve",
             "sicario" to "Denis Villeneuve",
             "prisoners" to "Denis Villeneuve",
+            "enemy" to "Denis Villeneuve",
+            "incendies" to "Denis Villeneuve",
+
+            // Christopher Nolan
             "oppenheimer" to "Christopher Nolan",
             "interstellar" to "Christopher Nolan",
             "inception" to "Christopher Nolan",
             "the dark knight" to "Christopher Nolan",
+            "the dark knight rises" to "Christopher Nolan",
+            "batman begins" to "Christopher Nolan",
+            "the prestige" to "Christopher Nolan",
             "tenet" to "Christopher Nolan",
             "memento" to "Christopher Nolan",
             "dunkirk" to "Christopher Nolan",
+            "insomnia" to "Christopher Nolan",
+
+            // David Fincher
             "fight club" to "David Fincher",
             "se7en" to "David Fincher",
             "the social network" to "David Fincher",
             "zodiac" to "David Fincher",
             "gone girl" to "David Fincher",
+            "the curious case of benjamin button" to "David Fincher",
+            "panic room" to "David Fincher",
+            "mindhunter" to "David Fincher",
+            "mank" to "David Fincher",
+
+            // Quentin Tarantino
             "pulp fiction" to "Quentin Tarantino",
             "inglourious basterds" to "Quentin Tarantino",
             "django unchained" to "Quentin Tarantino",
             "kill bill: vol. 1" to "Quentin Tarantino",
+            "kill bill: vol. 2" to "Quentin Tarantino",
             "once upon a time in hollywood" to "Quentin Tarantino",
+            "reservoir dogs" to "Quentin Tarantino",
+            "the hateful eight" to "Quentin Tarantino",
+            "jackie brown" to "Quentin Tarantino",
+
+            // Martin Scorsese
             "goodfellas" to "Martin Scorsese",
             "taxi driver" to "Martin Scorsese",
             "the wolf of wall street" to "Martin Scorsese",
             "the departed" to "Martin Scorsese",
+            "raging bull" to "Martin Scorsese",
+            "casino" to "Martin Scorsese",
+            "shutter island" to "Martin Scorsese",
+            "the irishman" to "Martin Scorsese",
+            "killers of the flower moon" to "Martin Scorsese",
+
+            // Stanley Kubrick
             "2001: a space odyssey" to "Stanley Kubrick",
             "the shining" to "Stanley Kubrick",
             "a clockwork orange" to "Stanley Kubrick",
+            "full metal jacket" to "Stanley Kubrick",
+            "eyes wide shut" to "Stanley Kubrick",
+            "dr. strangelove" to "Stanley Kubrick",
+            "barry lyndon" to "Stanley Kubrick",
+
+            // Ridley Scott
             "alien" to "Ridley Scott",
             "blade runner" to "Ridley Scott",
             "gladiator" to "Ridley Scott",
+            "the martian" to "Ridley Scott",
+            "prometheus" to "Ridley Scott",
+            "black hawk down" to "Ridley Scott",
+
+            // Steven Spielberg
+            "jurassic park" to "Steven Spielberg",
+            "schindler's list" to "Steven Spielberg",
+            "saving private ryan" to "Steven Spielberg",
+            "raiders of the lost ark" to "Steven Spielberg",
+            "catch me if you can" to "Steven Spielberg",
+            "jaws" to "Steven Spielberg",
+            "minority report" to "Steven Spielberg",
+
+            // James Cameron
+            "titanic" to "James Cameron",
+            "avatar" to "James Cameron",
+            "avatar: the way of water" to "James Cameron",
+            "the terminator" to "James Cameron",
+            "terminator 2: judgment day" to "James Cameron",
+            "aliens" to "James Cameron",
+
+            // Francis Ford Coppola
+            "the godfather" to "Francis Ford Coppola",
+            "the godfather part ii" to "Francis Ford Coppola",
+            "apocalypse now" to "Francis Ford Coppola",
+            "bram stoker's dracula" to "Francis Ford Coppola",
+
+            // Peter Jackson
+            "the lord of the rings: the fellowship of the ring" to "Peter Jackson",
+            "the lord of the rings: the two towers" to "Peter Jackson",
+            "the lord of the rings: the return of the king" to "Peter Jackson",
+
+            // Wes Anderson
+            "the grand budapest hotel" to "Wes Anderson",
+            "moonrise kingdom" to "Wes Anderson",
+            "fantastic mr. fox" to "Wes Anderson",
+            "the royal tenenbaums" to "Wes Anderson",
+            "isle of dogs" to "Wes Anderson",
+
+            // Guillermo del Toro
+            "pan's labyrinth" to "Guillermo del Toro",
+            "the shape of water" to "Guillermo del Toro",
+            "pacific rim" to "Guillermo del Toro",
+            "hellboy" to "Guillermo del Toro",
+
+            // Jordan Peele
+            "get out" to "Jordan Peele",
+            "us" to "Jordan Peele",
+            "nope" to "Jordan Peele",
+
+            // Park Chan-wook
+            "oldboy" to "Park Chan-wook",
+            "the handmaiden" to "Park Chan-wook",
+            "decision to leave" to "Park Chan-wook",
+
+            // Paul Thomas Anderson
+            "there will be blood" to "Paul Thomas Anderson",
+            "boogie nights" to "Paul Thomas Anderson",
+            "magnolia" to "Paul Thomas Anderson",
+            "the master" to "Paul Thomas Anderson",
+            "phantom thread" to "Paul Thomas Anderson",
+
+            // Coen Brothers
+            "no country for old men" to "Joel and Ethan Coen",
+            "fargo" to "Joel and Ethan Coen",
+            "the big lebowski" to "Joel and Ethan Coen",
+            "true grit" to "Joel and Ethan Coen",
+
+            // Damien Chazelle
+            "whiplash" to "Damien Chazelle",
+            "la la land" to "Damien Chazelle",
+            "babylon" to "Damien Chazelle",
+            "first man" to "Damien Chazelle",
+
+            // Alfonso Cuarón
+            "children of men" to "Alfonso Cuarón",
+            "gravity" to "Alfonso Cuarón",
+            "roma" to "Alfonso Cuarón",
+
+            // Akira Kurosawa
+            "seven samurai" to "Akira Kurosawa",
+            "rashomon" to "Akira Kurosawa",
+            "ran" to "Akira Kurosawa",
+
+            // Edgar Wright
+            "baby driver" to "Edgar Wright",
+            "shaun of the dead" to "Edgar Wright",
+            "hot fuzz" to "Edgar Wright",
+            "scott pilgrim vs. the world" to "Edgar Wright",
+
+            // Greta Gerwig
+            "lady bird" to "Greta Gerwig",
+            "little women" to "Greta Gerwig",
+            "barbie" to "Greta Gerwig",
+
+            // David Lynch
             "twin peaks" to "David Lynch",
             "mulholland drive" to "David Lynch",
             "blue velvet" to "David Lynch",
+            "eraserhead" to "David Lynch",
+
+            // Hayao Miyazaki
+            "spirited away" to "Hayao Miyazaki",
+            "princess mononoke" to "Hayao Miyazaki",
+            "my neighbor totoro" to "Hayao Miyazaki",
+            "howl's moving castle" to "Hayao Miyazaki",
+            "the boy and the heron" to "Hayao Miyazaki",
+
+            // Bong Joon-ho
+            "parasite" to "Bong Joon-ho",
+            "memories of murder" to "Bong Joon-ho",
+            "snowpiercer" to "Bong Joon-ho",
+            "the host" to "Bong Joon-ho",
+
+            // Showrunners & Prestige TV Visionaries
             "breaking bad" to "Vince Gilligan",
             "better call saul" to "Vince Gilligan",
             "succession" to "Jesse Armstrong",
@@ -303,10 +458,15 @@ class GenerateTasteIdentityUseCase @Inject constructor(
             "the sopranos" to "David Chase",
             "the wire" to "David Simon",
             "mad men" to "Matthew Weiner",
-            "parasite" to "Bong Joon-ho",
-            "memories of murder" to "Bong Joon-ho",
-            "spirited away" to "Hayao Miyazaki",
-            "princess mononoke" to "Hayao Miyazaki"
+            "westworld" to "Jonathan Nolan",
+            "fallout" to "Jonathan Nolan",
+            "mr. robot" to "Sam Esmail",
+            "chernobyl" to "Craig Mazin",
+            "the last of us" to "Craig Mazin",
+            "the leftovers" to "Damon Lindelof",
+            "watchmen" to "Damon Lindelof",
+            "black mirror" to "Charlie Brooker",
+            "stranger things" to "The Duffer Brothers"
         )
     }
 }

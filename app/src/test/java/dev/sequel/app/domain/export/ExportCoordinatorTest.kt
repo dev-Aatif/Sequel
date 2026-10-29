@@ -67,7 +67,8 @@ class ExportCoordinatorTest {
         exportCoordinator = ExportCoordinator(
             nativeExporter = nativeExporter,
             letterboxdExporter = letterboxdExporter,
-            traktExporter = traktExporter
+            traktExporter = traktExporter,
+            backupService = backupService
         )
     }
 
@@ -140,5 +141,27 @@ class ExportCoordinatorTest {
         assertTrue(csvStr.startsWith("Title,Year,Season,Episode,Type,WatchedAt"))
         assertTrue(csvStr.contains("Dune: Part Two"))
         assertTrue(csvStr.contains("Severance"))
+
+        // 4. Export Spreadsheet Compatible ZIP
+        val sheetPkg = exportCoordinator.export(ExportDestination.STANDARD_CSV_ZIP)
+        assertEquals(ExportDestination.STANDARD_CSV_ZIP, sheetPkg.destination)
+        assertTrue(sheetPkg.suggestedFileName.endsWith(".zip"))
+        assertTrue(ZipArchiveExtractor.isZipStream(ByteArrayInputStream(sheetPkg.bytes)))
+
+        val entryNames = mutableListOf<String>()
+        ZipArchiveExtractor.forEachEntry(ByteArrayInputStream(sheetPkg.bytes)) { name, data ->
+            entryNames.add(name)
+            val content = String(data, StandardCharsets.UTF_8)
+            when (name) {
+                "sequel_watched_movies.csv" -> assertTrue(content.contains("Dune: Part Two"))
+                "sequel_watched_episodes.csv" -> assertTrue(content.contains("20,1,1,201"))
+                "sequel_watchlist.csv" -> assertTrue(content.contains("Gladiator II"))
+                "sequel_reviews_and_ratings.csv" -> assertTrue(content.contains("10,movie,"))
+            }
+        }
+        assertTrue(entryNames.contains("sequel_watched_movies.csv"))
+        assertTrue(entryNames.contains("sequel_watched_episodes.csv"))
+        assertTrue(entryNames.contains("sequel_watchlist.csv"))
+        assertTrue(entryNames.contains("sequel_reviews_and_ratings.csv"))
     }
 }
